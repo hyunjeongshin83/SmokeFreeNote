@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>금연노트 · SmokeFree Note</title>
+<meta name="theme-color" content="#12BDB0">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+:root{--g0:#EEFBF8;--g1:#D8F5EF;--g2:#AEEAE2;--g4:#12BDB0;--g5:#0DA298;--g6:#0A7168;--g7:#06413E;
+  --ink:#122423;--d2:#324744;--d3:#5A716D;--d4:#8FA6A2;--line:#E6F1EE;--coral:#F6796B;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard','Inter',-apple-system,sans-serif;color:var(--d2);letter-spacing:-.01em;
+  background:var(--g7);display:flex;justify-content:center;min-height:100vh;}
+.wrap{width:100%;max-width:430px;min-height:100vh;
+  background:linear-gradient(180deg,#EEFBF8 0%,#FAFDFC 30%,#EEFBF8 100%);
+  box-shadow:0 0 60px rgba(0,0,0,.28);padding:22px 16px 110px;}
+.eyebrow{display:flex;align-items:center;gap:8px;margin:0 4px 12px;}
+.eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--g4);box-shadow:0 0 0 4px rgba(18,189,176,.14);}
+.eyebrow span{font-size:14px;font-weight:800;color:var(--g6);letter-spacing:.4px;}
+.eyebrow .cute{font-family:'Gaegu',cursive;font-weight:700;font-size:16px;color:var(--g5);margin-left:auto;}
+.card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:20px 18px 18px;box-shadow:0 12px 36px rgba(6,65,62,.08);margin-bottom:13px;}
+.title{font-family:'Gaegu','Pretendard',cursive;font-size:27px;font-weight:700;color:var(--ink);}
+.sub{font-size:15px;color:var(--d3);margin-top:4px;line-height:1.5;}
+.sect{font-family:'Gaegu',cursive;font-size:19px;font-weight:700;color:var(--g6);margin:4px 2px 9px;}
+label{display:block;font-size:15px;font-weight:800;color:var(--d3);margin-bottom:5px;}
+input,textarea,select{width:100%;font-family:inherit;font-size:16px;padding:12px 13px;border-radius:12px;border:1.5px solid var(--line);outline:none;background:#fff;color:var(--ink);}
+input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 3px rgba(18,189,176,.15);}
+.fld{margin-bottom:11px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.btn{width:100%;padding:14px;border:none;border-radius:13px;font-family:inherit;font-weight:800;font-size:16px;color:#fff;background:linear-gradient(135deg,var(--g4),var(--g6));cursor:pointer;box-shadow:0 6px 16px rgba(18,189,176,.3);}
+.btn.ghost{background:#fff;color:var(--g6);border:1.5px solid var(--line);box-shadow:none;}
+.btn.sos{background:linear-gradient(135deg,#F89B8F,var(--coral));box-shadow:0 6px 16px rgba(246,121,107,.3);}
+
+/* 홈 — 금연 일수 */
+.hero{text-align:center;padding:26px 18px 22px;background:linear-gradient(160deg,var(--g4),var(--g6));color:#fff;border:none;}
+.hero .lbl{font-size:15px;font-weight:700;opacity:.9;}
+.hero .days{font-size:64px;font-weight:900;line-height:1.05;margin:6px 0 2px;letter-spacing:-.03em;}
+.hero .days small{font-size:24px;font-weight:800;margin-left:4px;}
+.hero .hms{font-size:15px;opacity:.9;font-variant-numeric:tabular-nums;}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:13px;}
+.stat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 8px;text-align:center;}
+.stat b{display:block;font-size:19px;color:var(--ink);font-weight:900;font-variant-numeric:tabular-nums;word-break:keep-all;}
+.stat span{font-size:13px;color:var(--d3);font-weight:700;}
+.next{display:flex;gap:12px;align-items:center;}
+.next .ic{font-size:30px;}
+.bar{height:10px;border-radius:10px;background:var(--g1);overflow:hidden;margin-top:9px;}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--g4),var(--g6));border-radius:10px;}
+
+/* 건강 회복 타임라인 */
+.tl{list-style:none;position:relative;padding-left:26px;}
+.tl:before{content:"";position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:var(--line);}
+.tl li{position:relative;margin-bottom:16px;}
+.tl li:before{content:"";position:absolute;left:-23px;top:4px;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--d4);}
+.tl li.done:before{background:var(--g4);border-color:var(--g4);}
+.tl .t{font-size:13px;font-weight:800;color:var(--g6);}
+.tl li:not(.done) .t{color:var(--d4);}
+.tl .d{font-size:15.5px;color:var(--ink);line-height:1.45;margin-top:2px;}
+
+/* 흡연 욕구 기록 */
+.chips{display:flex;flex-wrap:wrap;gap:7px;}
+.chip{font-family:inherit;font-size:14.5px;font-weight:700;padding:9px 13px;border-radius:20px;cursor:pointer;border:1.5px solid var(--line);background:#fff;color:var(--d3);}
+.chip.on{background:var(--g6);color:#fff;border-color:var(--g6);}
+.log{list-style:none;}
+.log li{display:flex;gap:10px;align-items:flex-start;padding:12px 2px;border-bottom:1px solid var(--line);}
+.log li:last-child{border-bottom:none;}
+.log .lv{min-width:38px;text-align:center;font-weight:900;font-size:13px;border-radius:10px;padding:4px 0;background:var(--g0);color:var(--g6);}
+.log .lv.hi{background:#FDEDE9;color:var(--coral);}
+.log .body{flex:1;font-size:15px;color:var(--ink);line-height:1.4;}
+.log .meta{font-size:12.5px;color:var(--d4);margin-top:2px;}
+.log .del{color:var(--d4);cursor:pointer;font-weight:800;background:none;border:none;font-size:18px;}
+.empty{text-align:center;padding:24px;color:var(--d3);font-size:15px;background:var(--g0);border-radius:14px;border:1.5px dashed var(--line);}
+
+/* 도움받기 */
+.help a{display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--line);text-decoration:none;color:var(--ink);}
+.help a:last-child{border-bottom:none;}
+.help .ic{font-size:26px;width:36px;text-align:center;}
+.help b{display:block;font-size:16px;}
+.help span{font-size:13.5px;color:var(--d3);}
+.help .go{margin-left:auto;color:var(--d4);font-weight:900;}
+.disc{font-size:14px;color:var(--d4);text-align:center;line-height:1.5;margin-top:8px;}
+
+/* 하단 탭 */
+.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:grid;grid-template-columns:repeat(4,1fr);
+  background:#fff;border-top:1px solid var(--line);padding:6px 6px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -6px 20px rgba(6,65,62,.06);}
+.tabs button{font-family:inherit;background:none;border:none;cursor:pointer;padding:6px 0;color:var(--d4);font-weight:800;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:2px;}
+.tabs button .i{font-size:22px;filter:grayscale(1);opacity:.6;}
+.tabs button.on{color:var(--g6);}
+.tabs button.on .i{filter:none;opacity:1;}
+.view{display:none;}
+.view.on{display:block;}
+
+/* 도움 모달 (흡연 욕구 5분 버티기) */
+.modal{position:fixed;inset:0;background:rgba(6,65,62,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:10;}
+.modal.on{display:flex;}
+.modal .card{max-width:398px;width:100%;text-align:center;}
+.timer{font-size:52px;font-weight:900;color:var(--g6);font-variant-numeric:tabular-nums;margin:10px 0;}
+.tip{font-size:16px;color:var(--ink);line-height:1.5;min-height:48px;}
+
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--g7);color:#fff;padding:11px 18px;border-radius:11px;font-size:14px;opacity:0;transition:.3s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:20;}
+.toast.show{opacity:1;}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; scroll-behavior:auto !important; }
+}
+.sub,.disc,.empty,label,.tl .d,.tip,.help span{word-break:keep-all;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow"><span class="dot"></span><span>금연노트 · SmokeFree Note</span><span class="cute">오늘도 한 걸음</span></div>
+
+  <!-- ① 설정 전: 금연 시작하기 -->
+  <section class="view" id="v-setup">
+    <div class="card">
+      <div class="title">금연을 시작해요</div>
+      <p class="sub">시작일과 흡연 습관을 알려주시면 금연 일수·아낀 돈·건강 회복을 계산해 드려요. 모든 정보는 이 기기에만 저장돼요.</p>
+      <div style="margin-top:16px">
+        <div class="fld"><label for="s_start">금연 시작일·시각</label><input type="datetime-local" id="s_start"></div>
+        <div class="row2">
+          <div class="fld"><label for="s_perday">하루 흡연량 (개비)</label><input type="number" id="s_perday" min="1" inputmode="numeric" value="15"></div>
+          <div class="fld"><label for="s_price">한 갑 가격 (원)</label><input type="number" id="s_price" min="0" inputmode="numeric" value="4500"></div>
+        </div>
+        <div class="fld"><label for="s_reason">나의 금연 이유 <span style="font-weight:500">(선택)</span></label><input id="s_reason" placeholder="예: 손주와 오래 산책하고 싶어서"></div>
+        <button class="btn" id="s_save">금연 시작</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ② 홈 -->
+  <section class="view" id="v-home">
+    <div class="card hero">
+      <div class="lbl">담배 없이 지낸 지</div>
+      <div class="days"><span id="h_days">0</span><small>일째</small></div>
+      <div class="hms" id="h_hms">0시간 0분 0초</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="h_cig">0</b><span>안 피운 개비</span></div>
+      <div class="stat"><b id="h_money">0원</b><span>아낀 돈</span></div>
+      <div class="stat"><b id="h_life">0시간</b><span>되찾은 시간*</span></div>
+    </div>
+    <div class="card">
+      <div class="sect">다음 건강 회복</div>
+      <div class="next"><div class="ic">🫁</div><div style="flex:1"><div class="t" id="h_next_t" style="font-weight:800;color:var(--g6);font-size:13px"></div><div id="h_next_d" style="font-size:15.5px;color:var(--ink);line-height:1.4"></div></div></div>
+      <div class="bar"><i id="h_bar" style="width:0%"></i></div>
+    </div>
+    <div class="card" id="h_reason_card" style="display:none">
+      <div class="sect">나의 금연 이유</div>
+      <div id="h_reason" style="font-size:17px;color:var(--ink);font-weight:700;line-height:1.45"></div>
+    </div>
+    <button class="btn sos" id="h_sos">🚨 지금 담배가 당겨요</button>
+    <p class="disc">* 되찾은 시간은 개비당 약 11분으로 계산한 참고 수치예요.</p>
+  </section>
+
+  <!-- ③ 기록 -->
+  <section class="view" id="v-log">
+    <div class="card">
+      <div class="title">흡연 욕구 기록</div>
+      <p class="sub">언제, 왜 담배가 당겼는지 적어 두면 나만의 위험 상황을 알 수 있어요.</p>
+      <div style="margin-top:14px">
+        <div class="fld"><label>얼마나 당겼나요?</label><div class="chips" id="l_lv"></div></div>
+        <div class="fld"><label>상황</label><div class="chips" id="l_trig"></div></div>
+        <div class="fld"><label>어떻게 넘겼나요?</label><div class="chips" id="l_cope"></div></div>
+        <div class="fld"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="l_slip" style="width:auto"> 결국 피웠어요 (괜찮아요, 다시 시작하면 돼요)</label></div>
+        <button class="btn" id="l_save">기록하기</button>
+      </div>
+    </div>
+    <div class="sect">최근 기록</div>
+    <div class="card" style="padding:6px 16px"><ul class="log" id="l_list"></ul></div>
+  </section>
+
+  <!-- ④ 건강 -->
+  <section class="view" id="v-health">
+    <div class="card">
+      <div class="title">몸이 회복되는 과정</div>
+      <p class="sub">금연 후 시간이 지나며 몸에 일어나는 변화예요. 지난 단계는 초록색으로 표시돼요.</p>
+      <ul class="tl" id="t_list" style="margin-top:18px"></ul>
+      <p class="disc">WHO·미국 CDC 등에서 널리 안내하는 일반적인 경과이며, 개인마다 다를 수 있어요.</p>
+    </div>
+  </section>
+
+  <!-- ⑤ 도움 -->
+  <section class="view" id="v-help">
+    <div class="card help">
+      <div class="title" style="margin-bottom:6px">금연 도움받기</div>
+      <a href="tel:1544-9030"><span class="ic">📞</span><div><b>금연상담전화 1544-9030</b><span>무료 전화 상담 · 금연 코칭</span></div><span class="go">›</span></a>
+      <a href="https://www.seoulhp.com/seoul/main/contents.do?menuNo=200255" target="_blank" rel="noopener"><span class="ic">🏙️</span><div><b>서울시 금연 지원 안내</b><span>서울시 건강증진 누리집</span></div><span class="go">›</span></a>
+      <a href="https://nosmk.khepi.or.kr" target="_blank" rel="noopener"><span class="ic">🏥</span><div><b>보건소 금연클리닉</b><span>가까운 보건소에서 상담·니코틴 보조제</span></div><span class="go">›</span></a>
+    </div>
+    <div class="card">
+      <div class="sect">내 설정</div>
+      <div class="sub" id="p_info"></div>
+      <div class="row2" style="margin-top:14px">
+        <button class="btn ghost" id="p_edit">설정 바꾸기</button>
+        <button class="btn ghost" id="p_reset" style="color:var(--coral)">다시 시작</button>
+      </div>
+    </div>
+    <p class="disc">금연노트는 금연을 돕는 기록장이며, 진료를 대신하지 않아요.<br>금단 증상이 심하면 의사·약사와 상담하세요.</p>
+  </section>
+</div>
+
+<nav class="tabs" id="tabs">
+  <button data-v="home"><span class="i">🏠</span>오늘</button>
+  <button data-v="log"><span class="i">📝</span>기록</button>
+  <button data-v="health"><span class="i">💚</span>건강</button>
+  <button data-v="help"><span class="i">🤝</span>도움</button>
+</nav>
+
+<div class="modal" id="sos">
+  <div class="card">
+    <div class="title">5분만 버텨봐요</div>
+    <p class="sub">담배 생각은 보통 몇 분이면 지나가요.</p>
+    <div class="timer" id="sos_t">5:00</div>
+    <div class="tip" id="sos_tip"></div>
+    <div class="row2" style="margin-top:16px">
+      <button class="btn ghost" id="sos_close">닫기</button>
+      <button class="btn" id="sos_done">넘겼어요 👍</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  var KEY = "smokefree.v1";
+  var PACK = 20, MIN_PER_CIG = 11;
+  var MILESTONES = [
+    [20*60, "20분", "심장 박동과 혈압이 안정되기 시작해요."],
+    [12*3600, "12시간", "혈액 속 일산화탄소가 정상 수준으로 떨어져요."],
+    [48*3600, "2일", "냄새와 맛을 느끼는 감각이 돌아오기 시작해요."],
+    [14*86400, "2주", "혈액순환이 좋아지고 폐 기능이 나아지기 시작해요."],
+    [90*86400, "3개월", "폐 기능이 눈에 띄게 좋아져요."],
+    [270*86400, "9개월", "기침과 숨참이 줄어들어요."],
+    [365*86400, "1년", "관상동맥질환 위험이 흡연자의 절반으로 줄어요."],
+    [5*365*86400, "5년", "뇌졸중 위험이 비흡연자 수준에 가까워져요."],
+    [10*365*86400, "10년", "폐암 사망 위험이 흡연자의 약 절반으로 줄어요."],
+    [15*365*86400, "15년", "관상동맥질환 위험이 비흡연자와 비슷해져요."]
+  ];
+  var LV = ["약함","보통","강함"];
+  var TRIG = ["식사 후","커피·술","스트레스","지루함","아침 기상","다른 사람 흡연"];
+  var COPE = ["물 마시기","심호흡","산책","양치질","껌·사탕","전화 통화"];
+  var TIPS = ["찬물 한 잔을 천천히 마셔보세요.","코로 4초 들이쉬고, 7초 참고, 8초 내쉬어요.","자리에서 일어나 잠깐 걸어보세요.","양치질을 하면 입안이 개운해져요.","나의 금연 이유를 다시 떠올려봐요.","가족이나 친구에게 전화해 보세요."];
+
+  function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || {}; }catch(e){ return {}; } }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(e){} }
+  var st = load(); st.logs = st.logs || [];
+
+  function $(id){ return document.getElementById(id); }
+  function toast(m){ var t=$("toast"); t.textContent=m; t.classList.add("show"); setTimeout(function(){ t.classList.remove("show"); },1800); }
+  function won(n){ return Math.floor(n).toLocaleString("ko-KR") + "원"; }
+  function localInput(d){ var z=new Date(d.getTime()-d.getTimezoneOffset()*60000); return z.toISOString().slice(0,16); }
+
+  // 화면 전환
+  function show(v){
+    document.querySelectorAll(".view").forEach(function(s){ s.classList.toggle("on", s.id==="v-"+v); });
+    document.querySelectorAll("#tabs button").forEach(function(b){ b.classList.toggle("on", b.dataset.v===v); });
+    $("tabs").style.display = v==="setup" ? "none" : "";
+    if(v==="health") renderTimeline();
+    if(v==="log") renderLogs();
+    if(v==="help") renderProfile();
+    window.scrollTo(0,0);
+  }
+  document.querySelectorAll("#tabs button").forEach(function(b){ b.onclick=function(){ show(b.dataset.v); }; });
+
+  // 설정
+  function openSetup(){
+    $("s_start").value = localInput(st.start ? new Date(st.start) : new Date());
+    if(st.perDay) $("s_perday").value = st.perDay;
+    if(st.price != null) $("s_price").value = st.price;
+    $("s_reason").value = st.reason || "";
+    show("setup");
+  }
+  $("s_save").onclick = function(){
+    var s = new Date($("s_start").value);
+    if(isNaN(s)) return toast("시작일을 입력해 주세요");
+    st.start = s.getTime();
+    st.perDay = Math.max(1, +$("s_perday").value || 1);
+    st.price = Math.max(0, +$("s_price").value || 0);
+    st.reason = $("s_reason").value.trim();
+    save(); show("home"); tick(); toast("응원할게요! 💪");
+  };
+
+  // 홈
+  function tick(){
+    if(!st.start) return;
+    var sec = Math.max(0, (Date.now() - st.start)/1000);
+    var d = Math.floor(sec/86400), h = Math.floor(sec%86400/3600), m = Math.floor(sec%3600/60), s = Math.floor(sec%60);
+    $("h_days").textContent = d;
+    $("h_hms").textContent = h+"시간 "+m+"분 "+s+"초";
+    var cigs = sec/86400*st.perDay;
+    $("h_cig").textContent = Math.floor(cigs).toLocaleString("ko-KR");
+    $("h_money").textContent = won(cigs/PACK*st.price);
+    var lifeMin = cigs*MIN_PER_CIG;
+    $("h_life").textContent = lifeMin < 1440 ? Math.floor(lifeMin/60)+"시간" : Math.floor(lifeMin/1440)+"일";
+    var prev = 0, nx = null;
+    for(var i=0;i<MILESTONES.length;i++){ if(sec < MILESTONES[i][0]){ nx = MILESTONES[i]; break; } prev = MILESTONES[i][0]; }
+    if(nx){
+      $("h_next_t").textContent = nx[1]+" 후";
+      $("h_next_d").textContent = nx[2];
+      $("h_bar").style.width = Math.min(100,(sec-prev)/(nx[0]-prev)*100).toFixed(1)+"%";
+    }else{
+      $("h_next_t").textContent = "모든 단계 달성";
+      $("h_next_d").textContent = "15년 넘게 금연 중이에요. 정말 대단해요!";
+      $("h_bar").style.width = "100%";
+    }
+    $("h_reason_card").style.display = st.reason ? "" : "none";
+    $("h_reason").textContent = st.reason ? "“"+st.reason+"”" : "";
+  }
+  setInterval(tick, 1000);
+
+  // 건강 타임라인
+  function renderTimeline(){
+    var sec = st.start ? (Date.now()-st.start)/1000 : 0;
+    $("t_list").innerHTML = MILESTONES.map(function(m){
+      return '<li class="'+(sec>=m[0]?"done":"")+'"><div class="t">'+m[1]+'</div><div class="d">'+m[2]+'</div></li>';
+    }).join("");
+  }
+
+  // 욕구 기록
+  var pick = {lv:null, trig:[], cope:[]};
+  function chips(el, list, multi, key){
+    $(el).innerHTML = list.map(function(x){ return '<button type="button" class="chip">'+x+'</button>'; }).join("");
+    $(el).querySelectorAll(".chip").forEach(function(b, i){
+      b.onclick = function(){
+        if(multi){
+          var a = pick[key], k = a.indexOf(list[i]);
+          if(k<0) a.push(list[i]); else a.splice(k,1);
+          b.classList.toggle("on", k<0);
+        }else{
+          pick[key] = list[i];
+          $(el).querySelectorAll(".chip").forEach(function(c,j){ c.classList.toggle("on", j===i); });
+        }
+      };
+    });
+  }
+  function resetForm(){ pick={lv:null,trig:[],cope:[]}; chips("l_lv",LV,false,"lv"); chips("l_trig",TRIG,true,"trig"); chips("l_cope",COPE,true,"cope"); $("l_slip").checked=false; }
+  $("l_save").onclick = function(){
+    if(!pick.lv) return toast("얼마나 당겼는지 골라 주세요");
+    st.logs.unshift({t:Date.now(), lv:pick.lv, trig:pick.trig, cope:pick.cope, slip:$("l_slip").checked});
+    save(); resetForm(); renderLogs(); toast("기록했어요");
+  };
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function renderLogs(){
+    if(!st.logs.length){ $("l_list").innerHTML = '<li style="border:none"><div class="empty" style="width:100%">아직 기록이 없어요</div></li>'; return; }
+    $("l_list").innerHTML = st.logs.slice(0,50).map(function(r,i){
+      var d = new Date(r.t);
+      var body = (r.trig.length? r.trig.join(", ") : "상황 미입력") + (r.cope.length? " → "+r.cope.join(", ") : "") + (r.slip? " · 피움" : "");
+      return '<li><span class="lv'+(r.lv==="강함"?" hi":"")+'">'+esc(r.lv)+'</span><div class="body">'+esc(body)+'<div class="meta">'+(d.getMonth()+1)+'/'+d.getDate()+' '+d.toTimeString().slice(0,5)+'</div></div><button class="del" data-i="'+i+'" aria-label="삭제">×</button></li>';
+    }).join("");
+    $("l_list").querySelectorAll(".del").forEach(function(b){ b.onclick=function(){ st.logs.splice(+b.dataset.i,1); save(); renderLogs(); }; });
+  }
+
+  // 흡연 욕구 SOS
+  var sosTimer = null;
+  $("h_sos").onclick = function(){
+    var left = 300, ti = 0;
+    $("sos").classList.add("on");
+    function step(){
+      $("sos_t").textContent = Math.floor(left/60)+":"+("0"+left%60).slice(-2);
+      if(left%30===0) $("sos_tip").textContent = TIPS[ti++ % TIPS.length];
+      if(left<=0){ clearInterval(sosTimer); $("sos_tip").textContent = "5분을 버텼어요! 잘하셨어요 🎉"; }
+      left--;
+    }
+    clearInterval(sosTimer); step(); sosTimer = setInterval(step, 1000);
+  };
+  function closeSos(){ clearInterval(sosTimer); $("sos").classList.remove("on"); }
+  $("sos_close").onclick = closeSos;
+  $("sos_done").onclick = function(){ closeSos(); st.logs.unshift({t:Date.now(), lv:"보통", trig:[], cope:["5분 버티기"], slip:false}); save(); toast("멋져요! 기록에 남겼어요"); };
+
+  // 내 설정
+  function renderProfile(){
+    if(!st.start){ $("p_info").textContent = "아직 설정하지 않았어요."; return; }
+    $("p_info").innerHTML = "시작: "+esc(new Date(st.start).toLocaleString("ko-KR"))+"<br>하루 "+st.perDay+"개비 · 한 갑 "+won(st.price);
+  }
+  $("p_edit").onclick = openSetup;
+  $("p_reset").onclick = function(){
+    if(!confirm("금연 시작일을 지금으로 바꿀까요? 기록은 그대로 남아요.")) return;
+    st.start = Date.now(); save(); show("home"); tick(); toast("다시 시작해요. 할 수 있어요!");
+  };
+
+  resetForm();
+  if(st.start){ show("home"); tick(); } else openSetup();
+
+  if("serviceWorker" in navigator){ try{ navigator.serviceWorker.register("sw.js").catch(function(){}); }catch(e){} }
+})();
+</script>
+</body>
+</html>
