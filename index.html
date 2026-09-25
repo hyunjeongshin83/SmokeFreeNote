@@ -318,6 +318,8 @@ html.big body{zoom:1.18;}
         <li><span class="st no">아직</span><div>스마트워치 흡연 동작 감지<small>연구용(StopWatch · Sense2Quit)은 있지만 시계 앱을 따로 만들어야 해요. 배터리 문제도 남아 있어요.</small></div></li>
         <li><span class="st no">없음</span><div>삼성 헬스 · 애플 건강의 흡연 기록<small>두 플랫폼 모두 흡연·니코틴 항목이 없어요.</small></div></li>
         <li><span class="st ok">지금</span><div>홈 화면 바로가기<small>앱을 설치하면 아이콘을 길게 눌러 「당겨요」·「기록」으로 바로 들어와요. 기록이 빠를수록 잘 남아요.</small></div></li>
+        <li id="d_health_row" style="display:none"><span class="st ok">앱</span><div>걸음 · 심박 · 수면 (Health Connect)<small>안드로이드 앱에서는 폰의 건강 데이터를 이 기기 안에서만 읽어 갈망이 많은 시간대와 견줘요. 서버로 보내지 않아요.</small>
+          <button class="btn ghost" id="d_health" style="margin-top:8px">건강 데이터 읽기</button><div class="sub" id="d_health_out"></div></div></li>
       </ul>
     </div>
     <div class="card">
@@ -596,7 +598,9 @@ html.big body{zoom:1.18;}
     }
     rank("st_trig", trig, "아직 상황 기록이 없어요"); rank("st_mood", mood, "기분 기록은 새 기록부터 쌓여요");
     var co = st.measures.filter(function(m){ return m.kind==="co"; }), pf = st.measures.filter(function(m){ return m.kind==="puffs"; });
-    $("st_meas").innerHTML = (co.length ? '<li><span class="n">CO</span><span>'+co[0].v+' ppm <small style="color:var(--d3)">· '+fmtD(co[0].t)+(co.length>1?' (전: '+co[1].v+')':'')+'</small></span></li>' : '')
+    var he = st.measures.filter(function(m){ return m.kind==="health"; });
+    $("st_meas").innerHTML = (he.length ? '<li><span class="n">폰</span><span>걸음 '+he[0].v.steps+' · 심박 '+(he[0].v.hrAvg==null?'—':he[0].v.hrAvg)+' · 수면 '+Math.round(he[0].v.sleepMin/60*10)/10+'시간 <small style="color:var(--d3)">· '+fmtD(he[0].t)+'</small></span></li>' : '')
+      + (co.length ? '<li><span class="n">CO</span><span>'+co[0].v+' ppm <small style="color:var(--d3)">· '+fmtD(co[0].t)+(co.length>1?' (전: '+co[1].v+')':'')+'</small></span></li>' : '')
       + (pf.length ? '<li><span class="n">주</span><span>'+pf[0].v+' '+KINDL[st.kind][3]+' <small style="color:var(--d3)">· '+fmtD(pf[0].t)+(pf.length>1?' (전: '+pf[1].v+')':'')+'</small></span></li>' : '')
       || '<li style="color:var(--d3)">기록 탭에서 CO·주간 사용량을 적으면 여기 보여요</li>';
     var att = st.attempts.map(function(a,i){ return {n:i+1, d:Math.floor((a.end-a.start)/86400000), s:a.start}; });
@@ -610,6 +614,21 @@ html.big body{zoom:1.18;}
     $("p_big").checked = !!st.big;
   }
   $("p_big").onchange = function(){ st.big = $("p_big").checked; document.documentElement.classList.toggle("big", st.big); save(); };
+  // 안드로이드 셸(window.Native) — Health Connect 걸음·심박·수면. 값은 측정값 kind "health" 로 기기 안에만 (docs/NATIVE.md 2단계)
+  (function(){
+    var N = window.Native; if(!N || typeof N.healthAvailable!=="function") return;
+    $("d_health_row").style.display = "";
+    var last = st.measures.filter(function(m){ return m.kind==="health"; })[0];
+    if(last) $("d_health_out").textContent = "마지막 읽기 "+fmtD(last.t)+" · 걸음 "+last.v.steps+" · 심박 "+(last.v.hrAvg==null?"—":last.v.hrAvg)+" · 수면 "+Math.round(last.v.sleepMin/60*10)/10+"시간";
+    $("d_health").onclick = function(){
+      try{ if(!N.healthAvailable()) return toast("이 폰에는 Health Connect 가 없어요"); N.requestHealth(); $("d_health_out").textContent = "읽는 중…"; }catch(e){ toast("읽지 못했어요"); }
+    };
+    window.onNativeHealth = function(r){
+      if(!r || r.error){ $("d_health_out").textContent = r && r.error==="denied" ? "권한을 허락하지 않아 읽지 않았어요." : "읽지 못했어요."; return; }
+      st.measures.unshift({t:Date.now(), kind:"health", v:{steps:r.steps||0, hrAvg:r.hrAvg==null?null:r.hrAvg, hrN:r.hrN||0, sleepMin:r.sleepMin||0}}); save();
+      $("d_health_out").textContent = "걸음 "+(r.steps||0)+" · 심박 "+(r.hrAvg==null?"—":r.hrAvg+" bpm")+" · 수면 "+Math.round((r.sleepMin||0)/60*10)/10+"시간 — 기기 안에만 저장했어요";
+    };
+  })();
   $("p_export").onclick = function(){
     var blob = new Blob([JSON.stringify({app:"smokefree", v:2, exported:new Date().toISOString(), data:st}, null, 1)], {type:"application/json"});
     var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "금연노트-"+new Date().toISOString().slice(0,10)+".json"; document.body.appendChild(a); a.click();

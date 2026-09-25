@@ -1,0 +1,39 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'kr.medit.smokefreenote'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "kr.medit.smokefreenote"
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName "0.1"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = '17' }
+}
+
+dependencies {
+    implementation 'androidx.activity:activity-ktx:1.9.2'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.6'
+    /* WebViewAssetLoader — assets 를 https://appassets.androidplatform.net 으로 띄웁니다.
+       file:// 로 띄우면 서비스워커·알림 API 가 안 돌아 웹앱과 갈라집니다 (MediNote #20 의 교훈). */
+    implementation 'androidx.webkit:webkit:1.12.1'
+    /* Health Connect — 걸음·심박·수면 읽기. 판본은 MediNote 가 Actions 에서 받아진 것을 확인한 것과 같습니다. */
+    implementation 'androidx.health.connect:connect-client:1.1.0-alpha07'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+}

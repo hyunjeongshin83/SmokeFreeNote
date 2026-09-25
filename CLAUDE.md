@@ -9,7 +9,13 @@
 docs/DESIGN.md       정한 것 (기록 모델 · 알림 · 데이터). 여기 없는 것은 아직 안 정한 것
 docs/DATA-MODEL.md   기록·알림의 근거 (사실·출처만)
 docs/COMPETITORS.md  경쟁 앱과 무작위 시험 (사실·출처만)
+docs/DEVICES.md      기기로 흡연을 잴 수 있나 (사실·출처만)
+docs/NATIVE.md       네이티브 앱 4단계 계획 (1·2단계는 android/ 에 있음)
 ```
+
+안드로이드 셸은 `android/` 입니다. 앱 화면은 `index.html` 그대로이고 `assets/` 는 git 에 없습니다 —
+빌드 직전에 `python3 tools/build-packaged-app.py` 가 복사합니다. APK 는 Actions → 「안드로이드 APK」 → Artifacts.
+이 작업 환경에서는 Gradle 을 못 돌립니다. 코틀린을 고쳤으면 PR 의 Actions 결과를 보고 빨간 것을 고치세요.
 
 리서치 이슈는 `hyunjeongshin83/VaccineNote-Park` 의 `[리서치][금연앱]` 에 쌓입니다 (2026-09-25 기준).
 그 이슈의 `fix` 칸을 고치면 `상태:` 를 `반영됨 · <이 저장소 커밋>` 으로 바꿉니다.

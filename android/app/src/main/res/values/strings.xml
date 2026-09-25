@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">금연노트</string>
+    <string name="health_rationale">걸음·심박·수면을 이 기기 안에서만 읽어, 갈망이 많은 시간대와 견주어 보여 줍니다. 서버로 보내지 않습니다.</string>
+</resources>

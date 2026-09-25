@@ -1,0 +1,74 @@
+# 금연노트 안드로이드 APK — MediNote 의 android-build.yml 과 같은 방식
+#
+# assets/ 는 저장소에 없습니다. 빌드 직전에 tools/build-packaged-app.py 가
+# 웹앱 원본(index.html)을 복사해 넣으므로 앱 화면이 웹앱과 갈라질 수 없습니다.
+#
+# 이 작업 환경에서는 Gradle 을 돌릴 수 없어(Android SDK · dl.google.com 없음)
+# 첫 실행이 곧 확인입니다. MediNote 는 같은 판본으로 2026-09-20 에 성공했습니다.
+# 나오는 것은 디버그 빌드입니다. 스토어 등록에는 서명한 릴리스 빌드가 따로 필요합니다.
+
+name: 안드로이드 APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'index.html'
+      - 'manifest.webmanifest'
+      - 'sw.js'
+      - 'tools/build-packaged-app.py'
+      - '.github/workflows/android-build.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'index.html'
+      - 'manifest.webmanifest'
+      - 'sw.js'
+      - 'tools/build-packaged-app.py'
+      - '.github/workflows/android-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: 앱 화면을 웹앱에서 복사
+        run: python3 tools/build-packaged-app.py
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: 빌드
+        working-directory: android
+        run: gradle assembleDebug --stacktrace
+
+      - name: APK 받아 두기
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smokefreenote-debug-${{ github.run_number }}
+          path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 30
+
+      - name: 실패 기록 보관
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports-${{ github.run_number }}
+          path: |
+            android/app/build/reports/
+            android/build/reports/
+          retention-days: 14
+          if-no-files-found: ignore
