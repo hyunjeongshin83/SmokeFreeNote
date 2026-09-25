@@ -18,3 +18,9 @@
 모든 기록은 이 기기(localStorage)에만 저장됩니다. 서버로 보내지 않습니다.
 
 > 금연노트는 금연을 돕는 기록장이며, 진료를 대신하지 않습니다.
+
+## 조사 자료
+- [`docs/COMPETITORS.md`](docs/COMPETITORS.md) — 국내외 금연 앱 비교와 근거 (2026-09-23)
+- [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) — 흡연 욕구 기록 모델·알림 시점의 근거 (2026-09-25)
+
+두 문서는 VaccineNote-Park 의 `nonsmoking/docs/` 에서 옮겨 왔습니다(2026-09-25). 결정 사항은 들어 있지 않습니다.
