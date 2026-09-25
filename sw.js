@@ -1,5 +1,5 @@
 /* 금연노트 서비스워커 — 오프라인에서도 열리도록 캐시 */
-const CACHE="smokefree-v2";
+const CACHE="smokefree-v3";
 const ASSETS=["index.html","manifest.webmanifest","icon-192.png","icon-512.png","icon-512-maskable.png","apple-touch-icon.png","favicon-32.png"];
 
 self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});
@@ -16,4 +16,15 @@ self.addEventListener("fetch",e=>{
   }
   // 그 외 정적 자산: 캐시 우선
   e.respondWith(caches.match(req).then(h=>h||fetch(req).then(r=>{const c=r.clone();caches.open(CACHE).then(x=>x.put(req,c)).catch(()=>{});return r;})));
+});
+
+// 알림 단추 — 「기록하기」는 기록 탭으로, 그 밖은 닫기만
+self.addEventListener("notificationclick",e=>{
+  e.notification.close();
+  if(e.action==="ok") return;
+  const url=(e.notification.data&&e.notification.data.url)||"./index.html?tab=log";
+  e.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(list=>{
+    for(const c of list){ if("focus" in c){ c.navigate(url); return c.focus(); } }
+    return clients.openWindow(url);
+  }));
 });
