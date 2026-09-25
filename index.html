@@ -75,6 +75,15 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
 .log .meta{font-size:12.5px;color:var(--d4);margin-top:2px;}
 .log .del{color:var(--d4);cursor:pointer;font-weight:800;background:none;border:none;font-size:18px;}
 .empty{text-align:center;padding:24px;color:var(--d3);font-size:15px;background:var(--g0);border-radius:14px;border:1.5px dashed var(--line);}
+.chk{display:flex;align-items:center;gap:10px;font-size:15.5px;font-weight:700;color:var(--ink);padding:10px 0;min-height:44px;cursor:pointer;}
+.chk input{width:22px;height:22px;accent-color:var(--g5);flex:none;}
+.tipcard{background:var(--g0);border:1.5px solid var(--g2);border-radius:14px;padding:14px 14px 12px;margin-top:12px;display:none;}
+.tipcard.on{display:block;}
+.tipcard.hi{background:#FFF3F0;border-color:#F9C4BC;}
+.tipcard .t{font-size:13px;font-weight:800;color:var(--g6);margin-bottom:4px;}
+.tipcard.hi .t{color:var(--coral);}
+.tipcard .d{font-size:16px;color:var(--ink);line-height:1.5;}
+.hero .att{font-size:14px;opacity:.92;margin-top:8px;font-weight:700;}
 
 /* 도움받기 */
 .help a{display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--line);text-decoration:none;color:var(--ink);}
@@ -138,6 +147,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
       <div class="lbl">담배 없이 지낸 지</div>
       <div class="days"><span id="h_days">0</span><small>일째</small></div>
       <div class="hms" id="h_hms">0시간 0분 0초</div>
+      <div class="att" id="h_att"></div>
     </div>
     <div class="stats">
       <div class="stat"><b id="h_cig">0</b><span>안 피운 개비</span></div>
@@ -164,10 +174,16 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
       <p class="sub">언제, 왜 담배가 당겼는지 적어 두면 나만의 위험 상황을 알 수 있어요.</p>
       <div style="margin-top:14px">
         <div class="fld"><label>얼마나 당겼나요?</label><div class="chips" id="l_lv"></div></div>
+        <div class="fld"><label>그때 기분은요?</label><div class="chips" id="l_mood"></div></div>
         <div class="fld"><label>상황</label><div class="chips" id="l_trig"></div></div>
-        <div class="fld"><label>어떻게 넘겼나요?</label><div class="chips" id="l_cope"></div></div>
-        <div class="fld"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="l_slip" style="width:auto"> 결국 피웠어요 (괜찮아요, 다시 시작하면 돼요)</label></div>
+        <label class="chk"><input type="checkbox" id="l_other"> 옆에 담배 피우는 사람이 있었어요</label>
+        <label class="chk"><input type="checkbox" id="l_avail"> 담배를 바로 구할 수 있었어요</label>
+        <div class="fld" style="margin-top:6px"><label>어떻게 넘겼나요? <span style="font-weight:500">(선택)</span></label><div class="chips" id="l_cope"></div></div>
+        <label class="chk"><input type="checkbox" id="l_slip"> 결국 피웠어요 (괜찮아요, 이번 시도는 계속돼요)</label>
         <button class="btn" id="l_save">기록하기</button>
+        <div class="tipcard" id="l_tip"><div class="t" id="l_tip_t"></div><div class="d" id="l_tip_d"></div><button class="btn sos" id="l_tip_sos" style="margin-top:10px;display:none">🚨 5분만 버텨볼게요</button></div>
+        <div class="tipcard hi" id="l_restart"><div class="t">이틀 연속 여러 번 피우셨네요</div><div class="d">금연 시작일을 오늘로 다시 정할까요? 지금까지 기록과 누적 금연 일수는 그대로 남아요. 그냥 이어가도 괜찮아요.</div>
+          <div class="row2" style="margin-top:10px"><button class="btn ghost" id="l_restart_no">이어갈게요</button><button class="btn" id="l_restart_yes">다시 시작</button></div></div>
       </div>
     </div>
     <div class="sect">최근 기록</div>
@@ -199,6 +215,20 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
         <button class="btn ghost" id="p_edit">설정 바꾸기</button>
         <button class="btn ghost" id="p_reset" style="color:var(--coral)">다시 시작</button>
       </div>
+    </div>
+    <div class="card">
+      <div class="sect">알림</div>
+      <label class="chk"><input type="checkbox" id="n_on"> 아침·저녁에 한 번씩 알려주기</label>
+      <p class="sub" style="margin-bottom:10px">첫 2주는 아침·저녁 하루 2번, 그 뒤엔 저녁 1번으로 줄고, 3개월이 지나면 멈춰요. 조용한 시간에는 오지 않아요. 앱을 열어 둔 동안 울려요.</p>
+      <div class="row2">
+        <div class="fld"><label for="n_am">아침</label><input type="time" id="n_am" value="08:30"></div>
+        <div class="fld"><label for="n_pm">저녁</label><input type="time" id="n_pm" value="21:00"></div>
+      </div>
+      <div class="row2">
+        <div class="fld"><label for="n_q1">조용한 시간 시작</label><input type="time" id="n_q1" value="21:30"></div>
+        <div class="fld"><label for="n_q2">조용한 시간 끝</label><input type="time" id="n_q2" value="08:00"></div>
+      </div>
+      <button class="btn ghost" id="n_save">알림 설정 저장</button>
     </div>
     <p class="disc">금연노트는 금연을 돕는 기록장이며, 진료를 대신하지 않아요.<br>금단 증상이 심하면 의사·약사와 상담하세요.</p>
   </section>
@@ -243,13 +273,16 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
     [15*365*86400, "15년", "관상동맥질환 위험이 비흡연자와 비슷해져요."]
   ];
   var LV = ["약함","보통","강함"];
-  var TRIG = ["식사 후","커피·술","스트레스","지루함","아침 기상","다른 사람 흡연"];
+  var MOOD = ["좋음","보통","나쁨"];
+  var TRIG = ["식사 후","커피·술","스트레스","지루함","아침 기상","이동 중","집에서","일하다가"];
   var COPE = ["물 마시기","심호흡","산책","양치질","껌·사탕","전화 통화"];
   var TIPS = ["찬물 한 잔을 천천히 마셔보세요.","코로 4초 들이쉬고, 7초 참고, 8초 내쉬어요.","자리에서 일어나 잠깐 걸어보세요.","양치질을 하면 입안이 개운해져요.","나의 금연 이유를 다시 떠올려봐요.","가족이나 친구에게 전화해 보세요."];
 
   function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || {}; }catch(e){ return {}; } }
   function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(e){} }
-  var st = load(); st.logs = st.logs || [];
+  var st = load(); st.logs = st.logs || []; st.attempts = st.attempts || [];
+  st.notif = st.notif || {}; var NDEF = {on:false, am:"08:30", pm:"21:00", q1:"21:30", q2:"08:00", sent:{}};
+  Object.keys(NDEF).forEach(function(k){ if(st.notif[k]==null) st.notif[k]=NDEF[k]; });
 
   function $(id){ return document.getElementById(id); }
   function toast(m){ var t=$("toast"); t.textContent=m; t.classList.add("show"); setTimeout(function(){ t.classList.remove("show"); },1800); }
@@ -263,7 +296,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
     $("tabs").style.display = v==="setup" ? "none" : "";
     if(v==="health") renderTimeline();
     if(v==="log") renderLogs();
-    if(v==="help") renderProfile();
+    if(v==="help"){ renderProfile(); renderNotif(); }
     window.scrollTo(0,0);
   }
   document.querySelectorAll("#tabs button").forEach(function(b){ b.onclick=function(){ show(b.dataset.v); }; });
@@ -293,6 +326,9 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
     var d = Math.floor(sec/86400), h = Math.floor(sec%86400/3600), m = Math.floor(sec%3600/60), s = Math.floor(sec%60);
     $("h_days").textContent = d;
     $("h_hms").textContent = h+"시간 "+m+"분 "+s+"초";
+    var acc = st.attempts.reduce(function(a,x){ return a + Math.max(0,(x.end-x.start)/1000); }, 0) + sec;
+    $("h_att").textContent = st.attempts.length ? (st.attempts.length+1)+"회차 시도 · 누적 금연 "+Math.floor(acc/86400)+"일" : "";
+    notifTick();
     var cigs = sec/86400*st.perDay;
     $("h_cig").textContent = Math.floor(cigs).toLocaleString("ko-KR");
     $("h_money").textContent = won(cigs/PACK*st.price);
@@ -323,7 +359,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
   }
 
   // 욕구 기록
-  var pick = {lv:null, trig:[], cope:[]};
+  var pick = {lv:null, mood:null, trig:[], cope:[]};
   function chips(el, list, multi, key){
     $(el).innerHTML = list.map(function(x){ return '<button type="button" class="chip">'+x+'</button>'; }).join("");
     $(el).querySelectorAll(".chip").forEach(function(b, i){
@@ -339,18 +375,41 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
       };
     });
   }
-  function resetForm(){ pick={lv:null,trig:[],cope:[]}; chips("l_lv",LV,false,"lv"); chips("l_trig",TRIG,true,"trig"); chips("l_cope",COPE,true,"cope"); $("l_slip").checked=false; }
+  function resetForm(){ pick={lv:null,mood:null,trig:[],cope:[]}; chips("l_lv",LV,false,"lv"); chips("l_mood",MOOD,false,"mood"); chips("l_trig",TRIG,true,"trig"); chips("l_cope",COPE,true,"cope"); ["l_slip","l_other","l_avail"].forEach(function(i){ $(i).checked=false; }); }
+  // 기록 직후 그 자리에서 대처법 1건 (Smart-T 2·3단계 규칙 — docs/DESIGN.md 「알림」)
+  function afterLog(r){
+    var el = $("l_tip"), hi = r.slip || r.lv==="강함" || r.other || r.avail;
+    el.classList.toggle("hi", !!hi); $("l_tip_sos").style.display = (hi && !r.slip) ? "" : "none";
+    if(r.slip){ $("l_tip_t").textContent = "이번 시도는 계속돼요"; $("l_tip_d").textContent = "한 개비는 실패가 아니에요. 다음에 당길 때는 "+TIPS[Math.floor(Math.random()*TIPS.length)].replace(/\.$/,"")+" — 지금 니코틴 껌·패치가 있다면 써 보세요."; }
+    else if(hi){ $("l_tip_t").textContent = "지금이 위험한 순간이에요"; $("l_tip_d").textContent = TIPS[Math.floor(Math.random()*TIPS.length)]+" 니코틴 껌이나 사탕이 있다면 지금 하나 드세요. 힘들면 1544-9030 으로 전화해도 돼요."; }
+    else { $("l_tip_t").textContent = "잘 넘기셨어요"; $("l_tip_d").textContent = "적어 두면 나만의 위험 상황이 보여요. "+TIPS[Math.floor(Math.random()*TIPS.length)]; }
+    el.classList.add("on");
+    $("l_restart").classList.toggle("on", r.slip && relapsed());
+  }
+  // 재발 판정: 이틀 연속 하루 2건 이상 피움 → 다시 시작할지 「묻기」만 (Quit Sense 규칙)
+  function relapsed(){
+    var today = new Date(); today.setHours(0,0,0,0); var t0 = today.getTime(), t1 = t0 - 86400000;
+    var a=0,b=0; st.logs.forEach(function(r){ if(!r.slip) return; if(r.t>=t0) a++; else if(r.t>=t1) b++; });
+    return a>=2 && b>=2;
+  }
+  function restart(){ if(st.start) st.attempts.push({start:st.start, end:Date.now()}); st.start = Date.now(); save(); $("l_restart").classList.remove("on"); show("home"); tick(); toast((st.attempts.length+1)+"회차 시작. 할 수 있어요!"); }
+  $("l_restart_yes").onclick = restart;
+  $("l_restart_no").onclick = function(){ $("l_restart").classList.remove("on"); toast("이어가요. 응원할게요!"); };
+  $("l_tip_sos").onclick = function(){ $("l_tip").classList.remove("on"); $("h_sos").onclick(); };
   $("l_save").onclick = function(){
     if(!pick.lv) return toast("얼마나 당겼는지 골라 주세요");
-    st.logs.unshift({t:Date.now(), lv:pick.lv, trig:pick.trig, cope:pick.cope, slip:$("l_slip").checked});
-    save(); resetForm(); renderLogs(); toast("기록했어요");
+    if(!pick.mood) return toast("그때 기분을 골라 주세요");
+    var r = {v:2, t:Date.now(), lv:pick.lv, mood:pick.mood, trig:pick.trig, other:$("l_other").checked, avail:$("l_avail").checked, cope:pick.cope, slip:$("l_slip").checked};
+    st.logs.unshift(r);
+    save(); resetForm(); renderLogs(); afterLog(r); toast("기록했어요");
   };
   function esc(s){ return String(s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
   function renderLogs(){
     if(!st.logs.length){ $("l_list").innerHTML = '<li style="border:none"><div class="empty" style="width:100%">아직 기록이 없어요</div></li>'; return; }
     $("l_list").innerHTML = st.logs.slice(0,50).map(function(r,i){
       var d = new Date(r.t);
-      var body = (r.trig.length? r.trig.join(", ") : "상황 미입력") + (r.cope.length? " → "+r.cope.join(", ") : "") + (r.slip? " · 피움" : "");
+      var ctx = (r.trig||[]).slice(); if(r.other) ctx.push("옆에 흡연자"); if(r.avail) ctx.push("담배 있음");
+      var body = (ctx.length? ctx.join(", ") : "상황 미입력") + (r.mood? " · 기분 "+r.mood : "") + ((r.cope||[]).length? " → "+r.cope.join(", ") : "") + (r.slip? " · 피움" : "");
       return '<li><span class="lv'+(r.lv==="강함"?" hi":"")+'">'+esc(r.lv)+'</span><div class="body">'+esc(body)+'<div class="meta">'+(d.getMonth()+1)+'/'+d.getDate()+' '+d.toTimeString().slice(0,5)+'</div></div><button class="del" data-i="'+i+'" aria-label="삭제">×</button></li>';
     }).join("");
     $("l_list").querySelectorAll(".del").forEach(function(b){ b.onclick=function(){ st.logs.splice(+b.dataset.i,1); save(); renderLogs(); }; });
@@ -371,7 +430,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
   };
   function closeSos(){ clearInterval(sosTimer); $("sos").classList.remove("on"); }
   $("sos_close").onclick = closeSos;
-  $("sos_done").onclick = function(){ closeSos(); st.logs.unshift({t:Date.now(), lv:"보통", trig:[], cope:["5분 버티기"], slip:false}); save(); toast("멋져요! 기록에 남겼어요"); };
+  $("sos_done").onclick = function(){ closeSos(); st.logs.unshift({v:2, t:Date.now(), lv:"보통", mood:null, trig:[], other:false, avail:false, cope:["5분 버티기"], slip:false}); save(); toast("멋져요! 기록에 남겼어요"); };
 
   // 내 설정
   function renderProfile(){
@@ -380,8 +439,45 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
   }
   $("p_edit").onclick = openSetup;
   $("p_reset").onclick = function(){
-    if(!confirm("금연 시작일을 지금으로 바꿀까요? 기록은 그대로 남아요.")) return;
-    st.start = Date.now(); save(); show("home"); tick(); toast("다시 시작해요. 할 수 있어요!");
+    if(!confirm("금연 시작일을 지금으로 바꿀까요? 기록과 누적 금연 일수는 그대로 남아요.")) return;
+    restart();
+  };
+
+  // 알림 — 정해진 시각(아침·저녁)만. 무작위 없음. 첫 2주 2건 → 저녁 1건 → 달마다 절반 → 3개월 멈춤 (docs/DESIGN.md)
+  function hm(str){ var a=str.split(":"); return (+a[0])*60+(+a[1]); }
+  function quiet(nowMin){ var a=hm(st.notif.q1), b=hm(st.notif.q2); return a<=b ? (nowMin>=a && nowMin<b) : (nowMin>=a || nowMin<b); }
+  function notifSlots(){
+    if(!st.start) return [];
+    var days = Math.floor((Date.now()-st.start)/86400000);
+    if(days >= 90) return [];
+    if(days < 14) return ["am","pm"];
+    var every = days < 30 ? 1 : days < 60 ? 2 : 4;          // 달마다 절반
+    return (days % every === 0) ? ["pm"] : [];
+  }
+  function notifTick(){
+    if(!st.notif.on || !("Notification" in window) || Notification.permission!=="granted") return;
+    var now = new Date(), nowMin = now.getHours()*60+now.getMinutes(), day = now.toDateString();
+    if(quiet(nowMin)) return;
+    notifSlots().forEach(function(k){
+      if(Math.abs(nowMin - hm(st.notif[k])) > 1) return;
+      if(st.notif.sent[k]===day) return;
+      st.notif.sent = {}; st.notif.sent[k]=day; save();
+      var msg = k==="am" ? "오늘도 한 걸음. 담배가 당기면 기록해 두세요." : "오늘 하루 어땠나요? 당겼던 순간이 있었다면 적어 주세요.";
+      try{
+        if(navigator.serviceWorker && navigator.serviceWorker.ready){ navigator.serviceWorker.ready.then(function(r){ r.showNotification("금연노트", {body:msg, icon:"icon-192.png", tag:"smokefree-"+k}); }); }
+        else new Notification("금연노트", {body:msg, icon:"icon-192.png"});
+      }catch(e){}
+    });
+  }
+  function renderNotif(){ $("n_on").checked = !!st.notif.on; $("n_am").value = st.notif.am; $("n_pm").value = st.notif.pm; $("n_q1").value = st.notif.q1; $("n_q2").value = st.notif.q2; }
+  $("n_on").onchange = function(){
+    if(!$("n_on").checked) return;
+    if(!("Notification" in window)){ $("n_on").checked=false; return toast("이 기기에서는 알림을 지원하지 않아요"); }
+    Notification.requestPermission().then(function(p){ if(p!=="granted"){ $("n_on").checked=false; toast("알림 권한이 없어 켤 수 없어요"); } });
+  };
+  $("n_save").onclick = function(){
+    st.notif.on = $("n_on").checked; ["am","pm","q1","q2"].forEach(function(k){ var v=$("n_"+k).value; if(/^\d\d:\d\d$/.test(v)) st.notif[k]=v; });
+    save(); toast(st.notif.on ? "알림을 켰어요" : "알림을 껐어요");
   };
 
   resetForm();
