@@ -1,7 +1,10 @@
 package kr.medit.smokefreenote
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -33,6 +36,8 @@ import org.json.JSONObject
  */
 class MainActivity : ComponentActivity() {
 
+    companion object { const val APP_HOST = "appassets.androidplatform.net" }
+
     private lateinit var web: WebView
     private lateinit var health: HealthConnectManager
 
@@ -59,11 +64,30 @@ class MainActivity : ComponentActivity() {
             webViewClient = object : WebViewClient() {
                 override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
                     loader.shouldInterceptRequest(request.url)
+
+                /* window.Native 는 건강 데이터를 돌려주므로 이 WebView 안에서는 우리 화면만 엽니다.
+                   도움 탭의 바깥 링크(보건소 안내 · tel:)는 폰의 브라우저·전화 앱으로 넘깁니다. */
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    val url = request.url
+                    if (url.host == APP_HOST) return false
+                    try { startActivity(Intent(Intent.ACTION_VIEW, url)) } catch (_: Exception) {}
+                    return true
+                }
             }
             addJavascriptInterface(Bridge(), "Native")
-            loadUrl("https://appassets.androidplatform.net/assets/index.html")
+            loadUrl("https://$APP_HOST/assets/index.html")
         }
         setContentView(web)
+    }
+
+    override fun onDestroy() {
+        if (this::web.isInitialized) {
+            (web.parent as? ViewGroup)?.removeView(web)
+            web.stopLoading()
+            web.removeJavascriptInterface("Native")
+            web.destroy()
+        }
+        super.onDestroy()
     }
 
     private fun pushHealth() {
