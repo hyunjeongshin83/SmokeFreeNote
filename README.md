@@ -14,6 +14,7 @@
 
 ## 실행
 `index.html`을 브라우저로 열면 됩니다. GitHub Pages에 올리면 휴대폰 홈 화면에 앱처럼 설치할 수 있습니다.
+안드로이드 앱(APK)은 Actions 탭 → 「안드로이드 APK」 → Artifacts 에서 받습니다 (디버그 빌드 · 셸은 `android/`, 계획은 `docs/NATIVE.md`).
 
 ## 데이터
 모든 기록은 이 기기(localStorage)에만 저장됩니다. 서버로 보내지 않습니다.
@@ -25,5 +26,6 @@
 - [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) — 흡연 욕구 기록 모델·알림 시점의 근거 (2026-09-25)
 - [`docs/DESIGN.md`](docs/DESIGN.md) — 정한 것: 기록 모델 · 시도와 재발 · 알림 · 위치 없음 (2026-09-25)
 - [`docs/DEVICES.md`](docs/DEVICES.md) — 전자담배·스마트워치·CO 측정기·건강 플랫폼으로 흡연을 잴 수 있는지 (2026-09-25)
+- [`docs/NATIVE.md`](docs/NATIVE.md) — 네이티브 앱 4단계 계획 (2026-09-25)
 
 두 문서는 VaccineNote-Park 의 `nonsmoking/docs/` 에서 옮겨 왔습니다(2026-09-25). 결정 사항은 들어 있지 않습니다.
