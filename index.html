@@ -84,6 +84,36 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
 .tipcard.hi .t{color:var(--coral);}
 .tipcard .d{font-size:16px;color:var(--ink);line-height:1.5;}
 .hero .att{font-size:14px;opacity:.92;margin-top:8px;font-weight:700;}
+/* 통계 */
+.bars{display:flex;align-items:flex-end;gap:6px;height:110px;padding:6px 2px 0;}
+.bars .b{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;height:100%;}
+.bars .b i{display:block;width:100%;border-radius:6px 6px 3px 3px;background:var(--g2);min-height:3px;}
+.bars .b i.slip{background:var(--coral);}
+.bars .b span{font-size:11.5px;color:var(--d4);font-weight:700;}
+.bars .b b{font-size:12px;color:var(--ink);font-weight:800;}
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--d3);margin-top:6px;}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;margin-right:4px;background:var(--g2);}
+.legend i.slip{background:var(--coral);}
+.rank{list-style:none;}
+.rank li{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15.5px;color:var(--ink);}
+.rank li:last-child{border-bottom:none;}
+.rank .n{width:26px;height:26px;border-radius:50%;background:var(--g0);color:var(--g6);font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none;}
+.rank .bar{flex:1;height:8px;margin:0;}
+.rank .c{font-size:13px;color:var(--d3);font-weight:700;min-width:36px;text-align:right;}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+.kv div{background:var(--g0);border-radius:12px;padding:10px 12px;}
+.kv b{display:block;font-size:18px;color:var(--ink);font-weight:900;}
+.kv span{font-size:12.5px;color:var(--d3);font-weight:700;}
+/* 기기·데이터 */
+.dev{list-style:none;}
+.dev li{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px;line-height:1.45;color:var(--ink);}
+.dev li:last-child{border-bottom:none;}
+.dev .st{flex:none;width:52px;text-align:center;font-size:12px;font-weight:900;border-radius:9px;padding:4px 0;height:fit-content;}
+.dev .ok{background:var(--g1);color:var(--g6);}
+.dev .no{background:#FDEDE9;color:var(--coral);}
+.dev .md{background:#FFF7EC;color:#96601A;}
+.dev small{display:block;font-size:13px;color:var(--d3);}
+html.big body{zoom:1.18;}
 
 /* 도움받기 */
 .help a{display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--line);text-decoration:none;color:var(--ink);}
@@ -95,7 +125,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
 .disc{font-size:14px;color:var(--d4);text-align:center;line-height:1.5;margin-top:8px;}
 
 /* 하단 탭 */
-.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:grid;grid-template-columns:repeat(4,1fr);
+.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:grid;grid-template-columns:repeat(5,1fr);
   background:#fff;border-top:1px solid var(--line);padding:6px 6px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -6px 20px rgba(6,65,62,.06);}
 .tabs button{font-family:inherit;background:none;border:none;cursor:pointer;padding:6px 0;color:var(--d4);font-weight:800;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:2px;}
 .tabs button .i{font-size:22px;filter:grayscale(1);opacity:.6;}
@@ -131,9 +161,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
       <p class="sub">시작일과 흡연 습관을 알려주시면 금연 일수·아낀 돈·건강 회복을 계산해 드려요. 모든 정보는 이 기기에만 저장돼요.</p>
       <div style="margin-top:16px">
         <div class="fld"><label for="s_start">금연 시작일·시각</label><input type="datetime-local" id="s_start"></div>
+        <div class="fld"><label>무엇을 피우셨나요?</label><div class="chips" id="s_kind"></div></div>
         <div class="row2">
-          <div class="fld"><label for="s_perday">하루 흡연량 (개비)</label><input type="number" id="s_perday" min="1" inputmode="numeric" value="15"></div>
-          <div class="fld"><label for="s_price">한 갑 가격 (원)</label><input type="number" id="s_price" min="0" inputmode="numeric" value="4500"></div>
+          <div class="fld"><label for="s_perday" id="s_perday_l">하루 흡연량 (개비)</label><input type="number" id="s_perday" min="1" inputmode="numeric" value="15"></div>
+          <div class="fld"><label for="s_price" id="s_price_l">한 갑 가격 (원)</label><input type="number" id="s_price" min="0" inputmode="numeric" value="4500"></div>
         </div>
         <div class="fld"><label for="s_reason">나의 금연 이유 <span style="font-weight:500">(선택)</span></label><input id="s_reason" placeholder="예: 손주와 오래 산책하고 싶어서"></div>
         <button class="btn" id="s_save">금연 시작</button>
@@ -150,7 +181,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
       <div class="att" id="h_att"></div>
     </div>
     <div class="stats">
-      <div class="stat"><b id="h_cig">0</b><span>안 피운 개비</span></div>
+      <div class="stat"><b id="h_cig">0</b><span id="h_cig_l">안 피운 개비</span></div>
       <div class="stat"><b id="h_money">0원</b><span>아낀 돈</span></div>
       <div class="stat"><b id="h_life">0시간</b><span>되찾은 시간*</span></div>
     </div>
@@ -186,8 +217,56 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
           <div class="row2" style="margin-top:10px"><button class="btn ghost" id="l_restart_no">이어갈게요</button><button class="btn" id="l_restart_yes">다시 시작</button></div></div>
       </div>
     </div>
+    <div class="card">
+      <div class="title" style="font-size:22px">측정값 적어 두기</div>
+      <p class="sub">보건소·약국에서 잰 날숨 일산화탄소(CO)나 전자담배 앱이 보여 주는 주간 사용량을 옮겨 적으면 통계에 함께 보여요.</p>
+      <div class="row2" style="margin-top:12px">
+        <div class="fld"><label for="m_co">CO (ppm)</label><input type="number" id="m_co" min="0" max="99" inputmode="numeric" placeholder="예: 4"></div>
+        <div class="fld"><label for="m_puff" id="m_puff_l">이번 주 퍼프·스틱</label><input type="number" id="m_puff" min="0" inputmode="numeric" placeholder="예: 120"></div>
+      </div>
+      <button class="btn ghost" id="m_save">측정값 저장</button>
+      <p class="disc" style="text-align:left">CO 6 ppm 이하는 비흡연 수준으로 봐요 (Smart-T 시험 기준). 앱이 기기에서 직접 읽지는 못해요 — 도움 탭 「기기 연결」에 이유가 있어요.</p>
+    </div>
     <div class="sect">최근 기록</div>
     <div class="card" style="padding:6px 16px"><ul class="log" id="l_list"></ul></div>
+  </section>
+
+  <!-- ③-2 통계 -->
+  <section class="view" id="v-stats">
+    <div class="card">
+      <div class="title">지난 7일</div>
+      <p class="sub">하루에 몇 번 당겼고, 몇 번 피웠는지예요.</p>
+      <div class="bars" id="st_bars"></div>
+      <div class="legend"><span><i></i>당김</span><span><i class="slip"></i>피움</span></div>
+      <div class="kv">
+        <div><b id="st_crave">0</b><span>7일 당김</span></div>
+        <div><b id="st_slip">0</b><span>7일 피움</span></div>
+        <div><b id="st_held">0%</b><span>참아낸 비율</span></div>
+        <div><b id="st_streak">0일</b><span>이번 시도</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sect">언제 많이 당기나</div>
+      <div class="bars" id="st_hours" style="height:90px"></div>
+      <p class="disc" style="text-align:left" id="st_hours_note"></p>
+    </div>
+    <div class="card">
+      <div class="sect">자주 당기는 상황</div>
+      <ul class="rank" id="st_trig"></ul>
+    </div>
+    <div class="card">
+      <div class="sect">기분과 당김</div>
+      <ul class="rank" id="st_mood"></ul>
+    </div>
+    <div class="card">
+      <div class="sect">측정값</div>
+      <ul class="rank" id="st_meas"></ul>
+    </div>
+    <div class="card">
+      <div class="sect">시도 기록</div>
+      <ul class="rank" id="st_att"></ul>
+      <p class="disc" style="text-align:left">여러 번 시도하는 게 보통이에요. 지난 시도의 금연일도 모두 내 것이에요.</p>
+    </div>
   </section>
 
   <!-- ④ 건강 -->
@@ -230,6 +309,28 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
       </div>
       <button class="btn ghost" id="n_save">알림 설정 저장</button>
     </div>
+    <div class="card">
+      <div class="sect">기기 연결 — 무엇이 되고 안 되나</div>
+      <p class="sub" id="d_ble"></p>
+      <ul class="dev" style="margin-top:8px">
+        <li><span class="st md">손으로</span><div>궐련형·액상 전자담배 앱의 주간 사용량<small>아이코스 · 릴 · JUUL2 앱은 블루투스로 퍼프 수를 세지만, 다른 앱에 내주는 통로가 없어요. 기록 탭에 옮겨 적으세요.</small></div></li>
+        <li><span class="st md">손으로</span><div>날숨 일산화탄소(CO)<small>보건소 금연클리닉의 측정기 값을 기록 탭에 적으세요. 개인용 블루투스 CO 측정기도 제조사 앱에서만 읽혀요.</small></div></li>
+        <li><span class="st no">아직</span><div>스마트워치 흡연 동작 감지<small>연구용(StopWatch · Sense2Quit)은 있지만 시계 앱을 따로 만들어야 해요. 배터리 문제도 남아 있어요.</small></div></li>
+        <li><span class="st no">없음</span><div>삼성 헬스 · 애플 건강의 흡연 기록<small>두 플랫폼 모두 흡연·니코틴 항목이 없어요.</small></div></li>
+        <li><span class="st ok">지금</span><div>홈 화면 바로가기<small>앱을 설치하면 아이콘을 길게 눌러 「당겨요」·「기록」으로 바로 들어와요. 기록이 빠를수록 잘 남아요.</small></div></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="sect">보기 · 데이터</div>
+      <label class="chk"><input type="checkbox" id="p_big"> 큰 글씨로 보기</label>
+      <div class="row2" style="margin-top:8px">
+        <button class="btn ghost" id="p_export">내보내기 (파일)</button>
+        <button class="btn ghost" id="p_import">가져오기</button>
+      </div>
+      <input type="file" id="p_file" accept="application/json,.json" style="display:none">
+      <button class="btn ghost" id="p_wipe" style="margin-top:9px;color:var(--coral)">모든 기록 지우기</button>
+      <p class="disc" style="text-align:left">기록은 이 기기에만 있어요. 폰을 바꾸면 내보낸 파일을 새 폰에서 가져오세요.</p>
+    </div>
     <p class="disc">금연노트는 금연을 돕는 기록장이며, 진료를 대신하지 않아요.<br>금단 증상이 심하면 의사·약사와 상담하세요.</p>
   </section>
 </div>
@@ -237,6 +338,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
 <nav class="tabs" id="tabs">
   <button data-v="home"><span class="i">🏠</span>오늘</button>
   <button data-v="log"><span class="i">📝</span>기록</button>
+  <button data-v="stats"><span class="i">📊</span>통계</button>
   <button data-v="health"><span class="i">💚</span>건강</button>
   <button data-v="help"><span class="i">🤝</span>도움</button>
 </nav>
@@ -272,6 +374,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
     [10*365*86400, "10년", "폐암 사망 위험이 흡연자의 약 절반으로 줄어요."],
     [15*365*86400, "15년", "관상동맥질환 위험이 비흡연자와 비슷해져요."]
   ];
+  var KIND = [["cig","일반 담배"],["hnb","궐련형 전자담배"],["liquid","액상 전자담배"]];
+  var KINDL = {cig:["하루 흡연량 (개비)","한 갑 가격 (원)","안 피운 개비","개비"], hnb:["하루 스틱 수","한 갑(20스틱) 가격 (원)","안 피운 스틱","스틱"], liquid:["하루 퍼프 수 (대략)","일주일 액상·팟 비용 (원)","안 한 퍼프","퍼프"]};
   var LV = ["약함","보통","강함"];
   var MOOD = ["좋음","보통","나쁨"];
   var TRIG = ["식사 후","커피·술","스트레스","지루함","아침 기상","이동 중","집에서","일하다가"];
@@ -280,7 +384,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
 
   function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || {}; }catch(e){ return {}; } }
   function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(e){} }
-  var st = load(); st.logs = st.logs || []; st.attempts = st.attempts || [];
+  var st = load(); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig";
+  if(st.big) document.documentElement.classList.add("big");
   st.notif = st.notif || {}; var NDEF = {on:false, am:"08:30", pm:"21:00", q1:"21:30", q2:"08:00", sent:{}};
   Object.keys(NDEF).forEach(function(k){ if(st.notif[k]==null) st.notif[k]=NDEF[k]; });
 
@@ -296,13 +401,22 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
     $("tabs").style.display = v==="setup" ? "none" : "";
     if(v==="health") renderTimeline();
     if(v==="log") renderLogs();
-    if(v==="help"){ renderProfile(); renderNotif(); }
+    if(v==="help"){ renderProfile(); renderNotif(); renderDevices(); }
+    if(v==="stats") renderStats();
     window.scrollTo(0,0);
   }
   document.querySelectorAll("#tabs button").forEach(function(b){ b.onclick=function(){ show(b.dataset.v); }; });
 
   // 설정
+  var kindPick = st.kind;
+  function kindChips(){
+    $("s_kind").innerHTML = KIND.map(function(k){ return '<button type="button" class="chip'+(k[0]===kindPick?" on":"")+'">'+k[1]+'</button>'; }).join("");
+    $("s_kind").querySelectorAll(".chip").forEach(function(b,i){ b.onclick=function(){ kindPick=KIND[i][0]; kindChips(); }; });
+    $("s_perday_l").textContent = KINDL[kindPick][0]; $("s_price_l").textContent = KINDL[kindPick][1];
+    if(kindPick==="liquid" && +$("s_perday").value===15) $("s_perday").value = 200;
+  }
   function openSetup(){
+    kindPick = st.kind; kindChips();
     $("s_start").value = localInput(st.start ? new Date(st.start) : new Date());
     if(st.perDay) $("s_perday").value = st.perDay;
     if(st.price != null) $("s_price").value = st.price;
@@ -312,7 +426,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
   $("s_save").onclick = function(){
     var s = new Date($("s_start").value);
     if(isNaN(s)) return toast("시작일을 입력해 주세요");
-    st.start = s.getTime();
+    st.start = s.getTime(); st.kind = kindPick;
     st.perDay = Math.max(1, +$("s_perday").value || 1);
     st.price = Math.max(0, +$("s_price").value || 0);
     st.reason = $("s_reason").value.trim();
@@ -330,10 +444,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
     $("h_att").textContent = st.attempts.length ? (st.attempts.length+1)+"회차 시도 · 누적 금연 "+Math.floor(acc/86400)+"일" : "";
     notifTick();
     var cigs = sec/86400*st.perDay;
-    $("h_cig").textContent = Math.floor(cigs).toLocaleString("ko-KR");
-    $("h_money").textContent = won(cigs/PACK*st.price);
+    $("h_cig").textContent = Math.floor(cigs).toLocaleString("ko-KR"); $("h_cig_l").textContent = KINDL[st.kind][2];
+    $("h_money").textContent = won(st.kind==="liquid" ? sec/86400*st.price/7 : cigs/PACK*st.price);
     var lifeMin = cigs*MIN_PER_CIG;
-    $("h_life").textContent = lifeMin < 1440 ? Math.floor(lifeMin/60)+"시간" : Math.floor(lifeMin/1440)+"일";
+    $("h_life").textContent = st.kind==="cig" ? (lifeMin < 1440 ? Math.floor(lifeMin/60)+"시간" : Math.floor(lifeMin/1440)+"일") : "—";
     var prev = 0, nx = null;
     for(var i=0;i<MILESTONES.length;i++){ if(sec < MILESTONES[i][0]){ nx = MILESTONES[i]; break; } prev = MILESTONES[i][0]; }
     if(nx){
@@ -443,6 +557,90 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
     restart();
   };
 
+  // 측정값 (CO · 전자담배 앱 주간 사용량) — 기기에서 직접 못 읽어 손으로 옮겨 적음 (docs/DEVICES.md)
+  $("m_save").onclick = function(){
+    var co = $("m_co").value, pf = $("m_puff").value, n = 0;
+    if(co!=="" && +co>=0){ st.measures.unshift({t:Date.now(), kind:"co", v:+co}); n++; }
+    if(pf!=="" && +pf>=0){ st.measures.unshift({t:Date.now(), kind:"puffs", v:+pf}); n++; }
+    if(!n) return toast("값을 하나는 적어 주세요");
+    save(); $("m_co").value=""; $("m_puff").value=""; toast("측정값을 저장했어요");
+  };
+
+  // 통계 — 기기 센싱 대신 시각·상황 패턴으로 나만의 위험 순간을 보여 줌
+  var BANDS = [["새벽",0,5],["아침",6,9],["낮",10,13],["오후",14,17],["저녁",18,21],["밤",22,23]];
+  function fmtD(t){ var d=new Date(t); return (d.getMonth()+1)+"/"+d.getDate(); }
+  function renderStats(){
+    var now = Date.now(), day0 = new Date(); day0.setHours(0,0,0,0);
+    var days = []; for(var i=6;i>=0;i--){ var t0 = day0.getTime()-i*86400000; days.push({t0:t0, t1:t0+86400000, c:0, s:0}); }
+    var crave=0, slip=0, bands=BANDS.map(function(){ return 0; }), trig={}, mood={};
+    st.logs.forEach(function(r){
+      days.forEach(function(d){ if(r.t>=d.t0 && r.t<d.t1){ d.c++; if(r.slip) d.s++; } });
+      if(r.t >= days[0].t0){ crave++; if(r.slip) slip++; }
+      var h = new Date(r.t).getHours(); BANDS.forEach(function(b,i){ if(h>=b[1]&&h<=b[2]) bands[i]++; });
+      (r.trig||[]).forEach(function(x){ trig[x]=(trig[x]||0)+1; }); if(r.other) trig["옆에 흡연자"]=(trig["옆에 흡연자"]||0)+1; if(r.avail) trig["담배 있음"]=(trig["담배 있음"]||0)+1;
+      if(r.mood) mood[r.mood]=(mood[r.mood]||0)+1;
+    });
+    var mx = Math.max(1, Math.max.apply(null, days.map(function(d){ return d.c; })));
+    $("st_bars").innerHTML = days.map(function(d){
+      var w = new Date(d.t0); return '<div class="b"><b>'+(d.c||"")+'</b><i style="height:'+(d.c/mx*100)+'%"></i>'+(d.s?'<i class="slip" style="height:'+(d.s/mx*100)+'%;margin-top:-3px"></i>':'')+'<span>'+(w.getMonth()+1)+'/'+w.getDate()+'</span></div>';
+    }).join("");
+    $("st_crave").textContent = crave; $("st_slip").textContent = slip;
+    $("st_held").textContent = crave ? Math.round((crave-slip)/crave*100)+"%" : "—";
+    $("st_streak").textContent = st.start ? Math.floor((now-st.start)/86400000)+"일" : "—";
+    var bm = Math.max(1, Math.max.apply(null, bands)), top = bands.indexOf(Math.max.apply(null, bands));
+    $("st_hours").innerHTML = BANDS.map(function(b,i){ return '<div class="b"><b>'+(bands[i]||"")+'</b><i style="height:'+(bands[i]/bm*100)+'%"></i><span>'+b[0]+'</span></div>'; }).join("");
+    $("st_hours_note").textContent = st.logs.length ? BANDS[top][0]+" 시간대에 가장 많이 당겼어요. 그 시간엔 미리 물 한 잔, 껌 하나를 준비해 두세요." : "기록이 쌓이면 시간대별로 보여 드려요.";
+    function rank(el, obj, empty){
+      var ks = Object.keys(obj).sort(function(a,b){ return obj[b]-obj[a]; }).slice(0,5), m = ks.length ? obj[ks[0]] : 1;
+      $(el).innerHTML = ks.length ? ks.map(function(k,i){ return '<li><span class="n">'+(i+1)+'</span><span style="min-width:96px">'+esc(k)+'</span><div class="bar"><i style="width:'+(obj[k]/m*100)+'%"></i></div><span class="c">'+obj[k]+'번</span></li>'; }).join("") : '<li style="color:var(--d3)">'+empty+'</li>';
+    }
+    rank("st_trig", trig, "아직 상황 기록이 없어요"); rank("st_mood", mood, "기분 기록은 새 기록부터 쌓여요");
+    var co = st.measures.filter(function(m){ return m.kind==="co"; }), pf = st.measures.filter(function(m){ return m.kind==="puffs"; });
+    $("st_meas").innerHTML = (co.length ? '<li><span class="n">CO</span><span>'+co[0].v+' ppm <small style="color:var(--d3)">· '+fmtD(co[0].t)+(co.length>1?' (전: '+co[1].v+')':'')+'</small></span></li>' : '')
+      + (pf.length ? '<li><span class="n">주</span><span>'+pf[0].v+' '+KINDL[st.kind][3]+' <small style="color:var(--d3)">· '+fmtD(pf[0].t)+(pf.length>1?' (전: '+pf[1].v+')':'')+'</small></span></li>' : '')
+      || '<li style="color:var(--d3)">기록 탭에서 CO·주간 사용량을 적으면 여기 보여요</li>';
+    var att = st.attempts.map(function(a,i){ return {n:i+1, d:Math.floor((a.end-a.start)/86400000), s:a.start}; });
+    if(st.start) att.push({n:att.length+1, d:Math.floor((now-st.start)/86400000), s:st.start, cur:true});
+    $("st_att").innerHTML = att.length ? att.map(function(a){ return '<li><span class="n">'+a.n+'</span><span>'+fmtD(a.s)+' 시작 · '+a.d+'일'+(a.cur?' <b style="color:var(--g6)">진행 중</b>':'')+'</span></li>'; }).join("") : '<li style="color:var(--d3)">아직 시작하지 않았어요</li>';
+  }
+
+  // 기기 연결 안내 · 보기 · 데이터
+  function renderDevices(){
+    $("d_ble").textContent = ("bluetooth" in navigator) ? "이 폰은 블루투스 연결(Web Bluetooth)을 지원해요. 그래도 전자담배·CO 측정기는 제조사 앱만 읽을 수 있어 아래처럼 손으로 옮겨 적어요." : "이 브라우저는 블루투스 연결을 지원하지 않아요 (아이폰 Safari 등). 아래처럼 손으로 옮겨 적으면 돼요.";
+    $("p_big").checked = !!st.big;
+  }
+  $("p_big").onchange = function(){ st.big = $("p_big").checked; document.documentElement.classList.toggle("big", st.big); save(); };
+  $("p_export").onclick = function(){
+    var blob = new Blob([JSON.stringify({app:"smokefree", v:2, exported:new Date().toISOString(), data:st}, null, 1)], {type:"application/json"});
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "금연노트-"+new Date().toISOString().slice(0,10)+".json"; document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500); toast("파일로 내보냈어요");
+  };
+  $("p_import").onclick = function(){ $("p_file").click(); };
+  $("p_file").onchange = function(){
+    var f = $("p_file").files[0]; if(!f) return;
+    var rd = new FileReader();
+    rd.onload = function(){
+      try{
+        var j = JSON.parse(rd.result), d = j && j.app==="smokefree" && j.data;
+        if(!d || !Array.isArray(d.logs)) throw 0;
+        var seen = {}; st.logs.forEach(function(r){ seen[r.t]=1; });
+        var added = 0; d.logs.forEach(function(r){ if(r && r.t && !seen[r.t]){ st.logs.push(r); added++; } });
+        st.logs.sort(function(a,b){ return b.t-a.t; });
+        (d.measures||[]).forEach(function(m){ if(!st.measures.some(function(x){ return x.t===m.t&&x.kind===m.kind; })) st.measures.push(m); });
+        st.measures.sort(function(a,b){ return b.t-a.t; });
+        if(!st.start && d.start){ st.start=d.start; st.perDay=d.perDay; st.price=d.price; st.kind=d.kind||"cig"; st.reason=d.reason||""; st.attempts=d.attempts||[]; }
+        save(); renderLogs(); toast("기록 "+added+"건을 가져왔어요");
+      }catch(e){ toast("금연노트 파일이 아니에요"); }
+      $("p_file").value = "";
+    };
+    rd.readAsText(f);
+  };
+  $("p_wipe").onclick = function(){
+    if(!confirm("모든 기록과 설정을 지울까요? 되돌릴 수 없어요.")) return;
+    if(!confirm("정말 지울까요? 먼저 내보내기를 해 두는 것이 좋아요.")) return;
+    try{ localStorage.removeItem(KEY); }catch(e){} location.reload();
+  };
+
   // 알림 — 정해진 시각(아침·저녁)만. 무작위 없음. 첫 2주 2건 → 저녁 1건 → 달마다 절반 → 3개월 멈춤 (docs/DESIGN.md)
   function hm(str){ var a=str.split(":"); return (+a[0])*60+(+a[1]); }
   function quiet(nowMin){ var a=hm(st.notif.q1), b=hm(st.notif.q2); return a<=b ? (nowMin>=a && nowMin<b) : (nowMin>=a || nowMin<b); }
@@ -482,6 +680,13 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
 
   resetForm();
   if(st.start){ show("home"); tick(); } else openSetup();
+  // 홈 화면 바로가기 (manifest shortcuts): ?sos=1 → 5분 버티기, ?tab=log → 기록
+  try{
+    var q = new URLSearchParams(location.search);
+    if(st.start && q.get("sos")==="1") $("h_sos").onclick();
+    else if(st.start && q.get("tab")) show(q.get("tab"));
+    if(q.toString()) history.replaceState(null, "", location.pathname);
+  }catch(e){}
 
   if("serviceWorker" in navigator){ try{ navigator.serviceWorker.register("sw.js").catch(function(){}); }catch(e){} }
 })();
