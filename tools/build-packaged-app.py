@@ -15,7 +15,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 FILES = ["index.html", "manifest.webmanifest", "sw.js",
-         "icon-192.png", "icon-512.png", "icon-512-maskable.png", "apple-touch-icon.png", "favicon-32.png"]
+         "icon-192.png", "icon-512.png", "icon-512-maskable.png", "apple-touch-icon.png", "favicon-32.png",
+         "vendor/qrcodejs-1.0.0.min.js"]
 DEST = ROOT / "android" / "app" / "src" / "main" / "assets"
 
 
@@ -25,6 +26,7 @@ def main() -> int:
     diff = []
     for name in FILES:
         src, dst = ROOT / name, DEST / name
+        dst.parent.mkdir(parents=True, exist_ok=True)
         if not src.exists():
             print(f"원본이 없습니다: {name}")
             return 2
