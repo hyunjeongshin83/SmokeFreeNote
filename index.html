@@ -339,6 +339,16 @@ html.big body{zoom:1.18;}
         <li><span class="st md">손으로</span><div>날숨 일산화탄소(CO)<small>보건소 금연클리닉의 측정기 값을 기록 탭에 적으세요. 개인용 블루투스 CO 측정기도 제조사 앱에서만 읽혀요.</small></div></li>
         <li><span class="st no">아직</span><div>스마트워치 흡연 동작 감지<small>연구용(StopWatch · Sense2Quit)은 있지만 시계 앱을 따로 만들어야 해요. 배터리 문제도 남아 있어요.</small></div></li>
         <li><span class="st no">없음</span><div>삼성 헬스 · 애플 건강의 흡연 기록<small>두 플랫폼 모두 흡연·니코틴 항목이 없어요.</small></div></li>
+        <li><span class="st ok">지금</span><div>QR · NFC 스티커로 한 번에 기록<small>전자담배 밑에 스티커를 붙여 두고, 쓸 때마다 폰 카메라로 QR 을 비추거나 NFC 스티커에 폰을 대면 「사용 1회」가 적혀요. 기록은 이 폰에만 남아요.</small>
+          <div class="fld" style="margin-top:8px"><label for="q_name">기기 이름</label><input type="text" id="q_name" maxlength="20" placeholder="예: 내 전자담배"></div>
+          <button class="btn ghost" id="q_make">스티커용 QR 만들기</button>
+          <div id="q_out" style="display:none;margin-top:10px">
+            <div id="q_img" style="background:#fff;padding:10px;border-radius:12px;width:max-content;max-width:100%"></div>
+            <div class="sub" style="margin-top:6px;word-break:break-all" id="q_url"></div>
+            <button class="btn ghost" id="q_copy" style="margin-top:6px">주소 복사 (NFC 스티커에 쓰기용)</button>
+            <p class="disc" style="text-align:left">이 화면을 캡처해 인쇄하거나, 주소를 NFC 쓰기 앱(예: NFC Tools)으로 스티커에 넣으세요.<span id="q_native" style="display:none"> 스티커를 찍으면 폰 브라우저의 금연노트가 열려요 — 설치한 앱과 기록이 따로 쌓일 수 있어요.</span></p>
+          </div>
+          <ul class="rank" id="q_list" style="margin-top:8px"></ul></div></li>
         <li><span class="st ok">지금</span><div>홈 화면 바로가기<small>앱을 설치하면 아이콘을 길게 눌러 「당겨요」·「기록」으로 바로 들어와요. 기록이 빠를수록 잘 남아요.</small></div></li>
         <li id="d_health_row" style="display:none"><span class="st ok">앱</span><div>걸음 · 심박 · 수면 (Health Connect)<small>안드로이드 앱에서는 폰의 건강 데이터를 이 기기 안에서만 읽어 갈망이 많은 시간대와 견줘요. 서버로 보내지 않아요.</small>
           <button class="btn ghost" id="d_health" style="margin-top:8px">건강 데이터 읽기</button><div class="sub" id="d_health_out"></div></div></li>
@@ -382,6 +392,7 @@ html.big body{zoom:1.18;}
 
 <div class="toast" id="toast"></div>
 
+<script src="vendor/qrcodejs-1.0.0.min.js"></script>
 <script>
 (function(){
   var KEY = "smokefree.v1";
@@ -408,7 +419,7 @@ html.big body{zoom:1.18;}
 
   function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || {}; }catch(e){ return {}; } }
   function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(e){} }
-  var st = load(); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {};
+  var st = load(); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {}; st.devices = st.devices || [];
   function dkey(t){ var d=new Date(t||Date.now()); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
   if(st.big) document.documentElement.classList.add("big");
   st.notif = st.notif || {}; var NDEF = {on:false, am:"08:30", pm:"21:00", q1:"21:30", q2:"08:00", sent:{}};
@@ -641,7 +652,8 @@ html.big body{zoom:1.18;}
     rank("st_trig", trig, "아직 상황 기록이 없어요"); rank("st_mood", mood, "기분 기록은 새 기록부터 쌓여요");
     var co = st.measures.filter(function(m){ return m.kind==="co"; }), pf = st.measures.filter(function(m){ return m.kind==="puffs"; });
     var he = st.measures.filter(function(m){ return m.kind==="health"; });
-    $("st_meas").innerHTML = (he.length ? '<li><span class="n">폰</span><span>걸음 '+he[0].v.steps+' · 심박 '+(he[0].v.hrAvg==null?'—':he[0].v.hrAvg)+' · 수면 '+Math.round(he[0].v.sleepMin/60*10)/10+'시간 <small style="color:var(--d3)">· '+fmtD(he[0].t)+'</small></span></li>' : '')
+    var us = st.measures.filter(function(m){ return m.kind==="use" && m.t >= days[0].t0; }).length;
+    $("st_meas").innerHTML = (us ? '<li><span class="n">QR</span><span>스티커로 적은 사용 '+us+'회 <small style="color:var(--d3)">· 7일</small></span></li>' : '') + (he.length ? '<li><span class="n">폰</span><span>걸음 '+he[0].v.steps+' · 심박 '+(he[0].v.hrAvg==null?'—':he[0].v.hrAvg)+' · 수면 '+Math.round(he[0].v.sleepMin/60*10)/10+'시간 <small style="color:var(--d3)">· '+fmtD(he[0].t)+'</small></span></li>' : '')
       + (co.length ? '<li><span class="n">CO</span><span>'+co[0].v+' ppm <small style="color:var(--d3)">· '+fmtD(co[0].t)+(co.length>1?' (전: '+co[1].v+')':'')+'</small></span></li>' : '')
       + (pf.length ? '<li><span class="n">주</span><span>'+pf[0].v+' '+KINDL[st.kind][3]+' <small style="color:var(--d3)">· '+fmtD(pf[0].t)+(pf.length>1?' (전: '+pf[1].v+')':'')+'</small></span></li>' : '')
       || '<li style="color:var(--d3)">기록 탭에서 CO·주간 사용량을 적으면 여기 보여요</li>';
@@ -656,6 +668,40 @@ html.big body{zoom:1.18;}
     $("p_big").checked = !!st.big;
   }
   $("p_big").onchange = function(){ st.big = $("p_big").checked; document.documentElement.classList.toggle("big", st.big); save(); };
+  // QR · NFC 스티커 — 주소 ?use=<기기id> 로 열리면 사용 1회를 측정값 kind "use" 로 이 기기에만 남김 (docs/DESIGN.md 5절)
+  var PAGES = "https://hyunjeongshin83.github.io/SmokeFreeNote/";
+  // 안드로이드 셸은 https://appassets.androidplatform.net 에서 열려 바깥 카메라·NFC 가 그 주소를 못 엽니다 → 공개 주소로 (#10 Codex)
+  function useBase(){ var shell = !!window.Native || /androidplatform\.net$/.test(location.hostname); return (!shell && /^https?:/.test(location.protocol)) ? location.origin + location.pathname.replace(/index\.html$/,"") : PAGES; }
+  function devName(id){ var d = st.devices.filter(function(x){ return x.id===id; })[0]; return d ? d.name : "전자담배"; }
+  function renderQrList(){
+    var d0 = new Date(); d0.setHours(0,0,0,0); var t7 = d0.getTime() - 6*86400000;
+    $("q_list").innerHTML = st.devices.map(function(d){
+      var n1=0, n7=0; st.measures.forEach(function(m){ if(m.kind==="use" && m.dev===d.id){ if(m.t>=t7) n7++; if(m.t>=d0.getTime()) n1++; } });
+      return '<li><span class="n">QR</span><span>'+d.name.replace(/</g,"&lt;")+' · 오늘 '+n1+'회 · 7일 '+n7+'회 <button class="btn ghost" data-qr="'+d.id+'" style="display:inline-block;width:auto;min-height:44px;padding:4px 12px;margin:0 0 0 6px">QR 보기</button></span></li>';
+    }).join("");
+    Array.prototype.forEach.call($("q_list").querySelectorAll("[data-qr]"), function(b){ b.onclick = function(){ showQr(b.getAttribute("data-qr")); }; });
+  }
+  function showQr(id){
+    var url = useBase() + "?use=" + id;
+    $("q_out").style.display = ""; $("q_img").innerHTML = ""; $("q_url").textContent = url;
+    $("q_native").style.display = window.Native ? "" : "none";
+    try{ new QRCode($("q_img"), {text:url, width:180, height:180, correctLevel:QRCode.CorrectLevel.M}); }catch(e){ $("q_img").textContent = "QR 을 만들지 못했어요. 아래 주소를 쓰세요."; }
+    $("q_copy").onclick = function(){ try{ navigator.clipboard.writeText(url).then(function(){ toast("주소를 복사했어요"); }, function(){ toast("주소를 길게 눌러 복사하세요"); }); }catch(e){ toast("주소를 길게 눌러 복사하세요"); } };
+  }
+  $("q_make").onclick = function(){
+    var name = ($("q_name").value||"").trim() || "내 전자담배";
+    var id = Math.random().toString(36).slice(2,8);
+    st.devices.push({id:id, name:name, t:Date.now()}); save(); $("q_name").value = "";
+    showQr(id); renderQrList(); toast("스티커용 QR 을 만들었어요");
+  };
+  function logUse(id){
+    id = String(id).replace(/[^a-z0-9]/gi,"").slice(0,12) || "x";
+    var last = st.measures.filter(function(m){ return m.kind==="use" && m.dev===id; })[0];
+    if(last && Date.now()-last.t < 60000) return toast("방금 적었어요 (1분 안에 두 번은 한 번으로)");
+    st.measures.unshift({t:Date.now(), kind:"use", v:1, dev:id}); save();
+    renderQrList(); toast(devName(id) + " 사용 1회를 적었어요");
+  }
+  renderQrList();
   // 안드로이드 셸(window.Native) — Health Connect 걸음·심박·수면. 값은 측정값 kind "health" 로 기기 안에만 (docs/NATIVE.md 2단계)
   (function(){
     var N = window.Native; if(!N || typeof N.healthAvailable!=="function") return;
@@ -690,8 +736,9 @@ html.big body{zoom:1.18;}
         Object.keys(d.meds||{}).forEach(function(k){ st.meds[k]=true; });
         (d.measures||[]).forEach(function(m){ if(!st.measures.some(function(x){ return x.t===m.t&&x.kind===m.kind; })) st.measures.push(m); });
         st.measures.sort(function(a,b){ return b.t-a.t; });
+        (d.devices||[]).forEach(function(v){ if(v && v.id && !st.devices.some(function(x){ return x.id===v.id; })) st.devices.push(v); }); // 스티커 기기 목록도 (#10 Codex)
         if(!st.start && d.start){ st.start=d.start; st.perDay=d.perDay; st.price=d.price; st.kind=d.kind||"cig"; st.reason=d.reason||""; st.attempts=d.attempts||[]; }
-        save(); renderLogs(); toast("기록 "+added+"건을 가져왔어요");
+        save(); renderLogs(); renderQrList(); toast("기록 "+added+"건을 가져왔어요");
       }catch(e){ toast("금연노트 파일이 아니에요"); }
       $("p_file").value = "";
     };
@@ -745,6 +792,7 @@ html.big body{zoom:1.18;}
   // 홈 화면 바로가기 (manifest shortcuts): ?sos=1 → 5분 버티기, ?tab=log → 기록
   try{
     var q = new URLSearchParams(location.search);
+    if(q.get("use")) logUse(q.get("use"));
     if(st.start && q.get("sos")==="1") $("h_sos").onclick();
     else if(st.start && q.get("tab")) show(q.get("tab"));
     if(q.toString()) history.replaceState(null, "", location.pathname);
