@@ -670,7 +670,8 @@ html.big body{zoom:1.18;}
   $("p_big").onchange = function(){ st.big = $("p_big").checked; document.documentElement.classList.toggle("big", st.big); save(); };
   // QR · NFC 스티커 — 주소 ?use=<기기id> 로 열리면 사용 1회를 측정값 kind "use" 로 이 기기에만 남김 (docs/DESIGN.md 5절)
   var PAGES = "https://hyunjeongshin83.github.io/SmokeFreeNote/";
-  function useBase(){ return /^https?:/.test(location.protocol) ? location.origin + location.pathname.replace(/index\.html$/,"") : PAGES; }
+  // 안드로이드 셸은 https://appassets.androidplatform.net 에서 열려 바깥 카메라·NFC 가 그 주소를 못 엽니다 → 공개 주소로 (#10 Codex)
+  function useBase(){ var shell = !!window.Native || /androidplatform\.net$/.test(location.hostname); return (!shell && /^https?:/.test(location.protocol)) ? location.origin + location.pathname.replace(/index\.html$/,"") : PAGES; }
   function devName(id){ var d = st.devices.filter(function(x){ return x.id===id; })[0]; return d ? d.name : "전자담배"; }
   function renderQrList(){
     var d0 = new Date(); d0.setHours(0,0,0,0); var t7 = d0.getTime() - 6*86400000;
@@ -735,8 +736,9 @@ html.big body{zoom:1.18;}
         Object.keys(d.meds||{}).forEach(function(k){ st.meds[k]=true; });
         (d.measures||[]).forEach(function(m){ if(!st.measures.some(function(x){ return x.t===m.t&&x.kind===m.kind; })) st.measures.push(m); });
         st.measures.sort(function(a,b){ return b.t-a.t; });
+        (d.devices||[]).forEach(function(v){ if(v && v.id && !st.devices.some(function(x){ return x.id===v.id; })) st.devices.push(v); }); // 스티커 기기 목록도 (#10 Codex)
         if(!st.start && d.start){ st.start=d.start; st.perDay=d.perDay; st.price=d.price; st.kind=d.kind||"cig"; st.reason=d.reason||""; st.attempts=d.attempts||[]; }
-        save(); renderLogs(); toast("기록 "+added+"건을 가져왔어요");
+        save(); renderLogs(); renderQrList(); toast("기록 "+added+"건을 가져왔어요");
       }catch(e){ toast("금연노트 파일이 아니에요"); }
       $("p_file").value = "";
     };
