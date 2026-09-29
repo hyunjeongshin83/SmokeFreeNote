@@ -37,6 +37,7 @@ input,textarea,select{width:100%;font-family:inherit;font-size:1rem;padding:12px
 input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 3px rgba(14,107,72,.15);}
 .fld{margin-bottom:11px;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.row2.tm{grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr));} /* 시각 입력: 글자 200%면 한 줄에 하나 (가로 넘침 방지) */
 .btn{width:100%;padding:14px;border:none;border-radius:13px;font-family:inherit;font-weight:800;font-size:1rem;color:#fff;background:linear-gradient(135deg,var(--g4),var(--g7));cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 16px rgba(14,107,72,.3);}
 .btn.ghost{background:#fff;color:var(--g6);border:1.5px solid var(--line);box-shadow:none;}
 .btn svg{width:20px;height:20px;flex:none;}
@@ -92,10 +93,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
 .hero .att{font-size:0.875rem;opacity:.92;margin-top:8px;font-weight:700;}
 /* 통계 */
 .bars{display:flex;align-items:flex-end;gap:6px;height:110px;padding:6px 2px 0;}
-.bars .b{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;height:100%;}
+.bars .b{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;height:100%;}
 .bars .b i{display:block;width:100%;border-radius:6px 6px 3px 3px;background:var(--g2);min-height:3px;}
 .bars .b i.slip{background:var(--coral);}
-.bars .b span{font-size:0.7188rem;color:var(--d4);font-weight:700;}
+.bars .b span{overflow-wrap:anywhere;text-align:center;font-size:0.7188rem;color:var(--d4);font-weight:700;}
 .bars .b b{font-size:0.75rem;color:var(--ink);font-weight:800;}
 .legend{display:flex;gap:14px;font-size:0.7812rem;color:var(--d3);margin-top:6px;}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:4px;vertical-align:-1px;margin-right:4px;background:var(--g2);}
@@ -319,11 +320,11 @@ html.big body{zoom:1.18;}
       <div class="sect">알림</div>
       <label class="chk"><input type="checkbox" id="n_on"> 아침·저녁에 한 번씩 알려주기</label>
       <p class="sub" style="margin-bottom:10px">첫 2주는 아침·저녁 하루 2번, 그 뒤엔 저녁 1번으로 줄고, 3개월이 지나면 멈춰요. 조용한 시간에는 오지 않아요. 앱을 열어 둔 동안 울려요.</p>
-      <div class="row2">
+      <div class="row2 tm">
         <div class="fld"><label for="n_am">아침</label><input type="time" id="n_am" value="08:30"></div>
         <div class="fld"><label for="n_pm">저녁</label><input type="time" id="n_pm" value="21:00"></div>
       </div>
-      <div class="row2">
+      <div class="row2 tm">
         <div class="fld"><label for="n_q1">조용한 시간 시작</label><input type="time" id="n_q1" value="21:30"></div>
         <div class="fld"><label for="n_q2">조용한 시간 끝</label><input type="time" id="n_q2" value="08:00"></div>
       </div>
@@ -517,13 +518,27 @@ html.big body{zoom:1.18;}
     });
   }
   function resetForm(){ pick={lv:null,mood:null,trig:[],cope:[]}; chips("l_lv",LV,false,"lv"); chips("l_mood",MOOD,false,"mood"); chips("l_trig",TRIG,true,"trig"); chips("l_cope",COPE,true,"cope"); ["l_slip","l_other","l_avail"].forEach(function(i){ $(i).checked=false; }); }
+  // 기록 직후 대처 문구 — 무작위 대신 기록한 상황 → 시간대 순으로 TIPS 안에서 고름 (VaccineNote-Park#79 VN-79-4, Smart-T 상황 맞춤)
+  // TIPS 번호: 0 찬물 · 1 호흡 · 2 걷기(자리 옮기기) · 3 양치질 · 4 금연 이유 · 5 전화
+  var TIP_BY_TRIG = {"식사 후":3, "커피·술":2, "스트레스":1, "지루함":2, "아침 기상":0};
+  var TIP_OTHER = 2;                       // 옆에 흡연자 → 자리 옮기기
+  var TIP_BY_BAND = [4, 0, 2, 1, 5, 4];    // BANDS 순서: 새벽 · 아침 · 낮 · 오후 · 저녁 · 밤
+  function pickTip(r){
+    var tr = r.trig || [];
+    for(var i=0;i<TRIG.length;i++){ if(tr.indexOf(TRIG[i])>=0 && TIP_BY_TRIG.hasOwnProperty(TRIG[i])) return TIPS[TIP_BY_TRIG[TRIG[i]]]; }
+    if(r.other) return TIPS[TIP_OTHER];
+    var h = new Date(r.t || Date.now()).getHours();
+    for(var j=0;j<BANDS.length;j++){ if(h>=BANDS[j][1] && h<=BANDS[j][2]) return TIPS[TIP_BY_BAND[j]]; }
+    return TIPS[0];
+  }
   // 기록 직후 그 자리에서 대처법 1건 (Smart-T 2·3단계 규칙 — docs/DESIGN.md 「알림」)
   function afterLog(r){
+    var tip = pickTip(r);
     var el = $("l_tip"), hi = r.slip || r.lv==="강함" || r.other || r.avail;
     el.classList.toggle("hi", !!hi); $("l_tip_sos").style.display = (hi && !r.slip) ? "" : "none";
-    if(r.slip){ $("l_tip_t").textContent = "이번 시도는 계속돼요"; $("l_tip_d").textContent = "한 개비는 실패가 아니에요. 다음에 당길 때는 "+TIPS[Math.floor(Math.random()*TIPS.length)].replace(/\.$/,"")+" — 지금 니코틴 껌·패치가 있다면 써 보세요."; }
-    else if(hi){ $("l_tip_t").textContent = "지금이 위험한 순간이에요"; $("l_tip_d").textContent = TIPS[Math.floor(Math.random()*TIPS.length)]+" 니코틴 껌이나 사탕이 있다면 지금 하나 드세요. 힘들면 1544-9030 으로 전화해도 돼요."; }
-    else { $("l_tip_t").textContent = "잘 넘기셨어요"; $("l_tip_d").textContent = "적어 두면 나만의 위험 상황이 보여요. "+TIPS[Math.floor(Math.random()*TIPS.length)]; }
+    if(r.slip){ $("l_tip_t").textContent = "이번 시도는 계속돼요"; $("l_tip_d").textContent = "한 개비는 실패가 아니에요. 다음에 당길 때는 "+tip.replace(/\.$/,"")+" — 지금 니코틴 껌·패치가 있다면 써 보세요."; }
+    else if(hi){ $("l_tip_t").textContent = "지금이 위험한 순간이에요"; $("l_tip_d").textContent = tip+" 니코틴 껌이나 사탕이 있다면 지금 하나 드세요. 힘들면 1544-9030 으로 전화해도 돼요."; }
+    else { $("l_tip_t").textContent = "잘 넘기셨어요"; $("l_tip_d").textContent = "적어 두면 나만의 위험 상황이 보여요. "+tip; }
     el.classList.add("on");
     $("l_restart").classList.toggle("on", r.slip && relapsed());
   }
