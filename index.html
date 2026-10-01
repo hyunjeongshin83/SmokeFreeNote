@@ -547,6 +547,9 @@ html.big body{zoom:1.18;}
   function afterLog(r){
     var tip = pickTip(r);
     var el = $("l_tip"), hi = r.slip || r.lv==="강함" || r.other || r.avail;
+    // 앱이 무엇을 보여 줬는지도 기록에 남긴다 — 단계(1 격려 · 2 높은 위험 · 3 복귀)와 대처법 번호.
+    // 없으면 「대처법 뒤 참았는지」를 영영 셀 수 없다 (VaccineNote-Park#91 VN-91-1). 기기 안에만, 화면 변화 없음.
+    r.stage = r.slip ? 3 : (hi ? 2 : 1); r.tip = TIPS.indexOf(tip); save();
     el.classList.toggle("hi", !!hi); $("l_tip_sos").style.display = (hi && !r.slip) ? "" : "none";
     if(r.slip){ $("l_tip_t").textContent = "이번 시도는 계속돼요"; $("l_tip_d").textContent = "한 개비는 실패가 아니에요. 다음에 당길 때는 "+tip.replace(/\.$/,"")+" — 지금 니코틴 껌·패치가 있다면 써 보세요."; }
     else if(hi){ $("l_tip_t").textContent = "지금이 위험한 순간이에요"; $("l_tip_d").textContent = tip+" 니코틴 껌이나 사탕이 있다면 지금 하나 드세요. 힘들면 1544-9030 으로 전화해도 돼요."; }
@@ -563,7 +566,8 @@ html.big body{zoom:1.18;}
   function restart(){ if(st.start) st.attempts.push({start:st.start, end:Date.now()}); st.start = Date.now(); save(); $("l_restart").classList.remove("on"); show("home"); tick(); toast((st.attempts.length+1)+"회차 시작. 할 수 있어요!"); }
   $("l_restart_yes").onclick = restart;
   $("l_restart_no").onclick = function(){ $("l_restart").classList.remove("on"); toast("이어가요. 응원할게요!"); };
-  $("l_tip_sos").onclick = function(){ $("l_tip").classList.remove("on"); $("h_sos").onclick(); };
+  var sosFrom = null;   // 대처법 카드에서 5분 버티기로 넘어온 기록의 시각 (VN-91-1)
+  $("l_tip_sos").onclick = function(){ $("l_tip").classList.remove("on"); if(st.logs[0]){ st.logs[0].sos = true; sosFrom = st.logs[0].t; save(); } $("h_sos").onclick(); };
   $("l_save").onclick = function(){
     if(!pick.lv) return toast("얼마나 당겼는지 골라 주세요");
     if(!pick.mood) return toast("그때 기분을 골라 주세요");
@@ -598,7 +602,8 @@ html.big body{zoom:1.18;}
   };
   function closeSos(){ clearInterval(sosTimer); $("sos").classList.remove("on"); }
   $("sos_close").onclick = closeSos;
-  $("sos_done").onclick = function(){ closeSos(); st.logs.unshift({v:2, t:Date.now(), lv:"보통", mood:null, trig:[], other:false, avail:false, cope:["5분 버티기"], slip:false}); save(); toast("멋져요! 기록에 남겼어요"); };
+  $("sos_done").onclick = function(){ closeSos(); var r = {v:2, t:Date.now(), lv:"보통", mood:null, trig:[], other:false, avail:false, cope:["5분 버티기"], slip:false}; if(sosFrom){ r.from = sosFrom; sosFrom = null; } st.logs.unshift(r); save(); toast("멋져요! 기록에 남겼어요"); };
+  $("sos_close").addEventListener("click", function(){ sosFrom = null; });
 
   // 내 설정
   function renderProfile(){
@@ -768,10 +773,12 @@ html.big body{zoom:1.18;}
     notifSlots().forEach(function(k){
       if(Math.abs(nowMin - hm(st.notif[k])) > 1) return;
       if(st.notif.sent[k]===day) return;
-      st.notif.sent = {}; st.notif.sent[k]=day; save();
+      st.notif.sent = {}; st.notif.sent[k]=day;
+      st.notif.log = (st.notif.log || []).concat([{t:Date.now(), k:k}]).slice(-100);   // 보낸 알림 장부 (VN-91-1)
+      save();
       var msg = k==="am" ? "오늘도 한 걸음. 담배가 당기면 기록해 두세요." : "오늘 하루 어땠나요? 당겼던 순간이 있었다면 적어 주세요.";
       try{
-        if(navigator.serviceWorker && navigator.serviceWorker.ready){ navigator.serviceWorker.ready.then(function(r){ r.showNotification("금연노트", {body:msg, icon:"icon-192.png", tag:"smokefree-"+k, data:{url:"./index.html?tab=log"}, actions:[{action:"log", title:"기록하기"},{action:"ok", title:"괜찮아요"}]}); }); }
+        if(navigator.serviceWorker && navigator.serviceWorker.ready){ navigator.serviceWorker.ready.then(function(r){ r.showNotification("금연노트", {body:msg, icon:"icon-192.png", tag:"smokefree-"+k, data:{url:"./index.html?tab=log&nf="+k}, actions:[{action:"log", title:"기록하기"},{action:"ok", title:"괜찮아요"}]}); }); }
         else new Notification("금연노트", {body:msg, icon:"icon-192.png"});
       }catch(e){}
     });
@@ -793,6 +800,7 @@ html.big body{zoom:1.18;}
   try{
     var q = new URLSearchParams(location.search);
     if(q.get("use")) logUse(q.get("use"));
+    if(q.get("nf") && st.notif.log){ for(var ni=st.notif.log.length-1; ni>=0; ni--){ var ne=st.notif.log[ni]; if(ne.k===q.get("nf") && !ne.opened){ ne.opened = Date.now(); save(); break; } } }   // 알림을 눌러 들어옴
     if(st.start && q.get("sos")==="1") $("h_sos").onclick();
     else if(st.start && q.get("tab")) show(q.get("tab"));
     if(q.toString()) history.replaceState(null, "", location.pathname);
