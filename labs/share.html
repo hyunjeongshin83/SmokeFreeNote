@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>금연노트 실험 — 기록 공유 (Web Share API)</title>
+<!-- 실험 화면입니다. 앱 본체에서 링크하지 않습니다 (VaccineNote-Park#96 · 디자인·API 실험 루틴 규칙: 플래그 뒤 또는 labs/ 아래).
+     무엇을 실험하나: 「내보내기」가 파일을 내려받게만 하는데, 폰에서는 공유 시트(카톡·메일·파일 앱)로 바로 보내는 것이 가족·약사에게 더 가깝다.
+     Web Share API — 브라우저 내장, 무료, 데이터는 사용자가 고른 앱으로만 간다(제3자 서버 없음). 지원 안 되면 지금과 같은 내려받기로. -->
+<style>
+  :root{ --brand:#0E6B48; --n-0:#fff; --n-1:#f4f6f5; --n-7:#2b2f2d; --n-5:#6b7370; --fs-body:17px; --fs-sub:15px; --fs-h:21px; --sp-2:8px; --sp-4:16px; --sp-6:24px; --r-2:12px; --dur:220ms; --ease:cubic-bezier(.32,.72,0,1); }
+  html{ font-size:100%; } body{ margin:0; background:var(--n-1); color:var(--n-7); font:var(--fs-body)/1.55 Pretendard,-apple-system,"Noto Sans KR",sans-serif; word-break:keep-all; }
+  main{ max-width:480px; margin:0 auto; padding:var(--sp-6) var(--sp-4); }
+  h1{ font-size:var(--fs-h); margin:0 0 var(--sp-2); } p{ margin:0 0 var(--sp-4); } .sub{ font-size:var(--fs-sub); color:var(--n-5); }
+  .card{ background:var(--n-0); border-radius:var(--r-2); padding:var(--sp-4); margin-bottom:var(--sp-4); }
+  .btn{ display:block; width:100%; min-height:48px; border:0; border-radius:var(--r-2); background:var(--brand); color:#fff; font:inherit; font-weight:700; transition:background-color var(--dur) var(--ease); }
+  .btn.ghost{ background:var(--n-1); color:var(--brand); border:1px solid var(--brand); margin-top:var(--sp-2); }
+  .btn[disabled]{ opacity:.55; }
+  code{ font-size:var(--fs-sub); background:var(--n-1); padding:1px 5px; border-radius:6px; }
+  @media (prefers-reduced-motion:reduce){ *{ transition-duration:.01ms !important; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>기록 공유 (실험)</h1>
+  <p class="sub">이 기기의 금연노트 기록을 JSON 파일로 묶어, 폰의 공유 시트로 보냅니다. 서버로 가지 않고 <b>내가 고른 앱</b>으로만 갑니다.</p>
+
+  <section class="card">
+    <p id="support" aria-live="polite">확인 중…</p>
+    <button class="btn" id="share" disabled>공유 시트로 보내기</button>
+    <button class="btn ghost" id="download">파일로 내려받기 (지금 방식)</button>
+    <p class="sub" id="result" aria-live="polite"></p>
+  </section>
+
+  <section class="card sub">
+    <p>기록 <b id="count">0</b>건 · 파일 <b id="size">0</b> KB · <code id="ua"></code></p>
+  </section>
+</main>
+<script>
+(function(){
+  var KEY="smokefree.v1", $=function(i){ return document.getElementById(i); };
+  var st={}; try{ st=JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){}
+  var json=JSON.stringify({app:"smokefree", v:2, exported:new Date().toISOString(), data:st}, null, 1);
+  var name="금연노트-"+new Date().toISOString().slice(0,10)+".json";
+  var blob=new Blob([json],{type:"application/json"});
+  var file=null; try{ file=new File([blob], name, {type:"application/json"}); }catch(e){}
+  $("count").textContent=(st.logs||[]).length; $("size").textContent=(blob.size/1024).toFixed(1); $("ua").textContent=navigator.userAgent.replace(/\(.*?\)/g,"").slice(0,60);
+
+  // 기능 감지 — 이 결과를 DOM 에 적어 두어 headless 브라우저에서도 읽을 수 있게 (실험 기록용)
+  var det={ share: typeof navigator.share==="function", canShare: typeof navigator.canShare==="function", files: false, text: false, secure: window.isSecureContext===true };
+  try{ if(det.canShare){ det.files = file ? navigator.canShare({files:[file]}) : false; det.text = navigator.canShare({title:"금연노트", text:"기록"}); } }catch(e){}
+  document.documentElement.setAttribute("data-share", JSON.stringify(det));
+  var msg = !det.share ? "이 브라우저에는 공유 시트가 없어요. 파일로 내려받기만 됩니다."
+          : det.files ? "공유 시트로 파일을 보낼 수 있어요." : "공유 시트는 있지만 파일은 못 보내요. 글만 보내거나 내려받기로.";
+  if(!det.secure) msg += " (https 가 아니라 공유가 막힐 수 있어요)";
+  $("support").textContent=msg;
+  $("share").disabled = !det.share;
+
+  $("share").onclick=function(){
+    var data = det.files ? {files:[file], title:"금연노트 기록"} : {title:"금연노트 기록", text:"금연노트 기록 "+(st.logs||[]).length+"건 · "+new Date().toLocaleDateString("ko-KR")};
+    navigator.share(data).then(function(){ $("result").textContent="공유 시트로 보냈어요."; })
+      .catch(function(e){ $("result").textContent = (e && e.name==="AbortError") ? "공유를 취소했어요." : "공유하지 못했어요. 파일로 내려받기를 눌러 주세요."; });
+  };
+  $("download").onclick=function(){
+    var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1500); $("result").textContent="파일로 내려받았어요.";
+  };
+})();
+</script>
+</body>
+</html>
