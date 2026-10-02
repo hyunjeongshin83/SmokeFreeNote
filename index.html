@@ -426,7 +426,11 @@ html.big body{zoom:1.18;}
   Object.keys(NDEF).forEach(function(k){ if(st.notif[k]==null) st.notif[k]=NDEF[k]; });
 
   function $(id){ return document.getElementById(id); }
-  function toast(m){ var t=$("toast"); t.textContent=m; t.classList.add("show"); setTimeout(function(){ t.classList.remove("show"); },1800); }
+  // 안내가 머무는 시간 6초 (3초 + 3낱말당 1초 · APP-STYLE 3-5-1 --dur-toast · VaccineNote-Park#94 VN-94-3). 1.8초는 고령 사용자가 읽기 전에 사라졌다.
+  // 가리키고 있으면 사라지지 않는다 (WCAG 2.2.1).
+  function toast(m){ var t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(toast._t);
+    var until=Date.now()+6000;
+    (function tick(){ toast._t=setTimeout(function(){ if(t.matches(":hover")||Date.now()<until) return tick(); t.classList.remove("show"); }, Math.max(250, until-Date.now())); })(); }
   function won(n){ return Math.floor(n).toLocaleString("ko-KR") + "원"; }
   function localInput(d){ var z=new Date(d.getTime()-d.getTimezoneOffset()*60000); return z.toISOString().slice(0,16); }
 
