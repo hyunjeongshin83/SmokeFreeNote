@@ -181,7 +181,7 @@ html.big body{zoom:1.18;}
       <p class="sub">시작일과 흡연 습관을 알려주시면 금연 일수·아낀 돈·건강 회복을 계산해 드려요. 모든 정보는 이 기기에만 저장돼요.</p>
       <div style="margin-top:16px">
         <div class="fld"><label for="s_start">금연 시작일·시각</label><input type="datetime-local" id="s_start"></div>
-        <div class="fld"><label>무엇을 피우셨나요?</label><div class="chips" id="s_kind"></div></div>
+        <div class="fld"><label id="s_kind_lb">무엇을 피우셨나요?</label><div class="chips" id="s_kind" role="group" aria-labelledby="s_kind_lb"></div></div>
         <div class="row2">
           <div class="fld"><label for="s_perday" id="s_perday_l">하루 흡연량 (개비)</label><input type="number" id="s_perday" min="1" inputmode="numeric" value="15"></div>
           <div class="fld"><label for="s_price" id="s_price_l">한 갑 가격 (원)</label><input type="number" id="s_price" min="0" inputmode="numeric" value="4500"></div>
@@ -225,12 +225,12 @@ html.big body{zoom:1.18;}
       <div class="title">흡연 욕구 기록</div>
       <p class="sub">언제, 왜 담배가 당겼는지 적어 두면 나만의 위험 상황을 알 수 있어요.</p>
       <div style="margin-top:14px">
-        <div class="fld"><label>얼마나 당겼나요?</label><div class="chips" id="l_lv"></div></div>
-        <div class="fld"><label>그때 기분은요?</label><div class="chips" id="l_mood"></div></div>
-        <div class="fld"><label>상황</label><div class="chips" id="l_trig"></div></div>
+        <div class="fld"><label id="l_lv_lb">얼마나 당겼나요?</label><div class="chips" id="l_lv" role="group" aria-labelledby="l_lv_lb"></div></div>
+        <div class="fld"><label id="l_mood_lb">그때 기분은요?</label><div class="chips" id="l_mood" role="group" aria-labelledby="l_mood_lb"></div></div>
+        <div class="fld"><label id="l_trig_lb">상황</label><div class="chips" id="l_trig" role="group" aria-labelledby="l_trig_lb"></div></div>
         <label class="chk"><input type="checkbox" id="l_other"> 옆에 담배 피우는 사람이 있었어요</label>
         <label class="chk"><input type="checkbox" id="l_avail"> 담배를 바로 구할 수 있었어요</label>
-        <div class="fld" style="margin-top:6px"><label>어떻게 넘겼나요? <span style="font-weight:500">(선택)</span></label><div class="chips" id="l_cope"></div></div>
+        <div class="fld" style="margin-top:6px"><label id="l_cope_lb">어떻게 넘겼나요? <span style="font-weight:500">(선택)</span></label><div class="chips" id="l_cope" role="group" aria-labelledby="l_cope_lb"></div></div>
         <label class="chk"><input type="checkbox" id="l_slip"> 결국 피웠어요 (괜찮아요, 이번 시도는 계속돼요)</label>
         <button class="btn" id="l_save">기록하기</button>
         <div class="tipcard" id="l_tip"><div class="t" id="l_tip_t"></div><div class="d" id="l_tip_d"></div><button class="btn sos" id="l_tip_sos" style="margin-top:10px;display:none"><svg aria-hidden="true" focusable="false"><use href="#i-timer"/></svg>5분만 버텨볼게요</button></div>
