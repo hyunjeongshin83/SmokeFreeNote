@@ -429,10 +429,11 @@ html.big body{zoom:1.18;}
   // 안내가 머무는 시간 6초 (3초 + 3낱말당 1초 · APP-STYLE 3-5-1 --dur-toast · VaccineNote-Park#94 VN-94-3). 1.8초는 고령 사용자가 읽기 전에 사라졌다.
   // 가리키고 있으면 사라지지 않는다 (WCAG 2.2.1) — 토스트가 포인터를 받게 하면(pointer-events:auto) 터치 기기에서 6초 동안 아래 단추를
   // 가로막고(PR #20), 마우스·터치를 번갈아 쓰는 기기에서는 첫 탭이 먹혔다(PR #22 Sourcery·Codex). 그래서 토스트는 포인터를 받지 않고,
-  // 문서 단계에서 본 마지막 마우스 좌표가 토스트 상자 안인지로 판단한다. 터치가 오거나 창을 벗어나면 좌표를 지운다.
+  // 문서 단계에서 본 마지막 마우스·펜 좌표가 토스트 상자 안인지로 판단한다. 터치가 오거나 창을 벗어나면 좌표를 지운다.
+  // 터치가 아닌 포인터(마우스·떠 있는 펜)는 모두 가리킬 수 있다 — 펜을 빼면 펜 사용자는 6초 뒤 사라졌다 (PR #23 Codex P2). 펜이 범위를 벗어나면 pointerleave 가 지운다.
   var mousePt = null;
-  document.addEventListener("pointermove", function(e){ mousePt = e.pointerType === "mouse" ? { x:e.clientX, y:e.clientY } : null; }, { passive:true, capture:true });
-  document.addEventListener("pointerdown", function(e){ if(e.pointerType !== "mouse") mousePt = null; }, { passive:true, capture:true });
+  document.addEventListener("pointermove", function(e){ mousePt = e.pointerType !== "touch" ? { x:e.clientX, y:e.clientY } : null; }, { passive:true, capture:true });
+  document.addEventListener("pointerdown", function(e){ if(e.pointerType === "touch") mousePt = null; }, { passive:true, capture:true });
   document.documentElement.addEventListener("pointerleave", function(){ mousePt = null; });
   window.addEventListener("blur", function(){ mousePt = null; });
   function mouseOver(el){ if(!mousePt) return false; var r = el.getBoundingClientRect(); return mousePt.x >= r.left && mousePt.x <= r.right && mousePt.y >= r.top && mousePt.y <= r.bottom; }
