@@ -153,6 +153,8 @@ html.big body{zoom:1.18;}
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--g7);color:#fff;padding:11px 18px;border-radius:11px;font-size:0.875rem;opacity:0;transition:.3s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:20;}
 .toast.show{opacity:1;}
 @media (hover:hover){ .toast.show{pointer-events:auto;} }   /* 가리키는 동안 머물려면 포인터를 받아야 함 — .toast 의 pointer-events:none 때문에 :hover 가 안 잡히던 것 (PR #13 Sourcery·Codex). 터치만 있는 폰에서는 받지 않음 — 6초 동안 아래 단추를 가로막음 (PR #20 Codex) */
+html[data-pointer="mouse"] .toast.show{pointer-events:auto;}   /* 터치가 주 입력인 기기에 마우스를 붙이면 (hover:hover) 는 거짓 — 지금 움직이는 포인터가 마우스일 때만 받는다 (PR #21 Codex) */
+html[data-pointer="touch"] .toast.show{pointer-events:none;}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; scroll-behavior:auto !important; }
@@ -429,6 +431,8 @@ html.big body{zoom:1.18;}
   function $(id){ return document.getElementById(id); }
   // 안내가 머무는 시간 6초 (3초 + 3낱말당 1초 · APP-STYLE 3-5-1 --dur-toast · VaccineNote-Park#94 VN-94-3). 1.8초는 고령 사용자가 읽기 전에 사라졌다.
   // 가리키고 있으면 사라지지 않는다 (WCAG 2.2.1).
+  // 지금 쓰는 포인터가 마우스인지 터치인지 html[data-pointer] 에 적어 둔다 — 토스트가 마우스에만 포인터를 받게 (PR #21 Codex)
+  ["pointermove","pointerdown"].forEach(function(ev){ document.addEventListener(ev, function(e){ var k = e.pointerType === "mouse" ? "mouse" : (e.pointerType === "touch" ? "touch" : null); if(k && document.documentElement.dataset.pointer !== k) document.documentElement.dataset.pointer = k; }, { passive:true, capture:true }); });
   function toast(m){ var t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(toast._t);
     var until=Date.now()+6000;
     (function tick(){ toast._t=setTimeout(function(){ if(t.matches(":hover")||Date.now()<until) return tick(); t.classList.remove("show"); }, Math.max(250, until-Date.now())); })(); }
