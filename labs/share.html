@@ -39,12 +39,18 @@
 <script>
 (function(){
   var KEY="smokefree.v1", $=function(i){ return document.getElementById(i); };
-  var st={}; try{ st=JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){}
-  var json=JSON.stringify({app:"smokefree", v:2, exported:new Date().toISOString(), data:st}, null, 1);
-  var name="금연노트-"+new Date().toISOString().slice(0,10)+".json";
-  var blob=new Blob([json],{type:"application/json"});
-  var file=null; try{ file=new File([blob], name, {type:"application/json"}); }catch(e){}
-  $("count").textContent=(st.logs||[]).length; $("size").textContent=(blob.size/1024).toFixed(1); $("ua").textContent=navigator.userAgent.replace(/\(.*?\)/g,"").slice(0,60);
+  var st={}, json="", name="", blob=null, file=null;
+  // 누를 때마다 지금 저장된 기록으로 다시 만든다 — 다른 탭에서 기록을 더한 뒤 돌아와도 옛 사본을 보내지 않게 (PR #14 Codex)
+  function build(){
+    st={}; try{ st=JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){}
+    json=JSON.stringify({app:"smokefree", v:2, exported:new Date().toISOString(), data:st}, null, 1);
+    name="금연노트-"+new Date().toISOString().slice(0,10)+".json";
+    blob=new Blob([json],{type:"application/json"});
+    file=null; try{ file=new File([blob], name, {type:"application/json"}); }catch(e){}
+    $("count").textContent=(st.logs||[]).length; $("size").textContent=(blob.size/1024).toFixed(1);
+  }
+  build(); $("ua").textContent=navigator.userAgent.replace(/\(.*?\)/g,"").slice(0,60);
+  window.addEventListener("storage", function(e){ if(!e.key || e.key===KEY) build(); });
 
   // 기능 감지 — 이 결과를 DOM 에 적어 두어 headless 브라우저에서도 읽을 수 있게 (실험 기록용)
   var det={ share: typeof navigator.share==="function", canShare: typeof navigator.canShare==="function", files: false, text: false, secure: window.isSecureContext===true };
@@ -57,11 +63,13 @@
   $("share").disabled = !det.share;
 
   $("share").onclick=function(){
+    build();
     var data = det.files ? {files:[file], title:"금연노트 기록"} : {title:"금연노트 기록", text:"금연노트 기록 "+(st.logs||[]).length+"건 · "+new Date().toLocaleDateString("ko-KR")};
     navigator.share(data).then(function(){ $("result").textContent="공유 시트로 보냈어요."; })
       .catch(function(e){ $("result").textContent = (e && e.name==="AbortError") ? "공유를 취소했어요." : "공유하지 못했어요. 파일로 내려받기를 눌러 주세요."; });
   };
   $("download").onclick=function(){
+    build();
     var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click();
     setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1500); $("result").textContent="파일로 내려받았어요.";
   };

@@ -151,7 +151,7 @@ html.big body{zoom:1.18;}
 .tip{font-size:1rem;color:var(--ink);line-height:1.5;min-height:48px;}
 
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--g7);color:#fff;padding:11px 18px;border-radius:11px;font-size:0.875rem;opacity:0;transition:.3s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:20;}
-.toast.show{opacity:1;}
+.toast.show{opacity:1;pointer-events:auto;}   /* 가리키는 동안 머물려면 포인터를 받아야 함 — .toast 의 pointer-events:none 때문에 :hover 가 안 잡히던 것 (PR #13 Sourcery·Codex) */
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; scroll-behavior:auto !important; }
@@ -548,7 +548,9 @@ html.big body{zoom:1.18;}
     return TIPS[0];
   }
   // 기록 직후 그 자리에서 대처법 1건 (Smart-T 2·3단계 규칙 — docs/DESIGN.md 「알림」)
+  var tipRec = null;   // 대처법 카드가 가리키는 기록 — st.logs[0] 이 아니라 이 기록에 sos 를 적는다 (PR #12 Codex)
   function afterLog(r){
+    tipRec = r;
     var tip = pickTip(r);
     var el = $("l_tip"), hi = r.slip || r.lv==="강함" || r.other || r.avail;
     // 앱이 무엇을 보여 줬는지도 기록에 남긴다 — 단계(1 격려 · 2 높은 위험 · 3 복귀)와 대처법 번호.
@@ -571,7 +573,7 @@ html.big body{zoom:1.18;}
   $("l_restart_yes").onclick = restart;
   $("l_restart_no").onclick = function(){ $("l_restart").classList.remove("on"); toast("이어가요. 응원할게요!"); };
   var sosFrom = null;   // 대처법 카드에서 5분 버티기로 넘어온 기록의 시각 (VN-91-1)
-  $("l_tip_sos").onclick = function(){ $("l_tip").classList.remove("on"); if(st.logs[0]){ st.logs[0].sos = true; sosFrom = st.logs[0].t; save(); } $("h_sos").onclick(); };
+  $("l_tip_sos").onclick = function(){ $("l_tip").classList.remove("on"); var rec = (tipRec && st.logs.indexOf(tipRec) >= 0) ? tipRec : null; if(rec){ rec.sos = true; sosFrom = rec.t; save(); } $("h_sos").onclick(); };
   $("l_save").onclick = function(){
     if(!pick.lv) return toast("얼마나 당겼는지 골라 주세요");
     if(!pick.mood) return toast("그때 기분을 골라 주세요");
