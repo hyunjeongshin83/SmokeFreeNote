@@ -33,8 +33,18 @@ body{font-family:'Pretendard','Inter',-apple-system,sans-serif;color:var(--d2);l
 .sub{font-size:0.9375rem;color:var(--d3);margin-top:4px;line-height:1.5;}
 .sect{font-family:'Gaegu',cursive;font-size:1.1875rem;font-weight:700;color:var(--g6);margin:4px 2px 9px;}
 label{display:block;font-size:0.9375rem;font-weight:800;color:var(--d3);margin-bottom:5px;}
-input,textarea,select{width:100%;font-family:inherit;font-size:1rem;padding:12px 13px;border-radius:12px;border:1.5px solid var(--line);outline:none;background:#fff;color:var(--ink);}
+input,textarea,select{width:100%;font-family:inherit;font-size:1rem;padding:12px 13px;border-radius:12px;border:1.5px solid var(--line);background:#fff;color:var(--ink);}
 input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 3px rgba(14,107,72,.15);}
+/* 초점 표시 한 규칙 — VaccineNote-Park/docs/APP-STYLE.md §4 「초점 표시」 (VN-110-4 · 2026-10-06 운영 에이전트)
+   outline:none 을 걷어내고 키보드 초점(:focus-visible)에만 2px 링. 마우스·터치 초점은 지금처럼 링 없음.
+   링 색 --g4 #0E6B48: 바탕 #EEF8F3 6.02:1 · #FAFDFB 6.38:1 · #FFF 6.53:1 · #D7F0E3 5.43:1 (WCAG 상대휘도 계산 · 3:1 이상).
+   --tabbar-h 는 .tabs 실측 100% 63px · 200% 80px → 80px. 머리글은 sticky 가 없어 0. */
+:root{--focus-width:2px;--focus-offset:2px;--focus-color:var(--g4);--focus-on-brand:#FFFFFF;--tabbar-h:80px;--header-h:0px;}
+:focus-visible{outline:var(--focus-width) solid var(--focus-color);outline-offset:var(--focus-offset);}
+:focus:not(:focus-visible){outline:none;}
+[data-surface="brand"]{--focus-color:var(--focus-on-brand);}
+[data-focus="inset"] :focus-visible,[data-focus="inset"]:focus-visible{outline-offset:calc(var(--focus-width) * -1);}
+html{scroll-padding-top:calc(var(--header-h) + 8px);scroll-padding-bottom:calc(var(--tabbar-h) + env(safe-area-inset-bottom,0px) + 8px);}
 .fld{margin-bottom:11px;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
 .row2.tm{grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr));} /* 시각 입력: 글자 200%면 한 줄에 하나 (가로 넘침 방지) */
