@@ -775,7 +775,7 @@ html.big body{zoom:1.18;}
         if(d.start && (!st.start || (d.start < st.start && !st.attempts.length))){ st.start=d.start; st.perDay=d.perDay; st.price=d.price; st.kind=d.kind||"cig"; st.reason=d.reason||""; st.attempts=d.attempts||[]; }
         if(d.notif && Array.isArray(d.notif.log)){   // 보낸 알림 장부 (VN-116-2) — 알림 on·시각은 기기 권한이 따로라 가져오지 않음
           var nseen = {}; (st.notif.log||[]).forEach(function(x){ nseen[x.t]=1; });
-          st.notif.log = (st.notif.log||[]).concat(d.notif.log.filter(function(x){ return x && x.t && !nseen[x.t]; })).sort(function(a,b){ return a.t-b.t; }).slice(-100);
+          st.notif.log = (st.notif.log||[]).concat(d.notif.log.filter(function(x){ if(!x || !x.t || nseen[x.t]) return false; nseen[x.t]=1; return true; })).sort(function(a,b){ return a.t-b.t; }).slice(-100);
         }
         save(); renderLogs(); renderQrList(); toast("기록 "+added+"건을 가져왔어요");
       }catch(e){ toast("금연노트 파일이 아니에요"); }
@@ -786,7 +786,7 @@ html.big body{zoom:1.18;}
   $("p_wipe").onclick = function(){
     if(!confirm("모든 기록과 설정을 지울까요? 되돌릴 수 없어요.")) return;
     if(!confirm("정말 지울까요? 먼저 내보내기를 해 두는 것이 좋아요.")) return;
-    try{ localStorage.removeItem(KEY); }catch(e){} location.reload();
+    try{ localStorage.removeItem(KEY); localStorage.removeItem(KEY+".corrupt"); }catch(e){} location.reload();   // 보존해 둔 깨진 원문도 함께 (VN-116-3 Codex)
   };
 
   // 알림 — 정해진 시각(아침·저녁)만. 무작위 없음. 첫 2주 2건 → 저녁 1건 → 달마다 절반 → 3개월 멈춤 (docs/DESIGN.md)
