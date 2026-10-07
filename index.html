@@ -427,7 +427,11 @@ html.big body{zoom:1.18;}
   var COPE = ["물 마시기","심호흡","산책","양치질","껌·사탕","전화 통화"];
   var TIPS = ["찬물 한 잔을 천천히 마셔보세요.","코로 4초 들이쉬고, 7초 참고, 8초 내쉬어요.","자리에서 일어나 잠깐 걸어보세요.","양치질을 하면 입안이 개운해져요.","나의 금연 이유를 다시 떠올려봐요.","가족이나 친구에게 전화해 보세요."];
 
-  function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || {}; }catch(e){ return {}; } }
+  function load(){
+    var raw = null;
+    try{ raw = localStorage.getItem(KEY); return JSON.parse(raw) || {}; }
+    catch(e){ try{ if(raw && localStorage.getItem(KEY+".corrupt")==null) localStorage.setItem(KEY+".corrupt", raw); }catch(e2){} return {}; }   // 깨진 원본은 덮어쓰기 전에 한 번 보존 (VN-116-3)
+  }
   function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(e){} }
   var st = load(); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {}; st.devices = st.devices || [];
   function dkey(t){ var d=new Date(t||Date.now()); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
@@ -767,7 +771,12 @@ html.big body{zoom:1.18;}
         (d.measures||[]).forEach(function(m){ if(!st.measures.some(function(x){ return x.t===m.t&&x.kind===m.kind; })) st.measures.push(m); });
         st.measures.sort(function(a,b){ return b.t-a.t; });
         (d.devices||[]).forEach(function(v){ if(v && v.id && !st.devices.some(function(x){ return x.id===v.id; })) st.devices.push(v); }); // 스티커 기기 목록도 (#10 Codex)
-        if(!st.start && d.start){ st.start=d.start; st.perDay=d.perDay; st.price=d.price; st.kind=d.kind||"cig"; st.reason=d.reason||""; st.attempts=d.attempts||[]; }
+        // 새 폰은 가져오기 전에 시작 설정을 먼저 마치므로, 백업이 더 이르고 지금 시도 이력이 없으면 백업의 시작 정보로 되돌립니다 (VN-116-1)
+        if(d.start && (!st.start || (d.start < st.start && !st.attempts.length))){ st.start=d.start; st.perDay=d.perDay; st.price=d.price; st.kind=d.kind||"cig"; st.reason=d.reason||""; st.attempts=d.attempts||[]; }
+        if(d.notif && Array.isArray(d.notif.log)){   // 보낸 알림 장부 (VN-116-2) — 알림 on·시각은 기기 권한이 따로라 가져오지 않음
+          var nseen = {}; (st.notif.log||[]).forEach(function(x){ nseen[x.t]=1; });
+          st.notif.log = (st.notif.log||[]).concat(d.notif.log.filter(function(x){ if(!x || !x.t || nseen[x.t]) return false; nseen[x.t]=1; return true; })).sort(function(a,b){ return a.t-b.t; }).slice(-100);
+        }
         save(); renderLogs(); renderQrList(); toast("기록 "+added+"건을 가져왔어요");
       }catch(e){ toast("금연노트 파일이 아니에요"); }
       $("p_file").value = "";
@@ -777,7 +786,7 @@ html.big body{zoom:1.18;}
   $("p_wipe").onclick = function(){
     if(!confirm("모든 기록과 설정을 지울까요? 되돌릴 수 없어요.")) return;
     if(!confirm("정말 지울까요? 먼저 내보내기를 해 두는 것이 좋아요.")) return;
-    try{ localStorage.removeItem(KEY); }catch(e){} location.reload();
+    try{ localStorage.removeItem(KEY); localStorage.removeItem(KEY+".corrupt"); }catch(e){} location.reload();   // 보존해 둔 깨진 원문도 함께 (VN-116-3 Codex)
   };
 
   // 알림 — 정해진 시각(아침·저녁)만. 무작위 없음. 첫 2주 2건 → 저녁 1건 → 달마다 절반 → 3개월 멈춤 (docs/DESIGN.md)
