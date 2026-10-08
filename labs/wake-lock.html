@@ -41,7 +41,7 @@
 <script>
 (function(){
   var $=function(i){ return document.getElementById(i); };
-  var TOTAL=300, endAt=0, tick=null, sentinel=null, running=false;
+  var TOTAL=300, endAt=0, tick=null, sentinel=null, running=false, run=0, pending=false;
   var info={ supported:"wakeLock" in navigator, secure:window.isSecureContext===true, acquired:0, again:0, released:0, errors:[] };
   function publish(){ document.documentElement.setAttribute("data-wakelock", JSON.stringify(info)); }
   function fmt(s){ return Math.floor(s/60)+":"+("0"+(s%60)).slice(-2); }
@@ -51,12 +51,17 @@
   // 화면 켜 두기 요청 — 거절돼도(절전·배터리 부족·허락 안 됨) 앱은 그대로 돈다. 못 얻으면 말해 줄 뿐
   function acquire(again){
     if(!info.supported || !info.secure) return Promise.resolve(false);
+    if(pending) return Promise.resolve(false);   // 요청이 오가는 중에는 겹쳐 보내지 않음
+    var mine=run; pending=true;
     return navigator.wakeLock.request("screen").then(function(s){
+      pending=false;
+      if(!running || mine!==run){ try{ s.release(); }catch(e){} return false; }   // 그 사이 멈췄거나 끝났으면 바로 풂
       sentinel=s; info.acquired++; if(again){ info.again++; $("again").textContent=info.again; }
       lockText("켜짐");
-      s.addEventListener("release", function(){ info.released++; if(sentinel===s) sentinel=null; if(running) lockText("풀림"); publish(); });
+      s.addEventListener("release", function(){ info.released++; if(sentinel===s) sentinel=null; if(running){ lockText("풀림"); if(document.visibilityState==="visible") acquire(true); } publish(); });
       publish(); return true;
     }).catch(function(e){
+      pending=false;
       info.errors.push((e&&e.name)||"error"); lockText("못 켰어요"); publish(); return false;
     });
   }
@@ -64,22 +69,22 @@
 
   // 다른 앱에 갔다 오면 브라우저가 풀어 버립니다 — 돌아오면 다시 요청
   document.addEventListener("visibilitychange", function(){
-    if(document.visibilityState==="visible" && running && !sentinel) acquire(true);
+    if(document.visibilityState==="visible" && running && (!sentinel || sentinel.released)){ sentinel=null; acquire(true); }
   });
 
   function remaining(){ return Math.max(0, Math.round((endAt-Date.now())/1000)); }
   function render(){
     var r=remaining(); $("t").textContent=fmt(r);
-    if(r<=0) finish(true);
+    if(Date.now()>=endAt) finish(true);
   }
   function finish(done){
-    running=false; clearInterval(tick); release();
+    running=false; run++; clearInterval(tick); release();
     $("start").disabled=false; $("stop").disabled=true; lockText("꺼짐");
     say(done ? "5분을 버텼어요. 화면 켜 두기를 풀었어요." : "멈췄어요. 화면 켜 두기를 풀었어요.");
     if(!done) $("t").textContent="5:00";
   }
   $("start").onclick=function(){
-    running=true; endAt=Date.now()+TOTAL*1000; $("start").disabled=true; $("stop").disabled=false;
+    running=true; run++; endAt=Date.now()+TOTAL*1000; $("start").disabled=true; $("stop").disabled=false;
     acquire(false).then(function(ok){ say(ok ? "화면을 켜 둔 채 5분을 셉니다." : (info.supported ? "화면을 켜 두지 못했어요. 5분은 그대로 셉니다 — 화면이 꺼지면 다시 켜 주세요." : "이 브라우저는 화면 켜 두기를 지원하지 않아요. 5분은 그대로 셉니다.")); });
     render(); clearInterval(tick); tick=setInterval(render, 500);
   };
