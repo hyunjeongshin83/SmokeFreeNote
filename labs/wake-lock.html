@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>금연노트 실험 — 5분 버티기 화면 켜 두기 (Screen Wake Lock API)</title>
+<!-- 실험 화면입니다. 앱 본체에서 링크하지 않습니다 (VaccineNote-Park 이슈 · 디자인·API 실험 루틴 규칙: labs/ 아래 별도 화면).
+     무엇을 실험하나: 「지금 담배가 당겨요」의 5분 버티기 동안 폰 화면이 저절로 꺼지면 숫자도 안내도 사라집니다. 이 시간 동안만 화면을 켜 둘 수 있는지.
+     Screen Wake Lock API — 브라우저 내장, 무료, 어떤 데이터도 밖으로 나가지 않고 저장도 하지 않습니다. 지원 안 되면 지금과 같습니다(화면이 꺼질 수 있음). -->
+<style>
+  :root{ --brand:#0E6B48; --n-0:#fff; --n-1:#f4f6f5; --n-7:#2b2f2d; --n-5:#6b7370; --fs-body:17px; --fs-sub:15px; --fs-h:21px; --sp-2:8px; --sp-4:16px; --sp-6:24px; --r-2:12px; --dur:220ms; --ease:cubic-bezier(.32,.72,0,1); }
+  html{ font-size:100%; } body{ margin:0; background:var(--n-1); color:var(--n-7); font:var(--fs-body)/1.55 Pretendard,-apple-system,"Noto Sans KR",sans-serif; word-break:keep-all; }
+  main{ max-width:480px; margin:0 auto; padding:var(--sp-6) var(--sp-4); }
+  h1{ font-size:var(--fs-h); margin:0 0 var(--sp-2); } p{ margin:0 0 var(--sp-4); } .sub{ font-size:var(--fs-sub); color:var(--n-5); }
+  .card{ background:var(--n-0); border-radius:var(--r-2); padding:var(--sp-4); margin-bottom:var(--sp-4); }
+  .btn{ display:block; width:100%; min-height:48px; border:0; border-radius:var(--r-2); background:var(--brand); color:#fff; font:inherit; font-weight:700; transition:background-color var(--dur) var(--ease); }
+  .btn.ghost{ background:var(--n-1); color:var(--brand); border:1px solid var(--brand); margin-top:var(--sp-2); }
+  .btn[disabled]{ opacity:.55; }
+  code{ font-size:var(--fs-sub); background:var(--n-1); padding:1px 5px; border-radius:6px; }
+  @media (prefers-reduced-motion:reduce){ *{ transition-duration:.01ms !important; } }
+  .timer{ font-size:48px; font-weight:800; text-align:center; margin:0 0 var(--sp-4); font-variant-numeric:tabular-nums; color:var(--brand); }
+</style>
+</head>
+<body>
+<main>
+  <h1>5분 버티기 · 화면 켜 두기 (실험)</h1>
+  <p class="sub">담배가 당길 때 5분을 버티는 동안 폰 화면이 꺼지지 않게 해 봅니다. <b>화면을 켜 둘 뿐</b>이고 기록을 만들거나 어디로 보내지 않습니다.</p>
+
+  <section class="card">
+    <p id="support" aria-live="polite">확인 중…</p>
+    <p class="timer" id="t" aria-hidden="true">5:00</p>
+    <button class="btn" id="start">5분 버티기 시험 시작</button>
+    <button class="btn ghost" id="stop" disabled>멈추기</button>
+    <p class="sub" id="state" aria-live="polite"></p>
+  </section>
+
+  <section class="card sub">
+    <p>화면 켜 두기: <b id="lock">꺼짐</b> · 다시 켠 횟수 <b id="again">0</b> · <code id="ua"></code></p>
+  </section>
+</main>
+<script>
+(function(){
+  var $=function(i){ return document.getElementById(i); };
+  var TOTAL=300, endAt=0, tick=null, sentinel=null, running=false, run=0, pending=false;
+  var info={ supported:"wakeLock" in navigator, secure:window.isSecureContext===true, acquired:0, again:0, released:0, errors:[] };
+  function publish(){ document.documentElement.setAttribute("data-wakelock", JSON.stringify(info)); }
+  function fmt(s){ return Math.floor(s/60)+":"+("0"+(s%60)).slice(-2); }
+  function say(m){ $("state").textContent=m; }
+  function lockText(v){ $("lock").textContent=v; }
+
+  // 화면 켜 두기 요청 — 거절돼도(절전·배터리 부족·허락 안 됨) 앱은 그대로 돈다. 못 얻으면 말해 줄 뿐
+  function acquire(again){
+    if(!info.supported || !info.secure) return Promise.resolve(false);
+    if(pending) return Promise.resolve(false);   // 요청이 오가는 중에는 겹쳐 보내지 않음
+    var mine=run; pending=true;
+    return navigator.wakeLock.request("screen").then(function(s){
+      pending=false;
+      if(!running || mine!==run){ try{ s.release(); }catch(e){} return false; }   // 그 사이 멈췄거나 끝났으면 바로 풂
+      sentinel=s; info.acquired++; if(again){ info.again++; $("again").textContent=info.again; }
+      lockText("켜짐");
+      s.addEventListener("release", function(){ info.released++; if(sentinel===s) sentinel=null; if(running){ lockText("풀림"); if(document.visibilityState==="visible") acquire(true); } publish(); });
+      publish(); return true;
+    }).catch(function(e){
+      pending=false;
+      info.errors.push((e&&e.name)||"error"); lockText("못 켰어요"); publish(); return false;
+    });
+  }
+  function release(){ var s=sentinel; sentinel=null; if(s){ try{ s.release(); }catch(e){} } }
+
+  // 다른 앱에 갔다 오면 브라우저가 풀어 버립니다 — 돌아오면 다시 요청
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState==="visible" && running && (!sentinel || sentinel.released)){ sentinel=null; acquire(true); }
+  });
+
+  function remaining(){ return Math.max(0, Math.round((endAt-Date.now())/1000)); }
+  function render(){
+    var r=remaining(); $("t").textContent=fmt(r);
+    if(Date.now()>=endAt) finish(true);
+  }
+  function finish(done){
+    running=false; run++; clearInterval(tick); release();
+    $("start").disabled=false; $("stop").disabled=true; lockText("꺼짐");
+    say(done ? "5분을 버텼어요. 화면 켜 두기를 풀었어요." : "멈췄어요. 화면 켜 두기를 풀었어요.");
+    if(!done) $("t").textContent="5:00";
+  }
+  $("start").onclick=function(){
+    running=true; run++; endAt=Date.now()+TOTAL*1000; $("start").disabled=true; $("stop").disabled=false;
+    acquire(false).then(function(ok){ say(ok ? "화면을 켜 둔 채 5분을 셉니다." : (info.supported ? "화면을 켜 두지 못했어요. 5분은 그대로 셉니다 — 화면이 꺼지면 다시 켜 주세요." : "이 브라우저는 화면 켜 두기를 지원하지 않아요. 5분은 그대로 셉니다.")); });
+    render(); clearInterval(tick); tick=setInterval(render, 500);
+  };
+  $("stop").onclick=function(){ finish(false); };
+  window.addEventListener("pagehide", release);
+
+  $("ua").textContent=navigator.userAgent.replace(/\(.*?\)/g,"").slice(0,60);
+  $("support").textContent = !info.secure ? "https 주소에서만 켤 수 있어요."
+    : info.supported ? "이 브라우저는 화면 켜 두기를 지원해요." : "이 브라우저는 화면 켜 두기를 지원하지 않아요. 지금 앱과 같게 화면이 꺼질 수 있어요.";
+  publish();
+})();
+</script>
+</body>
+</html>
