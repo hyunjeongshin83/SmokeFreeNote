@@ -807,7 +807,7 @@ html.big body{zoom:1.18;}
     notifSlots().forEach(function(k){
       if(Math.abs(nowMin - hm(st.notif[k])) > 1) return;
       if(st.notif.sent[k]===day) return;
-      st.notif.sent = {}; st.notif.sent[k]=day;
+      st.notif.sent[k]=day;   // 슬롯마다 따로 — 하나를 비우면 다른 슬롯이 1초마다 다시 울렸습니다 (#137 VN-137-1)
       st.notif.log = (st.notif.log || []).concat([{t:Date.now(), k:k}]).slice(-100);   // 보낸 알림 장부 (VN-91-1)
       save();
       var msg = k==="am" ? "오늘도 한 걸음. 담배가 당기면 기록해 두세요." : "오늘 하루 어땠나요? 당겼던 순간이 있었다면 적어 주세요.";
