@@ -481,16 +481,16 @@ html.big body{zoom:1.18;}
     document.querySelectorAll(".view").forEach(function(s){ s.classList.toggle("on", s.id==="v-"+v); });
     document.querySelectorAll("#tabs button").forEach(function(b){ b.classList.toggle("on", b.dataset.v===v); });
     $("tabs").style.display = v==="setup" ? "none" : "";
+    if(v==="start") $("st_go").textContent = st.start ? "오늘 화면으로" : "시작하기";
     if(v==="health") renderTimeline();
     if(v==="log") renderLogs();
     if(v==="help"){ renderProfile(); renderNotif(); renderDevices(); }
     if(v==="stats") renderStats();
     window.scrollTo(0,0);
   }
-  document.querySelectorAll("#tabs button").forEach(function(b){ b.onclick=function(){ if(b.dataset.v!=="start" && !st.start) return openSetup(); show(b.dataset.v); }; });
+  document.querySelectorAll("#tabs button").forEach(function(b){ b.onclick=function(){ if(b.dataset.v!=="start" && b.dataset.v!=="help" && !st.start) return openSetup(); show(b.dataset.v); }; });
   $("s_back").onclick = function(){ show(st.start ? "help" : "start"); };
   $("st_go").onclick = function(){ if(st.start) show("home"); else openSetup(); };
-  $("st_go").textContent = st.start ? "오늘 화면으로" : "시작하기";
   if(window.Native && $("st_pro")) $("st_pro").style.display = "none";   // 안드로이드 셸에는 파일 선택기가 아직 없다 (PR #32)
 
   // 설정
