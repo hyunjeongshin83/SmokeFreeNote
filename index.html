@@ -549,6 +549,11 @@ html.big body{zoom:1.18;}
   try{ lastRev = (JSON.parse(bootRaw) || {})._rev || "0"; }catch(e){}
   var lastRaw = bootRaw, lastObj = null;   // lastRaw 는 load() 가 읽은 바로 그 값(시작 직전 다른 탭이 쓴 것을 놓치지 않게) · lastObj: 시작을 마친 뒤의 상태에서 채운다
   function jeq(a, b){ return JSON.stringify(a) === JSON.stringify(b); }
+  function noLists(x){   // 목록을 모두 비운 사본 — 공통 출발점을 모를 때는 목록을 합집합으로 합친다(내 기록을 잃지 않게)
+    if(Array.isArray(x)) return [];
+    if(x && typeof x === "object"){ var o = {}; Object.keys(x).forEach(function(k){ o[k] = noLists(x[k]); }); return o; }
+    return x;
+  }
   function itemKey(x){   // 같은 기록이면 같은 열쇠, 다른 기록이면 (같은 시각이어도) 다른 열쇠
     if(!x || typeof x !== "object") return "p" + JSON.stringify(x);
     if(x.id != null) return "i" + x.id;
@@ -603,6 +608,8 @@ html.big body{zoom:1.18;}
     if(full._rev && rev !== lastRev && ("r" + rev) in snaps) return false;   // 이미 본 옛 저장본이 다시 읽힌 것 — 새 저장이 아니다
     // 그 저장이 내가 마지막으로 쓰거나 받아들인 저장본 위에서 이뤄진 게 아니면, 두 탭이 동시에 쓴 것이다 → 둘의 공통 출발점(그 저장의 앞 저장본)에서 다시 합친다
     var concurrent = rev !== lastRev && prev !== lastRev, base = (concurrent && snaps["r" + prev]) ? snaps["r" + prev] : lastObj;
+    if(concurrent && !snaps["r" + prev]) base = noLists(lastObj);   // 그 저장의 앞 저장본을 못 봤다면(이벤트를 놓쳤을 때) 내 상태를 공통 출발점으로 삼지 않고 목록을 합집합으로 합친다
+    if(!full._rev && lastRev !== "0"){ base = noLists(lastObj); concurrent = true; }   // 표식 없는 옛 탭의 낡은 저장도 같게
     var old = {}; Object.keys(st).forEach(function(k){ old[k] = st[k]; });
     var merged = relink(old, merge3(base, st, theirs));
     var lost = concurrent && !jeq(merged, theirs);   // 저장된 것에 내 변경이 빠져 있다 = 동시에 써서 내 쪽이 덮였다
@@ -612,13 +619,13 @@ html.big body{zoom:1.18;}
     return true;
   }
   function save(){
-    var pr = lastRaw, po = lastObj, pv = lastRev;
+    var pr = lastRaw, po = lastObj, pv = lastRev, ps = JSON.parse(JSON.stringify(snaps));
     try{
       if(lastObj !== null && lastRaw != null && localStorage.getItem(KEY) == null){ location.reload(); return false; }   // 다른 탭이 기록을 지웠다면 낡은 기록을 다시 쓰지 않고 새로 연다
       if(pullOthers(true)) setTimeout(rerender, 0);   // 저장하며 다른 탭 기록을 합쳤으면 열린 화면도 새로 그린다
       var rev = newRev(), out = {}; Object.keys(st).forEach(function(k){ out[k] = st[k]; }); out._rev = rev; out._prev = lastRev;
       var s = JSON.stringify(out); localStorage.setItem(KEY, s); lastRaw = s; lastRev = rev; if(lastObj !== null){ lastObj = JSON.parse(JSON.stringify(st)); remember(rev, st); } return true;
-    }catch(e){ lastRaw = pr; lastObj = po; lastRev = pv; return false; }   // 쓰기가 실패하면 기준본을 되돌려, 다음 저장이 다른 탭 기록을 다시 합치게 한다
+    }catch(e){ lastRaw = pr; lastObj = po; lastRev = pv; snaps = ps; return false; }   // 쓰기가 실패하면 기준본을 되돌려, 다음 저장이 다른 탭 기록을 다시 합치게 한다
   }
   function baseline(){ lastObj = JSON.parse(JSON.stringify(st)); remember(lastRev, st); }
 
@@ -672,8 +679,10 @@ html.big body{zoom:1.18;}
     if(st.perDay) $("s_perday").value = st.perDay;
     if(st.price != null) $("s_price").value = st.price;
     $("s_reason").value = st.reason || "";
+    setupSig = JSON.stringify([st.start, st.kind, st.perDay, st.price, st.reason]);
     show("setup");
   }
+  var setupSig = "";   // 설정 화면을 연 때의 저장된 설정 — 다른 탭에서 설정 자체가 바뀌었을 때만 입력칸을 새로 채운다
   $("s_save").onclick = function(){
     var s = new Date($("s_start").value);
     if(isNaN(s)) return toast("시작일을 입력해 주세요");
@@ -1262,7 +1271,7 @@ html.big body{zoom:1.18;}
     document.documentElement.classList.toggle("big", !!st.big);   // 다른 탭에서 바꾼 큰 글씨 설정도 바로 적용
     var on = document.querySelector(".view.on"); if(!on) return; var v = on.id.slice(2);
     if(!st.start && v !== "start" && v !== "setup"){ show("start"); return; }   // 다른 탭에서 시작 설정이 지워졌으면 이 탭도 시작 화면으로
-    if(v === "setup"){ openSetup(); toast("다른 탭에서 설정이 바뀌어 새로 불러왔어요"); return; }   // 낡은 입력칸이 새 설정을 덮어쓰지 않게
+    if(v === "setup"){ if(JSON.stringify([st.start, st.kind, st.perDay, st.price, st.reason]) !== setupSig){ openSetup(); toast("다른 탭에서 설정이 바뀌어 새로 불러왔어요"); } return; }   // 낡은 입력칸이 새 설정을 덮어쓰지 않게
     if(v === "home" || v === "log" || v === "stats" || v === "health" || v === "pro") show(v, true);
     else if(v === "help"){ var ae = document.activeElement; if(!(ae && $("v-help").contains(ae) && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName))){ renderProfile(); renderNotif(); renderDevices(); } }   // 도움 화면은 입력 중이 아닐 때만 새로 채운다
   }
