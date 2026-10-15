@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>금연노트 · SmokeFree Note</title>
-<meta name="theme-color" content="#0E6B48">
+<meta name="theme-color" content="#0A7168">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="favicon-32.png">
@@ -168,6 +168,25 @@ html.big body{zoom:1.18;}
 }
 .sub,.disc,.empty,label,.tl .d,.tip,.help span{word-break:keep-all;}
 </style>
+<style id="mn-theme">
+/* 시안 C (2026-10-15 대표님 선택) — 메디노트 틸로 맞춘 색 + 태블릿 두 칸. 값은 MediNote_app.html 의 --brand 줄과 같습니다.
+   WCAG 상대휘도: #0A7168 / 흰 바탕 5.87:1 · / #D8F5EF 5.10:1 · 흰 글자 / #0A7168 5.87:1 · 흰 글자 / #06413E 11.45:1
+   (--g0 #EEF8F3·--g1 #D7F0E3 은 --d3 글자가 올라가 있어 그대로 둡니다 — #E1F1EE 로 바꾸면 --d3 대비가 4.48:1 로 떨어집니다) */
+:root{--g4:#0A7168;--g5:#06413E;--g6:#0A7168;--g7:#06413E;--focus-color:#0A7168;}
+.eyebrow .dot{box-shadow:0 0 0 4px rgba(10,113,104,.14);}
+.modal{background:rgba(6,65,62,.55);}
+.pro-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;}
+.pro-note{font-size:0.8125rem;color:var(--d3);line-height:1.55;margin-top:10px;}
+@media (min-width:700px){
+  .wrap{max-width:720px;padding-left:24px;padding-right:24px;}
+  .tabs{max-width:720px;}
+  #v-log.on,#v-stats.on,#v-pro.on{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start;}
+  #v-pro .full{grid-column:1/-1;}
+  #v-home.on{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start;}
+  #v-home .hero{grid-row:span 2;}
+  #v-home #h_sos{grid-column:1/-1;}
+}
+</style>
 </head>
 <body>
 <!-- 선 아이콘 한 벌 (백신노트·메디노트·금연노트 공통 · 24×24 · 선 2px · 글자색을 따름) -->
@@ -193,7 +212,7 @@ html.big body{zoom:1.18;}
       
       <ol class="rank" style="margin-top:12px"><li><span class="n">1</span><div><b style="color:var(--ink)">시작일과 습관을 정해요</b><br><span class="sub">무엇을 피우셨는지, 하루 흡연량, 가격을 알려주세요.</span></div></li><li><span class="n">2</span><div><b style="color:var(--ink)">당길 때 5분만 버티고 적어요</b><br><span class="sub">홈의 「지금 담배가 당겨요」를 누르면 5분 타이머가 켜지고, 기록은 15초면 끝나요.</span></div></li><li><span class="n">3</span><div><b style="color:var(--ink)">내 패턴을 보고 상담에 가져가요</b><br><span class="sub">통계에서 시간대·상황을 보고, 도움 탭에서 파일로 내보내 약사·상담자와 함께 봐요.</span></div></li></ol>
       <button class="btn" id="st_go" style="margin-top:6px">시작하기</button>
-      <a class="btn ghost" href="pro/index.html" id="st_pro" style="margin-top:9px;text-decoration:none;justify-content:center">약사·상담자와 함께 보기</a>
+      <a class="btn ghost" href="#pro" data-go="pro" id="st_pro" style="margin-top:9px;text-decoration:none;justify-content:center">약사·상담자와 함께 보기</a>
     </div>
     <div class="card"><div class="sect">안심하세요</div><p class="sub" style="margin-top:0">기록은 이 기기에만 저장돼요. 앱이 서버로 보내지 않아요. (글꼴만 외부에서 받아요)</p></div>
     <p class="disc">금연노트는 금연을 돕는 기록장이며 진료를 대신하지 않아요. 금연상담전화 1544-9030</p>
@@ -274,8 +293,8 @@ html.big body{zoom:1.18;}
       <button class="btn ghost" id="m_save">측정값 저장</button>
       <p class="disc" style="text-align:left">CO 6 ppm 이하는 비흡연 수준으로 봐요 (Smart-T 시험 기준). 앱이 기기에서 직접 읽지는 못해요 — 도움 탭 「기기 연결」에 이유가 있어요.</p>
     </div>
-    <div class="sect">최근 기록</div>
-    <div class="card" style="padding:6px 16px"><ul class="log" id="l_list"></ul></div>
+    <div><div class="sect">최근 기록</div>
+    <div class="card" style="padding:6px 16px"><ul class="log" id="l_list"></ul></div></div>
   </section>
 
   <!-- ③-2 통계 -->
@@ -334,7 +353,7 @@ html.big body{zoom:1.18;}
       <a href="tel:1544-9030"><span class="ic"><svg aria-hidden="true" focusable="false"><use href="#i-phone"/></svg></span><div><b>금연상담전화 1544-9030</b><span>무료 전화 상담 · 금연 코칭</span></div><span class="go">›</span></a>
       <a href="https://www.seoulhp.com/seoul/main/contents.do?menuNo=200255" target="_blank" rel="noopener"><span class="ic"><svg aria-hidden="true" focusable="false"><use href="#i-help"/></svg></span><div><b>서울시 금연 지원 안내</b><span>서울시 건강증진 누리집</span></div><span class="go">›</span></a>
       <a href="https://nosmk.khepi.or.kr" target="_blank" rel="noopener"><span class="ic"><svg aria-hidden="true" focusable="false"><use href="#i-nosmoke"/></svg></span><div><b>보건소 금연클리닉</b><span>가까운 보건소에서 상담·니코틴 보조제</span></div><span class="go">›</span></a>
-      <a href="pro/index.html" id="pro_link"><span class="ic"><svg aria-hidden="true" focusable="false"><use href="#i-record"/></svg></span><div><b>약사·상담자와 함께 보기</b><span>내보낸 파일을 상담용 요약으로 (이 기기 안에서만 읽어요)</span></div><span class="go" aria-hidden="true">›</span></a>
+      <a href="#pro" data-go="pro" id="pro_link"><span class="ic"><svg aria-hidden="true" focusable="false"><use href="#i-record"/></svg></span><div><b>약사·상담자와 함께 보기</b><span>내 기록을 요약해서 보여 줘요 (이 기기 안에서만 계산해요)</span></div><span class="go" aria-hidden="true">›</span></a>
     </div>
     <div class="card">
       <div class="sect">내 설정</div>
@@ -394,6 +413,30 @@ html.big body{zoom:1.18;}
     </div>
     <p class="disc">금연노트는 금연을 돕는 기록장이며, 진료를 대신하지 않아요.<br>금단 증상이 심하면 의사·약사와 상담하세요.</p>
   </section>
+  <!-- 함께 보기 (시안 D 를 앱 안으로 — 파일을 따로 불러오지 않고 내 기록에서 바로 요약) -->
+  <section class="view" id="v-pro">
+    <div class="card full">
+      <div class="pro-top"><div class="title">약사·상담자와 함께 보기</div></div>
+      <p class="sub">내 기록을 한눈에 정리해요. 계산은 이 기기 안에서만 해요. 상담 때 화면을 보여 주거나, 이름 없는 요약 파일(CSV)로 내보내 전할 수 있어요.</p>
+    </div>
+    <div class="stats full" style="grid-column:1/-1;grid-template-columns:repeat(2,1fr)">
+      <div class="stat"><b id="p_days">0일</b><span>기록 기간</span></div>
+      <div class="stat"><b id="p_urge">0건</b><span>당긴 순간</span></div>
+      <div class="stat"><b id="p_held">—</b><span>참은 비율</span></div>
+      <div class="stat"><b id="p_dry">0일</b><span>금연 일수</span></div>
+    </div>
+    <div class="card"><div class="sect">어떤 상황에서 당겼나요</div><ol class="rank" id="p_trig"></ol></div>
+    <div class="card"><div class="sect">그때 기분은요</div><ol class="rank" id="p_mood"></ol></div>
+    <div class="card full">
+      <div class="row2">
+        <button class="btn" id="p_csv">요약 내보내기 (CSV)</button>
+        <button class="btn ghost" id="p_bak">전체 백업 (파일)</button>
+      </div>
+      <p class="pro-note" id="p_note">요약 CSV 에는 이름·연락처가 없고 날짜와 시간대, 세기·기분·상황·대처만 들어가요. 이 앱은 기록 도구이며 진단·판정을 하지 않아요. 결과를 해석하는 일은 약사·상담자와 함께 해 주세요.</p>
+      <button class="btn ghost" id="p_back" style="margin-top:9px">뒤로</button>
+    </div>
+  </section>
+
 </div>
 
 <nav class="tabs" id="tabs">
@@ -453,7 +496,6 @@ html.big body{zoom:1.18;}
   function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(e){} }
   var st = load(); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {}; st.devices = st.devices || [];
   function dkey(t){ var d=new Date(t||Date.now()); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
-  if(window.Native && $("pro_link")) $("pro_link").style.display = "none";   // 안드로이드 셸 WebView 에는 파일 선택기가 아직 없어 이 화면을 열 수 없다(PR #32 Codex P1) — 웹/PWA 에서만 보인다
   if(st.big) document.documentElement.classList.add("big");
   st.notif = st.notif || {}; var NDEF = {on:false, am:"08:30", pm:"21:00", q1:"21:30", q2:"08:00", sent:{}};
   Object.keys(NDEF).forEach(function(k){ if(st.notif[k]==null) st.notif[k]=NDEF[k]; });
@@ -486,12 +528,12 @@ html.big body{zoom:1.18;}
     if(v==="log") renderLogs();
     if(v==="help"){ renderProfile(); renderNotif(); renderDevices(); }
     if(v==="stats") renderStats();
+    if(v==="pro") renderPro();
     window.scrollTo(0,0);
   }
   document.querySelectorAll("#tabs button").forEach(function(b){ b.onclick=function(){ if(b.dataset.v!=="start" && b.dataset.v!=="help" && !st.start) return openSetup(); show(b.dataset.v); }; });
   $("s_back").onclick = function(){ show(st.start ? "help" : "start"); };
   $("st_go").onclick = function(){ if(st.start) show("home"); else openSetup(); };
-  if(window.Native && $("st_pro")) $("st_pro").style.display = "none";   // 안드로이드 셸에는 파일 선택기가 아직 없다 (PR #32)
 
   // 설정
   var kindPick = st.kind;
@@ -736,6 +778,55 @@ html.big body{zoom:1.18;}
     if(st.start) att.push({n:att.length+1, d:Math.floor((now-st.start)/86400000), s:st.start, cur:true});
     $("st_att").innerHTML = att.length ? att.map(function(a){ return '<li><span class="n">'+a.n+'</span><span>'+fmtD(a.s)+' 시작 · '+a.d+'일'+(a.cur?' <b style="color:var(--g6)">진행 중</b>':'')+'</span></li>'; }).join("") : '<li style="color:var(--d3)">아직 시작하지 않았어요</li>';
   }
+
+
+  // ── 함께 보기 (시안 D) — 내 기록에서 바로 요약. 파일을 불러오지 않는다
+  function proRank(el, key){
+    var c = {}; logs_().forEach(function(l){ (key === "mood" ? (MOOD.indexOf(l.mood) >= 0 ? [l.mood] : []) : proTrig(l)).forEach(function(k){ if(k) c[k] = (c[k]||0) + 1; }); });
+    var ks = Object.keys(c).sort(function(a,b){ return c[b]-c[a]; }).slice(0,5), m = ks.length ? c[ks[0]] : 1;
+    $(el).innerHTML = ks.length ? ks.map(function(k,i){ return '<li><span class="n">'+(i+1)+'</span><span style="min-width:96px">'+esc(k)+'</span><div class="bar"><i style="width:'+(c[k]/m*100)+'%"></i></div><span class="c">'+c[k]+'번</span></li>'; }).join("") : '<li style="color:var(--d3)">기록이 쌓이면 여기 보여요</li>';
+  }
+  function logs_(){ return Array.isArray(st.logs) ? st.logs : []; }
+  function okList(a, allow){ return Array.isArray(a) ? a.filter(function(x){ return allow.indexOf(x) >= 0; }) : []; }   // 내보낸 요약·화면에는 앱이 정한 선택지만 (가져온 파일의 자유 글 차단)
+  function proTrig(l){ var a = okList(l.trig, TRIG); if(l.other) a.push("옆에 흡연자"); if(l.avail) a.push("담배 있음"); return a; }
+  function proSummary(){
+    
+    var logs = st.logs;
+    var base = logs.filter(function(r){ return !r.from; });   // 5분 버티기 완료 기록(from)은 원래 당김의 결과라 새 당김으로 세지 않고 대처법만 합친다 (PR #34 Codex P2)
+    var linked = {}; logs.forEach(function(r){ if(r.from) linked[r.from] = (linked[r.from] || []).concat(okList(r.cope, COPE.concat(["5분 버티기"]))); });
+    var slips = base.filter(function(r){ return r.slip; });
+    var ts = logs.map(function(r){ return r.t; }).filter(function(x){ return typeof x === "number" && isFinite(x); });   // 기간은 요약에 들어가는 기록의 날짜로만 (PR #34 Codex P2 · Sourcery)
+    var from = ts.length ? new Date(Math.min.apply(null, ts)).setHours(0,0,0,0) : null;
+    var last = ts.length ? new Date(Math.max.apply(null, ts)).setHours(0,0,0,0) : null;   // 기간은 첫 기록일~마지막 기록일 (오늘이 아니라)
+    var days = from == null ? 0 : Math.max(0, Math.round((last - from) / 864e5)) + 1;
+    var dry = st.start ? Math.max(0, Math.floor((Date.now() - st.start) / 864e5)) : 0;   // 먼 날짜로 시작을 잡아도 음수가 되지 않게
+    var urgeN = base.length;
+    var held = urgeN ? Math.round((urgeN - slips.length) / urgeN * 100) + "%" : "—";
+    function trigOf(r){ var a = okList(r.trig, TRIG); if(r.other) a.push("옆에 흡연자"); if(r.avail) a.push("담배 있음"); return a; }
+    function rows(){ return base.map(function(r){ return {t:r.t, kind:(r.slip ? "피움" : "참음"), lv:(LV.indexOf(r.lv) >= 0 ? r.lv : ""), mood:(MOOD.indexOf(r.mood) >= 0 ? r.mood : ""), trig:trigOf(r), cope:okList(r.cope, COPE.concat(["5분 버티기"])).concat(linked[r.t] || [])}; }); }
+
+    return {days:days, urge:urgeN, held:held, dry:dry, rows:rows};
+  }
+  function renderPro(){
+    var p = proSummary();
+    $("p_days").textContent = p.days+"일"; $("p_urge").textContent = p.urge+"건"; $("p_held").textContent = p.held; $("p_dry").textContent = p.dry+"일";
+    proRank("p_trig", "trig"); proRank("p_mood", "mood");
+  }
+  function csvCell(v){ var t = String(v == null ? "" : v).replace(/\r?\n/g, " "); if(/^[\s\x00-\x1f]*[=+\-@]/.test(t)) t = "'"+t;  return '"'+t.replace(/"/g,'""')+'"'; }
+  $("p_csv").onclick = function(){
+    var r = proSummary().rows(), out = ["날짜,시간대,구분,세기,기분,상황,대처"];
+    r.sort(function(a,b){ return a.t - b.t; }).forEach(function(x){ var d = new Date(x.t);
+      out.push([d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2), d.getHours()+"시대", x.kind, x.lv || "", x.mood || "", x.trig.join(" / "), x.cope.join(" / ")].map(csvCell).join(",")); });
+    var blob = new Blob(["\ufeff"+out.join("\r\n")], {type:"text/csv;charset=utf-8"});
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "금연노트-요약-"+new Date().toISOString().slice(0,10)+".csv";
+    document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500); toast("이름 없는 요약 파일로 내보냈어요");
+  };
+  $("p_bak").onclick = function(){ $("p_export").click(); };
+  // 안드로이드 셸 WebView 에는 blob 내려받기를 받는 쪽(DownloadListener·저장 다리)이 없어 파일이 만들어지지 않는다 (PR #34 Codex P1) — 셸에서는 단추를 숨기고 화면으로 보여 준다
+  if(window.Native){ $("p_csv").parentNode.style.display = "none"; $("p_export").style.display = "none"; $("p_note").textContent = "이 화면을 상담 때 그대로 보여 주세요. 파일로 내보내기는 웹(브라우저)에서 할 수 있어요. 이 앱은 기록 도구이며 진단·판정을 하지 않아요."; }
+  var proFrom = null;
+  $("p_back").onclick = function(){ show(proFrom || (st.start ? "help" : "start")); };
+  Array.prototype.forEach.call(document.querySelectorAll("[data-go]"), function(a){ a.addEventListener("click", function(e){ e.preventDefault(); var on = document.querySelector(".view.on"); proFrom = on ? on.id.slice(2) : null; show(a.dataset.go); }); });
 
   // 기기 연결 안내 · 보기 · 데이터
   function renderDevices(){
