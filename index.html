@@ -868,7 +868,13 @@ html.big body{zoom:1.18;}
       var h = document.createElement("div"); h.textContent = m.note || "사진 기록"; var mt = document.createElement("div"); mt.className = "meta"; mt.textContent = fmtT(m.t) + (m.code ? " · 바코드 " + m.code : "");
       body.appendChild(h); body.appendChild(mt);
       del.className = "del"; del.type = "button"; del.textContent = "×"; del.setAttribute("aria-label", "이 사진 기록 지우기");
-      del.onclick = function(){ mTx("readwrite", function(x){ return x.delete(m.id); }).then(function(){ st.media = st.media.filter(function(y){ return y.id !== m.id; }); save(); renderMedia(); }, function(){ toast("사진을 지우지 못했어요. 다시 눌러 주세요"); }); };
+      del.onclick = function(){   // 기록(메타)을 먼저 저장하고, 저장이 되면 사진을 지운다 — 거꾸로 하면 저장이 실패했을 때 빈 사진만 남는다
+        var before = st.media.slice();
+        st.media = st.media.filter(function(y){ return y.id !== m.id; });
+        if(!save()){ st.media = before; return toast("지우지 못했어요. 저장 공간을 확인해 주세요"); }
+        renderMedia();
+        mTx("readwrite", function(x){ return x.delete(m.id); }).catch(function(){});
+      };
       li.appendChild(im); li.appendChild(body); li.appendChild(del); ul.appendChild(li);
       mTx("readonly", function(s){ return s.get(m.id); }).then(function(b){ if(b){ var u = URL.createObjectURL(b); im.onload = function(){ URL.revokeObjectURL(u); }; im.src = u; } }).catch(function(){});
     });
