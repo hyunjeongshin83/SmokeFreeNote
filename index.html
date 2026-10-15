@@ -759,7 +759,7 @@ html.big body{zoom:1.18;}
     else if(!$("sos").contains(a)){ e.preventDefault(); first.focus(); }
   });
   $("sos_close").onclick = closeSos;
-  $("sos_done").onclick = function(){ closeSos(); var r = {v:2, t:Date.now(), lv:"보통", mood:null, trig:[], other:false, avail:false, cope:["5분 버티기"], slip:false}; if(sosFrom){ r.from = sosFrom; sosFrom = null; } st.logs.unshift(r); save(); toast("멋져요! 기록에 남겼어요"); };
+  $("sos_done").onclick = function(){ closeSos(); var r = {v:2, t:Date.now(), lv:"보통", mood:null, trig:[], other:false, avail:false, cope:["5분 버티기"], slip:false}; if(sosFrom){ r.from = sosFrom; sosFrom = null; } st.logs.unshift(r); save(); toast("멋져요! 기록에 남겼어요"); refreshHome(); };
   $("sos_close").addEventListener("click", function(){ sosFrom = null; });
 
   // 내 설정
@@ -777,6 +777,7 @@ html.big body{zoom:1.18;}
 
   // ── 메인(홈) 화면 — 오늘 할 일 · 바로가기 · 최근 기록 (대표님 요청 2026-10-15)
   function mainText(l){ return (l.slip ? "피웠어요" : "참았어요") + (l.lv ? " · " + l.lv : ""); }
+  function refreshHome(){ if($("v-home").classList.contains("on")) renderMain(); }   // 메인이 열려 있는 채로 기록이 바뀌면 그 자리에서 다시 그린다
   function renderMain(){
     var logs = Array.isArray(st.logs) ? st.logs : [], today = dkey(Date.now());
     var done = logs.some(function(l){ return dkey(l.t) === today; });
@@ -794,7 +795,7 @@ html.big body{zoom:1.18;}
     });
   }
   $("td_go").onclick = function(){ show("log"); };
-  Array.prototype.forEach.call(document.querySelectorAll("[data-q]"), function(b){ b.onclick = function(){ show(b.dataset.q); }; });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-q]"), function(b){ b.onclick = function(){ var on = document.querySelector(".view.on"); proFrom = on ? on.id.slice(2) : null; show(b.dataset.q); }; });   // 「함께 보기」의 뒤로 단추가 메인으로 돌아오게
   // ── 사진·바코드 기록 — 이 기기 안에서만. 사진은 다시 그려 EXIF(위치 포함)를 지운 작은 그림만 IndexedDB 에 둔다
   function cleanMedia(a){ return (Array.isArray(a) ? a : []).filter(function(m){ return m && typeof m.t === "number" && isFinite(m.t) && typeof m.id === "string" && /^[a-z0-9]{6,24}$/.test(m.id); }).slice(0, 200)
     .map(function(m){ return {id:m.id, t:m.t, saved:(typeof m.saved === "number" ? m.saved : m.t), code:(typeof m.code === "string" && /^[0-9A-Za-z-]{4,32}$/.test(m.code) ? m.code : ""), note:(typeof m.note === "string" ? m.note.slice(0, 40) : "")}; }); }
