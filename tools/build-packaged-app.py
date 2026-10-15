@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-FILES = ["index.html", "manifest.webmanifest", "sw.js",
+FILES = ["index.html", "pro/index.html", "manifest.webmanifest", "sw.js",
          "icon-192.png", "icon-512.png", "icon-512-maskable.png", "apple-touch-icon.png", "favicon-32.png",
          "vendor/qrcodejs-1.0.0.min.js"]
 DEST = ROOT / "android" / "app" / "src" / "main" / "assets"
