@@ -1,9 +1,9 @@
 /* 금연노트 서비스워커 — 오프라인에서도 열리도록 캐시 */
-const CACHE="smokefree-v8";
+const CACHE="smokefree-v9";
 const ASSETS=["index.html","manifest.webmanifest","icon-192.png","icon-512.png","icon-512-maskable.png","apple-touch-icon.png","favicon-32.png","vendor/qrcodejs-1.0.0.min.js"];
 
 const own=(req)=>caches.open(CACHE).then(c=>c.match(req));   // 같은 주소의 다른 앱 캐시는 읽지 않는다
-self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});
+self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS).then(()=>c.add("pro/index.html").catch(()=>{}))).then(()=>self.skipWaiting())  /* 상담자 화면은 안드로이드 앱 묶음에 없어서 못 받아도 설치는 계속 */);});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x.startsWith("smokefree-")&&x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim()));});
 
 self.addEventListener("fetch",e=>{

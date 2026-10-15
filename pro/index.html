@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>상담자용 요약 보기 · 금연노트</title>
+<meta name="robots" content="noindex">
+<!-- 약사·상담자·연구자가 환자가 내보낸 파일(금연노트 · 금주노트 JSON)을 읽기 쉬운 요약으로 보는 화면.
+     파일은 이 브라우저 안에서만 읽습니다 — 서버로 보내지 않고, 글꼴도 외부에서 받지 않습니다(시스템 글꼴).
+     화면에 들어가는 값은 모두 textContent 로만 넣습니다(파일이 조작돼도 스크립트가 돌지 않게). 새 색 없음(금연노트 토큰). -->
+<style>
+  :root{ --g0:#EEF8F3; --g1:#D7F0E3; --g4:#0E6B48; --g5:#0B5A3C; --g7:#084A31; --ink:#122423; --d2:#324744; --d3:#5A716D; --line:#E6F1EE; --coral:#F6796B;
+    --focus-width:2px; --focus-offset:2px; --focus-color:var(--g4); }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font:1rem/1.55 Pretendard,-apple-system,"Noto Sans KR","Malgun Gothic",sans-serif; color:var(--d2); background:var(--g0); }
+  main{ max-width:860px; margin:0 auto; padding:20px 16px 56px; }
+  h1{ font-size:1.5rem; color:var(--ink); } h2{ font-size:1.125rem; color:var(--g4); margin:0 0 10px; }
+  .sub{ color:var(--d3); font-size:0.9375rem; margin-top:4px; word-break:keep-all; }
+  .card{ background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px; margin-top:14px; }
+  :focus-visible{ outline:var(--focus-width) solid var(--focus-color); outline-offset:var(--focus-offset); }
+  :focus:not(:focus-visible){ outline:none; }
+  .btn{ font:inherit; font-weight:800; min-height:48px; padding:0 18px; border-radius:12px; border:1.5px solid var(--g4); background:var(--g4); color:#fff; cursor:pointer; }
+  .btn.ghost{ background:#fff; color:var(--g4); }
+  .btn[disabled]{ opacity:.5; cursor:default; }
+  .row{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+  .kv{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .kv div{ background:var(--g0); border-radius:12px; padding:10px 12px; }
+  .kv b{ display:block; font-size:1.25rem; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .kv span{ font-size:0.8125rem; color:var(--d3); font-weight:700; }
+  table{ width:100%; border-collapse:collapse; font-size:0.9375rem; font-variant-numeric:tabular-nums; }
+  th,td{ text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); } th{ color:var(--d3); font-size:0.8125rem; }
+  td.n,th.n{ text-align:right; }
+  .note{ background:#FFF7EC; border:1px solid #F0D9B5; border-radius:12px; padding:10px 12px; font-size:0.9375rem; color:#5E4010; margin-top:10px; word-break:keep-all; }
+  .disc{ font-size:0.875rem; color:var(--d3); margin-top:18px; line-height:1.6; word-break:keep-all; }
+  .bar{ display:inline-block; height:10px; border-radius:6px; background:var(--g4); vertical-align:middle; }
+  .bar.s{ background:var(--coral); }
+  [hidden]{ display:none !important; }
+  @media print{ body{ background:#fff; } .noprint{ display:none !important; } .card{ break-inside:avoid; box-shadow:none; } main{ padding:0; } }
+  @media (prefers-reduced-motion:reduce){ *{ transition-duration:.01ms !important; animation-duration:.01ms !important; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>상담자용 요약 보기</h1>
+  <p class="sub">환자가 금연노트·금주노트에서 <b>내보낸 파일(.json)</b>을 고르면 상담에 필요한 요약을 보여 드려요. 파일은 이 브라우저 안에서만 읽고 어디로도 보내지 않아요.</p>
+
+  <section class="card noprint" aria-labelledby="pick_h">
+    <h2 id="pick_h">1. 파일 고르기</h2>
+    <label for="file" style="font-weight:800;color:var(--d3);font-size:0.9375rem">환자가 내보낸 기록 파일</label><br>
+    <input type="file" id="file" accept="application/json,.json" style="margin-top:6px;font:inherit;max-width:100%">
+    <p class="sub" id="msg" role="status" aria-live="polite"></p>
+  </section>
+
+  <div id="out" hidden>
+    <section class="card" aria-labelledby="sum_h"><h2 id="sum_h">요약</h2><div class="kv" id="kv"></div><div id="notes"></div></section>
+    <section class="card" aria-labelledby="wk_h"><h2 id="wk_h">주별 기록</h2><div style="overflow-x:auto"><table id="wk"><thead></thead><tbody></tbody></table></div></section>
+    <section class="card" aria-labelledby="pt_h"><h2 id="pt_h">당김이 많았던 때</h2><div class="kv" id="pt" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"></div></section>
+    <section class="card" id="ms_card" aria-labelledby="ms_h"><h2 id="ms_h">측정값 (환자가 옮겨 적은 값)</h2><div id="ms"></div></section>
+    <div class="row noprint">
+      <button class="btn" id="print">인쇄 · PDF로 저장</button>
+      <button class="btn ghost" id="csv">연구용 CSV 내려받기 (이름·이유·기기 이름 뺌)</button>
+    </div>
+  </div>
+
+  <p class="disc">이 요약은 환자가 스스로 적은 기록을 모은 것이에요. 진단이나 치료를 판단하는 자료가 아니며, 금연·금주 보조제 선택과 용량은 의료진·약사가 환자를 직접 확인해 정하세요. 기록은 환자가 적은 만큼만 있어서 빠진 날이 곧 「안 한 날」은 아니에요.</p>
+</main>
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var DAY = 864e5, current = null, readToken = 0;
+  // 고정 선택지 밖의 글자는 요약·CSV 에 넣지 않는다 (이름 같은 식별 정보가 범주 칸에 섞여 들어와도 걸러짐)
+  var LV = ["약함","보통","강함"], MOOD = ["좋음","보통","나쁨"];
+  var TRIG = { smokefree:["식사 후","커피·술","스트레스","지루함","아침 기상","이동 중","집에서","일하다가"], nonalcohol:["퇴근 후","식사 중","모임·회식","스트레스","외로움","지루함","주말","기쁜 일"] };
+  var COPE = { smokefree:["물 마시기","심호흡","산책","양치질","껌·사탕","전화 통화","5분 버티기"], nonalcohol:["물·차 마시기","심호흡","산책","연락하기","자리 피하기","간식 먹기","5분 버티기"] };
+  function pick(a, allowed){ return Array.isArray(a) ? a.filter(function(x){ return typeof x === "string" && allowed.indexOf(x) >= 0; }).slice(0, 20) : []; }
+  function validT(t){ return typeof t === "number" && isFinite(t) && !isNaN(new Date(t).getTime()); }
+
+  function el(tag, text, cls){ var e = document.createElement(tag); if(text != null) e.textContent = text; if(cls) e.className = cls; return e; }
+  function num(v){ return typeof v === "number" && isFinite(v) ? v : null; }
+  function str(v, n){ return typeof v === "string" ? v.slice(0, n || 40) : ""; }
+    function dkey(ms){ var d = new Date(ms); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
+  function weekStart(ms){ var d = new Date(ms); d = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay()+6)%7)); return d.getTime(); }
+  function md(ms){ var d = new Date(ms); return (d.getMonth()+1)+"/"+d.getDate(); }
+
+  // 파일 → 같은 모양으로 정리 (믿지 않고 칸마다 검증)
+  function normalize(o){
+    if(!o || (o.app !== "smokefree" && o.app !== "nonalcohol") || !o.data || typeof o.data !== "object") return null;
+    var d = o.data, app = o.app;
+    if(!Array.isArray(d.logs)) return null;   // 기록 칸이 없는 파일은 「기록 0건」이 아니라 잘못된 파일
+    var seen = {};
+    var logs = d.logs.map(function(l){
+      if(!l || !validT(l.t)) return null;
+      var drink = l.kind === "drink", slip = app === "smokefree" ? !!l.slip : drink, key = l.t + "|" + (slip ? 1 : 0);
+      if(seen[key]) return null; seen[key] = 1;   // 같은 시각·같은 종류는 한 건 (앱의 가져오기와 같은 규칙)
+      var trig = pick(l.trig, TRIG[app]);
+      if(app === "smokefree"){ if(l.other) trig.push("옆에 흡연자"); if(l.avail) trig.push("담배를 구할 수 있었음"); }
+      var cope = pick(l.cope, COPE[app]);
+      return { t:l.t, lv: LV.indexOf(l.lv) >= 0 ? l.lv : "", mood: MOOD.indexOf(l.mood) >= 0 ? l.mood : "", trig:trig, cope:cope,
+        slip:slip, cups: drink ? Math.min(40, Math.max(0, Math.round(num(l.cups) || 0))) : 0, sos: !!l.sos || cope.indexOf("5분 버티기") >= 0 };
+    }).filter(Boolean).sort(function(a,b){ return a.t - b.t; });
+    var meas = (Array.isArray(d.measures) ? d.measures : []).map(function(m){ return m && validT(m.t) && (m.kind === "co" || m.kind === "puffs") && num(m.v) != null ? {t:m.t, kind:m.kind, v:m.v} : null; }).filter(Boolean).sort(function(a,b){ return a.t - b.t; });
+    var meds = Object.keys(d.meds && typeof d.meds === "object" ? d.meds : {}).filter(function(k){ return /^\d{4}-\d{2}-\d{2}$/.test(k) && d.meds[k]; });
+    var att = (Array.isArray(d.attempts) ? d.attempts : []).filter(function(a){ return a && validT(a.start) && validT(a.end); });
+    return { app:app, start:validT(d.start) ? d.start : null, kind:str(d.kind,10), goal:str(d.goal,10), perday:num(d.perday), logs:logs, meas:meas, meds:meds, attempts:att, exported:str(o.exported,40) };
+  }
+
+  function flat(logs, k){ var out = []; logs.forEach(function(l){ l[k].forEach(function(x){ out.push(x); }); }); return out; }
+  function card(label, value){ var d = el("div"); d.appendChild(el("b", value)); d.appendChild(el("span", label)); return d; }
+  function rank(arr, title){
+    var c = {}; arr.forEach(function(k){ c[k] = (c[k]||0) + 1; });
+    var ks = Object.keys(c).sort(function(a,b){ return c[b]-c[a]; }).slice(0,5), box = el("div");
+    box.appendChild(el("b", title)); box.firstChild.style.display = "block"; box.firstChild.style.color = "var(--ink)";
+    if(!ks.length){ box.appendChild(el("span", "기록 없음")); return box; }
+    var max = c[ks[0]];
+    ks.forEach(function(k){
+      var p = el("div"); p.style.margin = "4px 0";
+      p.appendChild(el("span", k + " ")); var bar = el("i", "", "bar"); bar.style.width = Math.max(6, c[k]/max*90) + "px"; bar.setAttribute("aria-hidden", "true"); p.appendChild(bar); p.appendChild(el("span", " " + c[k] + "번"));
+      box.appendChild(p);
+    });
+    return box;
+  }
+
+  function render(m){
+    var smoke = m.app === "smokefree", now = Date.now();
+    var first = m.logs.length ? m.logs[0].t : m.start, last = m.logs.length ? m.logs[m.logs.length-1].t : m.start;
+    var slips = m.logs.filter(function(l){ return l.slip; }), urges = m.logs.filter(function(l){ return !l.slip; });
+    var kv = $("kv"); kv.textContent = "";
+    kv.appendChild(card("기록 앱", smoke ? "금연노트" : "금주노트"));
+    if(m.start != null) kv.appendChild(card("현재 시도 시작", dkey(m.start) + " (" + Math.max(0, Math.floor((now - m.start)/DAY)) + "일째)"));
+    kv.appendChild(card("지난 시도 횟수", String(m.attempts.length)));
+    kv.appendChild(card("기록 건수", String(m.logs.length)));
+    kv.appendChild(card(smoke ? "당겼지만 넘긴 기록" : "마시고 싶었지만 넘긴 기록", String(urges.length)));
+    kv.appendChild(card(smoke ? "피운 기록" : "마신 기록", String(slips.length)));
+    if(!smoke) kv.appendChild(card("마신 잔 수 합계", String(m.logs.reduce(function(a,l){ return a + l.cups; }, 0))));
+    kv.appendChild(card("5분 버티기 사용", String(m.logs.filter(function(l){ return l.sos; }).length)));
+    if(smoke) kv.appendChild(card("약 복용을 표시한 날", String(m.meds.length)));
+    if(m.logs.length) kv.appendChild(card("기록 기간", md(first) + " ~ " + md(last)));
+    var notes = $("notes"); notes.textContent = "";
+    if(smoke && (m.kind === "hnb" || m.kind === "liquid")){
+      var n = el("div", "이 환자는 전자담배(궐련형·액상)를 쓰는 것으로 기록돼 있어요. 전자담배만 쓰면 날숨 CO가 잘 오르지 않아(전용 사용자 5 ppm 미만 보고) CO 값만으로 금연 여부를 확인하기 어려워요.", "note"); notes.appendChild(n);
+    }
+    var ex = el("div", "※ 환자가 내보낸 날짜: " + (m.exported && !isNaN(Date.parse(m.exported)) ? dkey(Date.parse(m.exported)) : "알 수 없음") + ". 이후의 기록은 들어 있지 않아요.", "sub"); notes.appendChild(ex);
+
+    // 주별
+    var weeks = {}; m.logs.forEach(function(l){ var w = weekStart(l.t); (weeks[w] = weeks[w] || {u:0,s:0,cups:0}); if(l.slip){ weeks[w].s++; weeks[w].cups += l.cups; } else weeks[w].u++; });
+    var medW = {}; m.meds.forEach(function(k){ var p = k.split("-"); var w = weekStart(new Date(+p[0], +p[1]-1, +p[2]).getTime()); medW[w] = (medW[w]||0) + 1; });
+    Object.keys(medW).forEach(function(w){ weeks[w] = weeks[w] || {u:0,s:0,cups:0}; });
+    var ws = Object.keys(weeks).map(Number).sort(function(a,b){ return a-b; });
+    var th = $("wk").tHead; th.textContent = ""; var hr = el("tr");
+    (smoke ? ["주(월요일)","넘김","피움","약 복용일"] : ["주(월요일)","넘김","마심","마신 잔 수"]).forEach(function(h,i){ var c = el("th", h); if(i) c.className = "n"; hr.appendChild(c); });
+    th.appendChild(hr);
+    var tb = $("wk").tBodies[0]; tb.textContent = "";
+    if(!ws.length){ var r0 = el("tr"); var c0 = el("td", "기록이 없어요"); c0.colSpan = 4; r0.appendChild(c0); tb.appendChild(r0); }
+    ws.forEach(function(w){
+      var r = el("tr"), o = weeks[w]; r.appendChild(el("td", md(w) + " 주"));
+      [o.u, o.s].concat(smoke ? [medW[w] || 0] : [o.cups]).forEach(function(v){ r.appendChild(el("td", String(v), "n")); });
+      tb.appendChild(r);
+    });
+
+    // 패턴
+    var pt = $("pt"); pt.textContent = "";
+    pt.appendChild(rank(flat(m.logs, "trig"), "상황"));
+    pt.appendChild(rank(m.logs.map(function(l){ return l.mood; }).filter(Boolean), "기분"));
+    pt.appendChild(rank(flat(m.logs, "cope"), "넘긴 방법"));
+    var hrs = m.logs.map(function(l){ var h = new Date(l.t).getHours(); return h < 6 ? "새벽(0~6시)" : h < 12 ? "오전(6~12시)" : h < 18 ? "오후(12~18시)" : "저녁·밤(18~24시)"; });
+    pt.appendChild(rank(hrs, "시간대"));
+
+    // 측정값
+    var ms = $("ms"); ms.textContent = ""; $("ms_card").hidden = !(smoke && m.meas.length);
+    if(smoke && m.meas.length){
+      ["co","puffs"].forEach(function(k){
+        var a = m.meas.filter(function(x){ return x.kind === k; }); if(!a.length) return;
+        ms.appendChild(el("p", (k === "co" ? "날숨 CO (ppm)" : "주간 퍼프·스틱 수") + " — 최근 " + Math.min(10, a.length) + "건", "sub"));
+        var t = el("table"), tb2 = el("tbody");
+        a.slice(-10).forEach(function(x){ var r = el("tr"); r.appendChild(el("td", dkey(x.t))); r.appendChild(el("td", String(x.v), "n")); tb2.appendChild(r); });
+        t.appendChild(tb2); ms.appendChild(t);
+      });
+    }
+    $("out").hidden = false;
+  }
+
+  // CSV — 이름·이유·기기 이름·자유 입력은 넣지 않는다. 엑셀 수식으로 읽히지 않게 앞글자를 막는다 (VN-131-1 과 같은 규칙).
+  function cell(v){ var s = String(v == null ? "" : v); if(/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; }
+  function toCsv(m){
+    var rows = [["앱","시각","구분","세기","기분","상황","넘긴방법","잔수","5분버티기"]];
+    m.logs.forEach(function(l){ rows.push([m.app, new Date(l.t).toISOString(), l.slip ? (m.app === "smokefree" ? "피움" : "마심") : "넘김", l.lv, l.mood, l.trig.join("|"), l.cope.join("|"), l.cups || "", l.sos ? "예" : ""]); });
+    rows.push([]); rows.push(["측정값","시각","종류","값"]);
+    m.meas.forEach(function(x){ rows.push(["측정값", new Date(x.t).toISOString(), x.kind, x.v]); });
+    m.meds.forEach(function(k){ rows.push(["복용", k, "복용함", ""]); });
+    return "﻿" + rows.map(function(r){ return r.map(cell).join(","); }).join("\r\n");
+  }
+
+  $("file").onchange = function(){
+    var f = $("file").files[0]; if(!f) return;
+    var token = ++readToken; $("out").hidden = true; current = null; $("msg").textContent = "읽는 중…";
+    if(f.size > 5e6){ $("msg").textContent = "파일이 너무 커요(5MB 이하)."; return; }
+    var rd = new FileReader();
+    rd.onload = function(){
+      if(token !== readToken) return;   // 그 사이 다른 파일을 골랐으면 늦게 끝난 앞 파일은 버린다
+      try{ current = normalize(JSON.parse(rd.result)); }catch(e){ current = null; }
+      if(!current){ $("msg").textContent = "금연노트·금주노트에서 내보낸 파일이 아니에요."; return; }
+      $("msg").textContent = "읽었어요. 아래 요약을 확인하세요."; render(current);
+    };
+    rd.onerror = function(){ if(token !== readToken) return; $("msg").textContent = "파일을 읽지 못했어요."; };
+    rd.readAsText(f);
+  };
+  $("print").onclick = function(){ window.print(); };
+  $("csv").onclick = function(){
+    if(!current) return;
+    var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([toCsv(current)], {type:"text/csv;charset=utf-8"})); a.download = "기록요약-" + dkey(Date.now()) + ".csv";
+    document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  };
+})();
+</script>
+</body>
+</html>
