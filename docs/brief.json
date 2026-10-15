@@ -1,0 +1,89 @@
+{
+ "updated": "2026-10-15T05:00:00Z",
+ "runs": [
+  {
+   "at": "2026-10-07T05:23:00Z",
+   "task": "금연앱 · 앱 스타일",
+   "commits": [
+    {
+     "sha": "e51a8fd",
+     "title": "가져오기가 시작일·시도 이력·알림 장부를 되살리고, 깨진 저장값을 보존 (VN-116-1~4)"
+    }
+   ],
+   "issues": [],
+   "prs": [
+    {
+     "n": 26,
+     "title": "가져오기가 시작일·시도 이력·알림 장부를 되살리고, 깨진 저장값을 보존 (VN-116-1~4)",
+     "state": "merged",
+     "opened": "2026-10-07"
+    }
+   ],
+   "decisions": [],
+   "note": "리서치 이슈는 VaccineNote-Park(비공개)에 있음 — 이 파일은 이 저장소의 병합 기록만"
+  },
+  {
+   "at": "2026-10-08T06:43:00Z",
+   "task": "금연앱 · 앱 스타일",
+   "commits": [
+    {
+     "sha": "ab4b20d",
+     "title": "labs: 5분 버티기 화면 켜 두기 실험 (Screen Wake Lock · VN-121-1)"
+    }
+   ],
+   "issues": [],
+   "prs": [
+    {
+     "n": 27,
+     "title": "labs: 5분 버티기 화면 켜 두기 실험 (Screen Wake Lock · VN-121-1)",
+     "state": "merged",
+     "opened": "2026-10-08"
+    }
+   ],
+   "decisions": [],
+   "note": "리서치 이슈는 VaccineNote-Park(비공개)에 있음 — 이 파일은 이 저장소의 병합 기록만"
+  },
+  {
+   "at": "2026-10-09T04:23:00Z",
+   "task": "금연앱 · 앱 스타일",
+   "commits": [
+    {
+     "sha": "c69dce8",
+     "title": "COMPETITORS.md 10절 — 이론 기반 앱 근거를 우리 대처 화면에 대 봄 (VN-124-1)"
+    }
+   ],
+   "issues": [],
+   "prs": [
+    {
+     "n": 28,
+     "title": "COMPETITORS.md 10절 — 이론 기반 앱 근거를 우리 대처 화면에 대 봄 (VN-124-1)",
+     "state": "merged",
+     "opened": "2026-10-09"
+    }
+   ],
+   "decisions": [],
+   "note": "리서치 이슈는 VaccineNote-Park(비공개)에 있음 — 이 파일은 이 저장소의 병합 기록만"
+  },
+  {
+   "at": "2026-10-13T04:13:00Z",
+   "task": "금연앱 · 앱 스타일",
+   "commits": [
+    {
+     "sha": "f100ced",
+     "title": "알림: 슬롯마다 따로 보낸 날을 기록 — 아침·저녁 시각이 같으면 1초마다 다시 울리던 것 (VN-137-1)"
+    }
+   ],
+   "issues": [],
+   "prs": [
+    {
+     "n": 29,
+     "title": "알림: 슬롯마다 따로 보낸 날을 기록 — 아침·저녁 시각이 같으면 1초마다 다시 울리던 것 (VN-137-1",
+     "state": "merged",
+     "opened": "2026-10-13"
+    }
+   ],
+   "decisions": [],
+   "note": "리서치 이슈는 VaccineNote-Park(비공개)에 있음 — 이 파일은 이 저장소의 병합 기록만"
+  }
+ ]
+}
