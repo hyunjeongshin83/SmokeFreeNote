@@ -1,9 +1,9 @@
 /* 금연노트 서비스워커 — 오프라인에서도 열리도록 캐시 */
-const CACHE="smokefree-v7";
+const CACHE="smokefree-v8";
 const ASSETS=["index.html","manifest.webmanifest","icon-192.png","icon-512.png","icon-512-maskable.png","apple-touch-icon.png","favicon-32.png","vendor/qrcodejs-1.0.0.min.js"];
 
 self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});
-self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim()));});
+self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x.startsWith("smokefree-")&&x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim()));});
 
 self.addEventListener("fetch",e=>{
   const req=e.request; if(req.method!=="GET")return;
