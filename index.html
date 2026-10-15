@@ -883,6 +883,15 @@ html.big body{zoom:1.18;}
     });
   }
   $("ph_more").onclick = function(){ phShown += 20; renderMedia(); };
+  // 앱을 열 때 한 번: 기록(메타)에 없는 사진은 지운다 — 삭제가 도중에 끊기거나 한도로 밀려난 사진이 보이지 않게 남는 일을 막는다 (PR #35 Codex)
+  (function sweep(){
+    mTx("readonly", function(x){ return x.getAllKeys(); }).then(function(keys){
+      (keys || []).forEach(function(k){
+        if(phSaving || st.media.some(function(m){ return m.id === k; })) return;
+        mTx("readwrite", function(x){ return x.delete(k); }).catch(function(){});
+      });
+    }).catch(function(){});
+  })();
   if(window.Native){ $("ph_btn").style.display = "none"; $("ph_native").style.display = ""; }   // 앱 셸 WebView 에는 사진 선택기가 아직 없다
   $("m_save").onclick = function(){
     var co = $("m_co").value, pf = $("m_puff").value, n = 0;
