@@ -760,7 +760,7 @@ html.big body{zoom:1.18;}
     else if(!$("sos").contains(a)){ e.preventDefault(); first.focus(); }
   });
   $("sos_close").onclick = closeSos;
-  $("sos_done").onclick = function(){ closeSos(); var r = {v:2, t:Date.now(), lv:"보통", mood:null, trig:[], other:false, avail:false, cope:["5분 버티기"], slip:false}; if(sosFrom){ r.from = sosFrom; sosFrom = null; } st.logs.unshift(r); if(save()){ toast("멋져요! 기록에 남겼어요"); refreshHome(); } else st.logs.shift(); };   // 저장이 안 됐으면 화면에도 남기지 않는다
+  $("sos_done").onclick = function(){ closeSos(); var r = {v:2, t:Date.now(), lv:"보통", mood:null, trig:[], other:false, avail:false, cope:["5분 버티기"], slip:false}; if(sosFrom){ r.from = sosFrom; sosFrom = null; } st.logs.unshift(r); if(save()){ toast("멋져요! 기록에 남겼어요"); refreshHome(); } else { st.logs.shift(); toast("저장하지 못했어요. 저장 공간을 확인해 주세요"); } };   // 저장이 안 됐으면 화면에도 남기지 않고 알린다
   $("sos_close").addEventListener("click", function(){ sosFrom = null; });
 
   // 내 설정
