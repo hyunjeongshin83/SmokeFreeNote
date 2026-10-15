@@ -512,10 +512,11 @@ html.big body{zoom:1.18;}
   var COPE = ["물 마시기","심호흡","산책","양치질","껌·사탕","전화 통화"];
   var TIPS = ["찬물 한 잔을 천천히 마셔보세요.","코로 4초 들이쉬고, 7초 참고, 8초 내쉬어요.","자리에서 일어나 잠깐 걸어보세요.","양치질을 하면 입안이 개운해져요.","나의 금연 이유를 다시 떠올려봐요.","가족이나 친구에게 전화해 보세요."];
 
+  var loadOk = true;   // 기록을 못 읽었으면(깨짐·저장소 막힘) 사진 정리를 하지 않는다
   function load(){
     var raw = null;
     try{ raw = localStorage.getItem(KEY); return JSON.parse(raw) || {}; }
-    catch(e){ try{ if(raw && localStorage.getItem(KEY+".corrupt")==null) localStorage.setItem(KEY+".corrupt", raw); }catch(e2){} return {}; }   // 깨진 원본은 덮어쓰기 전에 한 번 보존 (VN-116-3)
+    catch(e){ loadOk = false; try{ if(raw && localStorage.getItem(KEY+".corrupt")==null) localStorage.setItem(KEY+".corrupt", raw); }catch(e2){} return {}; }   // 깨진 원본은 덮어쓰기 전에 한 번 보존 (VN-116-3)
   }
   function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); return true; }catch(e){ return false; } }
   var st = load(); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {}; st.devices = st.devices || [];
@@ -885,6 +886,8 @@ html.big body{zoom:1.18;}
   $("ph_more").onclick = function(){ phShown += 20; renderMedia(); };
   // 앱을 열 때 한 번: 기록(메타)에 없는 사진은 지운다 — 삭제가 도중에 끊기거나 한도로 밀려난 사진이 보이지 않게 남는 일을 막는다 (PR #35 Codex)
   (function sweep(){
+    var kept = false; try{ kept = localStorage.getItem(KEY+".corrupt") != null; }catch(e){ kept = true; }   // 깨진 기록을 보존해 둔 동안에는 복구에 쓸 사진을 남긴다
+    if(!loadOk || kept) return;
     mTx("readonly", function(x){ return x.getAllKeys(); }).then(function(keys){
       (keys || []).forEach(function(k){
         if(phSaving || st.media.some(function(m){ return m.id === k; })) return;
