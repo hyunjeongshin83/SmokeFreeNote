@@ -817,8 +817,9 @@ html.big body{zoom:1.18;}
     document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500); toast("이름 없는 요약 파일로 내보냈어요");
   };
   $("p_bak").onclick = function(){ $("p_export").click(); };
-  $("p_back").onclick = function(){ show(st.start ? "help" : "start"); };
-  Array.prototype.forEach.call(document.querySelectorAll("[data-go]"), function(a){ a.addEventListener("click", function(e){ e.preventDefault(); show(a.dataset.go); }); });
+  var proFrom = null;
+  $("p_back").onclick = function(){ show(proFrom || (st.start ? "help" : "start")); };
+  Array.prototype.forEach.call(document.querySelectorAll("[data-go]"), function(a){ a.addEventListener("click", function(e){ e.preventDefault(); var on = document.querySelector(".view.on"); proFrom = on ? on.id.slice(2) : null; show(a.dataset.go); }); });
 
   // 기기 연결 안내 · 보기 · 데이터
   function renderDevices(){
