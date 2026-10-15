@@ -792,15 +792,18 @@ html.big body{zoom:1.18;}
   function proSummary(){
     
     var logs = st.logs;
-    var slips = logs.filter(function(r){ return r.slip; });
+    var base = logs.filter(function(r){ return !r.from; });   // 5분 버티기 완료 기록(from)은 원래 당김의 결과라 새 당김으로 세지 않고 대처법만 합친다 (PR #34 Codex P2)
+    var linked = {}; logs.forEach(function(r){ if(r.from) linked[r.from] = (linked[r.from] || []).concat(okList(r.cope, COPE.concat(["5분 버티기"]))); });
+    var slips = base.filter(function(r){ return r.slip; });
     var ts = logs.map(function(r){ return r.t; }).filter(function(x){ return typeof x === "number" && isFinite(x); });   // 기간은 요약에 들어가는 기록의 날짜로만 (PR #34 Codex P2 · Sourcery)
     var from = ts.length ? new Date(Math.min.apply(null, ts)).setHours(0,0,0,0) : null;
-    var days = from == null ? 0 : Math.max(0, Math.round((new Date().setHours(0,0,0,0) - from) / 864e5)) + 1;
+    var last = ts.length ? new Date(Math.max.apply(null, ts)).setHours(0,0,0,0) : null;   // 기간은 첫 기록일~마지막 기록일 (오늘이 아니라)
+    var days = from == null ? 0 : Math.max(0, Math.round((last - from) / 864e5)) + 1;
     var dry = st.start ? Math.max(0, Math.floor((Date.now() - st.start) / 864e5)) : 0;   // 먼 날짜로 시작을 잡아도 음수가 되지 않게
-    var urgeN = logs.length;
+    var urgeN = base.length;
     var held = urgeN ? Math.round((urgeN - slips.length) / urgeN * 100) + "%" : "—";
     function trigOf(r){ var a = okList(r.trig, TRIG); if(r.other) a.push("옆에 흡연자"); if(r.avail) a.push("담배 있음"); return a; }
-    function rows(){ return logs.map(function(r){ return {t:r.t, kind:(r.slip ? "피움" : "참음"), lv:(LV.indexOf(r.lv) >= 0 ? r.lv : ""), mood:(MOOD.indexOf(r.mood) >= 0 ? r.mood : ""), trig:trigOf(r), cope:okList(r.cope, COPE.concat(["5분 버티기"]))}; }); }
+    function rows(){ return base.map(function(r){ return {t:r.t, kind:(r.slip ? "피움" : "참음"), lv:(LV.indexOf(r.lv) >= 0 ? r.lv : ""), mood:(MOOD.indexOf(r.mood) >= 0 ? r.mood : ""), trig:trigOf(r), cope:okList(r.cope, COPE.concat(["5분 버티기"])).concat(linked[r.t] || [])}; }); }
 
     return {days:days, urge:urgeN, held:held, dry:dry, rows:rows};
   }
