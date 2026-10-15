@@ -778,7 +778,7 @@ html.big body{zoom:1.18;}
               var off = t + g32(e + 8), str = ""; for(var k = 0; k < 19; k++) str += String.fromCharCode(v.getUint8(off + k));
               var mm = /^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)$/.exec(str); if(!mm) return null;
               var dt = new Date(+mm[1], +mm[2] - 1, +mm[3], +mm[4], +mm[5], +mm[6]);
-              if(dt.getMonth() !== +mm[2] - 1 || dt.getDate() !== +mm[3] || dt.getHours() !== +mm[4]) return null;   // 2월 31일 같은 값이 다음 달로 넘어가 버리는 것을 막는다
+              if(dt.getFullYear() !== +mm[1] || dt.getMonth() !== +mm[2] - 1 || dt.getDate() !== +mm[3] || dt.getHours() !== +mm[4] || dt.getMinutes() !== +mm[5] || dt.getSeconds() !== +mm[6]) return null;   // 2월 31일 같은 값이 다음 달로 넘어가 버리는 것을 막는다
               return dt.getTime();
             }
           }
@@ -796,7 +796,7 @@ html.big body{zoom:1.18;}
   $("ph_btn").onclick = function(){ $("ph_file").click(); };
   $("ph_cancel").onclick = phReset;
   var phTok = 0, phSaving = false, phShown = 20;
-  function plausible(t){ var n = Date.now(); return typeof t === "number" && isFinite(t) && t <= n + 300000 && t >= n - 3650*864e5; }
+  function plausible(t){ var n = Date.now(); return typeof t === "number" && isFinite(t) && t <= n + 300000 && t >= (function(d){ d.setFullYear(d.getFullYear() - 10); return d.getTime(); })(new Date(n)); }
   function imgDims(buf){   // PNG·WebP·JPEG 가로·세로 — 펼치기 전에 크기를 본다
     try{ var v = new DataView(buf);
       if(v.getUint32(0) === 0x89504E47) return {w:v.getUint32(16), h:v.getUint32(20)};
@@ -1041,11 +1041,11 @@ html.big body{zoom:1.18;}
       try{
         var j = JSON.parse(rd.result), d = j && j.app==="smokefree" && j.data;
         if(!d || !Array.isArray(d.logs)) throw 0;
-        var seen = {}; st.logs.forEach(function(r){ seen[r.t]=1; });
+        var snap = JSON.stringify(st), seen = {}; st.logs.forEach(function(r){ seen[r.t]=1; });
         var added = 0; d.logs.forEach(function(r){ if(r && r.t && !seen[r.t]){ st.logs.push(r); added++; } });
         st.logs.sort(function(a,b){ return b.t-a.t; });
         Object.keys(d.meds||{}).forEach(function(k){ st.meds[k]=true; });
-        cleanMedia(d.media).forEach(function(m){ if(!st.media.some(function(x){ return x.id === m.id; })) st.media.push(m); }); st.media.sort(function(a,b){ return b.t - a.t; }); st.media.slice(200).forEach(function(m){ mTx("readwrite", function(x){ return x.delete(m.id); }).catch(function(){}); }); st.media = st.media.slice(0, 200);   // 사진은 기기 안에만 있어 가져온 기록에는 그림 없이 시각·바코드·메모만 들어온다
+        cleanMedia(d.media).forEach(function(m){ if(!st.media.some(function(x){ return x.id === m.id; })) st.media.push(m); }); st.media.sort(function(a,b){ return b.t - a.t; }); var gone = st.media.slice(200); st.media = st.media.slice(0, 200);   // 사진은 기기 안에만 있어 가져온 기록에는 그림 없이 시각·바코드·메모만 들어온다
         (d.measures||[]).forEach(function(m){ if(!st.measures.some(function(x){ return x.t===m.t&&x.kind===m.kind; })) st.measures.push(m); });
         st.measures.sort(function(a,b){ return b.t-a.t; });
         (d.devices||[]).forEach(function(v){ if(v && v.id && !st.devices.some(function(x){ return x.id===v.id; })) st.devices.push(v); }); // 스티커 기기 목록도 (#10 Codex)
@@ -1055,7 +1055,9 @@ html.big body{zoom:1.18;}
           var nseen = {}; (st.notif.log||[]).forEach(function(x){ nseen[x.t]=1; });
           st.notif.log = (st.notif.log||[]).concat(d.notif.log.filter(function(x){ if(!x || !x.t || nseen[x.t]) return false; nseen[x.t]=1; return true; })).sort(function(a,b){ return a.t-b.t; }).slice(-100);
         }
-        save(); renderLogs(); renderQrList(); toast("기록 "+added+"건을 가져왔어요");
+        if(!save()){ st = JSON.parse(snap); toast("저장하지 못해 가져오기를 취소했어요. 저장 공간을 확인해 주세요"); $("p_file").value = ""; return; }   // 저장이 안 됐으면 사진도 지우지 않는다
+        gone.forEach(function(m){ mTx("readwrite", function(x){ return x.delete(m.id); }).catch(function(){}); });   // 200건을 넘어 밀려난 사진은 저장이 끝난 뒤에 지운다
+        renderLogs(); renderQrList(); toast("기록 "+added+"건을 가져왔어요");
       }catch(e){ toast("금연노트 파일이 아니에요"); }
       $("p_file").value = "";
     };
