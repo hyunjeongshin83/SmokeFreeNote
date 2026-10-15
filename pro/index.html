@@ -68,13 +68,18 @@
 (function(){
   "use strict";
   var $ = function(id){ return document.getElementById(id); };
-  var DAY = 864e5, current = null;
+  var DAY = 864e5, current = null, readToken = 0;
+  // 고정 선택지 밖의 글자는 요약·CSV 에 넣지 않는다 (이름 같은 식별 정보가 범주 칸에 섞여 들어와도 걸러짐)
+  var LV = ["약함","보통","강함"], MOOD = ["좋음","보통","나쁨"];
+  var TRIG = { smokefree:["식사 후","커피·술","스트레스","지루함","아침 기상","이동 중","집에서","일하다가"], nonalcohol:["퇴근 후","식사 중","모임·회식","스트레스","외로움","지루함","주말","기쁜 일"] };
+  var COPE = { smokefree:["물 마시기","심호흡","산책","양치질","껌·사탕","전화 통화","5분 버티기"], nonalcohol:["물·차 마시기","심호흡","산책","연락하기","자리 피하기","간식 먹기","5분 버티기"] };
+  function pick(a, allowed){ return Array.isArray(a) ? a.filter(function(x){ return typeof x === "string" && allowed.indexOf(x) >= 0; }).slice(0, 20) : []; }
+  function validT(t){ return typeof t === "number" && isFinite(t) && !isNaN(new Date(t).getTime()); }
 
   function el(tag, text, cls){ var e = document.createElement(tag); if(text != null) e.textContent = text; if(cls) e.className = cls; return e; }
   function num(v){ return typeof v === "number" && isFinite(v) ? v : null; }
   function str(v, n){ return typeof v === "string" ? v.slice(0, n || 40) : ""; }
-  function list(a){ return Array.isArray(a) ? a.slice(0, 20).map(function(x){ return str(x, 30); }).filter(Boolean) : []; }
-  function dkey(ms){ var d = new Date(ms); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
+    function dkey(ms){ var d = new Date(ms); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
   function weekStart(ms){ var d = new Date(ms); d = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay()+6)%7)); return d.getTime(); }
   function md(ms){ var d = new Date(ms); return (d.getMonth()+1)+"/"+d.getDate(); }
 
@@ -82,18 +87,25 @@
   function normalize(o){
     if(!o || (o.app !== "smokefree" && o.app !== "nonalcohol") || !o.data || typeof o.data !== "object") return null;
     var d = o.data, app = o.app;
-    var logs = (Array.isArray(d.logs) ? d.logs : []).map(function(l){
-      if(!l || num(l.t) == null) return null;
-      var drink = l.kind === "drink";
-      return { t:l.t, lv:str(l.lv,10), mood:str(l.mood,10), trig:list(l.trig), cope:list(l.cope),
-        slip: app === "smokefree" ? !!l.slip : drink, cups: drink ? Math.min(40, Math.max(0, Math.round(num(l.cups) || 0))) : 0, sos: !!l.sos || list(l.cope).indexOf("5분 버티기") >= 0 };
+    if(!Array.isArray(d.logs)) return null;   // 기록 칸이 없는 파일은 「기록 0건」이 아니라 잘못된 파일
+    var seen = {};
+    var logs = d.logs.map(function(l){
+      if(!l || !validT(l.t)) return null;
+      var drink = l.kind === "drink", slip = app === "smokefree" ? !!l.slip : drink, key = l.t + "|" + (slip ? 1 : 0);
+      if(seen[key]) return null; seen[key] = 1;   // 같은 시각·같은 종류는 한 건 (앱의 가져오기와 같은 규칙)
+      var trig = pick(l.trig, TRIG[app]);
+      if(app === "smokefree"){ if(l.other) trig.push("옆에 흡연자"); if(l.avail) trig.push("담배를 구할 수 있었음"); }
+      var cope = pick(l.cope, COPE[app]);
+      return { t:l.t, lv: LV.indexOf(l.lv) >= 0 ? l.lv : "", mood: MOOD.indexOf(l.mood) >= 0 ? l.mood : "", trig:trig, cope:cope,
+        slip:slip, cups: drink ? Math.min(40, Math.max(0, Math.round(num(l.cups) || 0))) : 0, sos: !!l.sos || cope.indexOf("5분 버티기") >= 0 };
     }).filter(Boolean).sort(function(a,b){ return a.t - b.t; });
-    var meas = (Array.isArray(d.measures) ? d.measures : []).map(function(m){ return m && num(m.t) != null && (m.kind === "co" || m.kind === "puffs") && num(m.v) != null ? {t:m.t, kind:m.kind, v:m.v} : null; }).filter(Boolean).sort(function(a,b){ return a.t - b.t; });
+    var meas = (Array.isArray(d.measures) ? d.measures : []).map(function(m){ return m && validT(m.t) && (m.kind === "co" || m.kind === "puffs") && num(m.v) != null ? {t:m.t, kind:m.kind, v:m.v} : null; }).filter(Boolean).sort(function(a,b){ return a.t - b.t; });
     var meds = Object.keys(d.meds && typeof d.meds === "object" ? d.meds : {}).filter(function(k){ return /^\d{4}-\d{2}-\d{2}$/.test(k) && d.meds[k]; });
-    var att = (Array.isArray(d.attempts) ? d.attempts : []).filter(function(a){ return a && num(a.start) != null && num(a.end) != null; });
-    return { app:app, start:num(d.start), kind:str(d.kind,10), goal:str(d.goal,10), perday:num(d.perday), logs:logs, meas:meas, meds:meds, attempts:att, exported:str(o.exported,40) };
+    var att = (Array.isArray(d.attempts) ? d.attempts : []).filter(function(a){ return a && validT(a.start) && validT(a.end); });
+    return { app:app, start:validT(d.start) ? d.start : null, kind:str(d.kind,10), goal:str(d.goal,10), perday:num(d.perday), logs:logs, meas:meas, meds:meds, attempts:att, exported:str(o.exported,40) };
   }
 
+  function flat(logs, k){ var out = []; logs.forEach(function(l){ l[k].forEach(function(x){ out.push(x); }); }); return out; }
   function card(label, value){ var d = el("div"); d.appendChild(el("b", value)); d.appendChild(el("span", label)); return d; }
   function rank(arr, title){
     var c = {}; arr.forEach(function(k){ c[k] = (c[k]||0) + 1; });
@@ -128,7 +140,7 @@
     if(smoke && (m.kind === "hnb" || m.kind === "liquid")){
       var n = el("div", "이 환자는 전자담배(궐련형·액상)를 쓰는 것으로 기록돼 있어요. 전자담배만 쓰면 날숨 CO가 잘 오르지 않아(전용 사용자 5 ppm 미만 보고) CO 값만으로 금연 여부를 확인하기 어려워요.", "note"); notes.appendChild(n);
     }
-    var ex = el("div", "※ 환자가 내보낸 날짜: " + (m.exported ? m.exported.slice(0,10) : "알 수 없음") + ". 이후의 기록은 들어 있지 않아요.", "sub"); notes.appendChild(ex);
+    var ex = el("div", "※ 환자가 내보낸 날짜: " + (m.exported && !isNaN(Date.parse(m.exported)) ? dkey(Date.parse(m.exported)) : "알 수 없음") + ". 이후의 기록은 들어 있지 않아요.", "sub"); notes.appendChild(ex);
 
     // 주별
     var weeks = {}; m.logs.forEach(function(l){ var w = weekStart(l.t); (weeks[w] = weeks[w] || {u:0,s:0,cups:0}); if(l.slip){ weeks[w].s++; weeks[w].cups += l.cups; } else weeks[w].u++; });
@@ -148,9 +160,9 @@
 
     // 패턴
     var pt = $("pt"); pt.textContent = "";
-    pt.appendChild(rank([].concat.apply([], m.logs.map(function(l){ return l.trig; })), "상황"));
+    pt.appendChild(rank(flat(m.logs, "trig"), "상황"));
     pt.appendChild(rank(m.logs.map(function(l){ return l.mood; }).filter(Boolean), "기분"));
-    pt.appendChild(rank([].concat.apply([], m.logs.map(function(l){ return l.cope; })), "넘긴 방법"));
+    pt.appendChild(rank(flat(m.logs, "cope"), "넘긴 방법"));
     var hrs = m.logs.map(function(l){ var h = new Date(l.t).getHours(); return h < 6 ? "새벽(0~6시)" : h < 12 ? "오전(6~12시)" : h < 18 ? "오후(12~18시)" : "저녁·밤(18~24시)"; });
     pt.appendChild(rank(hrs, "시간대"));
 
@@ -181,15 +193,16 @@
 
   $("file").onchange = function(){
     var f = $("file").files[0]; if(!f) return;
-    $("out").hidden = true; current = null; $("msg").textContent = "읽는 중…";
+    var token = ++readToken; $("out").hidden = true; current = null; $("msg").textContent = "읽는 중…";
     if(f.size > 5e6){ $("msg").textContent = "파일이 너무 커요(5MB 이하)."; return; }
     var rd = new FileReader();
     rd.onload = function(){
+      if(token !== readToken) return;   // 그 사이 다른 파일을 골랐으면 늦게 끝난 앞 파일은 버린다
       try{ current = normalize(JSON.parse(rd.result)); }catch(e){ current = null; }
       if(!current){ $("msg").textContent = "금연노트·금주노트에서 내보낸 파일이 아니에요."; return; }
       $("msg").textContent = "읽었어요. 아래 요약을 확인하세요."; render(current);
     };
-    rd.onerror = function(){ $("msg").textContent = "파일을 읽지 못했어요."; };
+    rd.onerror = function(){ if(token !== readToken) return; $("msg").textContent = "파일을 읽지 못했어요."; };
     rd.readAsText(f);
   };
   $("print").onclick = function(){ window.print(); };
