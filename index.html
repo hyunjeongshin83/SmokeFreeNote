@@ -315,6 +315,7 @@ html.big body{zoom:1.18;}
       </div>
       <p class="disc" id="ph_native" style="display:none;text-align:left">안드로이드 앱에서는 사진 선택기가 아직 없어 이 기능을 웹(브라우저)에서만 쓸 수 있어요.</p>
       <ul class="ph-list" id="ph_list"></ul>
+      <button class="btn ghost" id="ph_more" type="button" style="display:none;margin-top:8px">더 보기</button>
     </div>
     <div><div class="sect">최근 기록</div>
     <div class="card" style="padding:6px 16px"><ul class="log" id="l_list"></ul></div></div>
@@ -516,7 +517,7 @@ html.big body{zoom:1.18;}
     try{ raw = localStorage.getItem(KEY); return JSON.parse(raw) || {}; }
     catch(e){ try{ if(raw && localStorage.getItem(KEY+".corrupt")==null) localStorage.setItem(KEY+".corrupt", raw); }catch(e2){} return {}; }   // 깨진 원본은 덮어쓰기 전에 한 번 보존 (VN-116-3)
   }
-  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(e){} }
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); return true; }catch(e){ return false; } }
   var st = load(); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {}; st.devices = st.devices || [];
   function dkey(t){ var d=new Date(t||Date.now()); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
   if(st.big) document.documentElement.classList.add("big");
@@ -788,53 +789,76 @@ html.big body{zoom:1.18;}
     return null;
   }
   var phCur = null;   // 고른 사진 {t, src, blob}
-  function phReset(){ phCur = null; $("ph_form").style.display = "none"; $("ph_file").value = ""; $("ph_code").value = ""; $("ph_note").value = ""; if($("ph_prev").src.indexOf("blob:") === 0) URL.revokeObjectURL($("ph_prev").src); $("ph_prev").removeAttribute("src"); }
+  function phReset(){ phTok++; phCur = null; $("ph_form").style.display = "none"; $("ph_file").value = ""; $("ph_code").value = ""; $("ph_note").value = ""; if($("ph_prev").src.indexOf("blob:") === 0) URL.revokeObjectURL($("ph_prev").src); $("ph_prev").removeAttribute("src"); }
   function fmtT(t){ var d = new Date(t); return (d.getMonth()+1)+"/"+d.getDate()+" "+("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2); }
   $("ph_btn").onclick = function(){ $("ph_file").click(); };
   $("ph_cancel").onclick = phReset;
+  var phTok = 0, phSaving = false, phShown = 20;
+  function plausible(t){ var n = Date.now(); return typeof t === "number" && isFinite(t) && t <= n + 300000 && t >= n - 3650*864e5; }
+  function jpegDims(buf){   // JPEG 가로·세로(SOF) — 그림을 펼치기 전에 너무 큰 사진을 거른다
+    try{ var v = new DataView(buf); if(v.getUint16(0) !== 0xFFD8) return null; var o = 2;
+      while(o < v.byteLength - 9){ var m = v.getUint16(o); if(m >= 0xFFC0 && m <= 0xFFCF && m !== 0xFFC4 && m !== 0xFFC8 && m !== 0xFFCC) return {h:v.getUint16(o+5), w:v.getUint16(o+7)}; if(m < 0xFF00) break; o += 2 + v.getUint16(o+2); } }catch(e){}
+    return null;
+  }
   $("ph_file").onchange = function(){
-    var f = $("ph_file").files[0]; if(!f) return;
+    var f = $("ph_file").files[0]; phTok++; var tok = phTok; phCur = null; $("ph_form").style.display = "none";   // 새로 고르면 이전 사진·진행 중인 읽기는 버린다
+    if(!f) return;
     if(f.size > 30*1024*1024){ $("ph_file").value = ""; return toast("사진이 너무 커요 (30MB까지)"); }
     f.arrayBuffer().then(function(buf){
-      var ex = exifTime(buf), now = Date.now(), ok = ex != null && ex <= now + 300000 && ex >= now - 3650*864e5;
-      var t = ok ? ex : (f.lastModified || now), src = ok ? "사진에 찍힌 촬영 시각" : "파일 수정 시각 (촬영 시각이 없어서)";
+      if(tok !== phTok) return;
+      var dm = jpegDims(buf); if(dm && dm.w * dm.h > 48e6){ $("ph_file").value = ""; return toast("사진 해상도가 너무 커요"); }
+      var ex = exifTime(buf), ok = plausible(ex), mt = plausible(f.lastModified);
+      var t = ok ? ex : (mt ? f.lastModified : Date.now()), src = ok ? "사진에 찍힌 촬영 시각" : (mt ? "파일 수정 시각 (촬영 시각이 없어서)" : "지금 시각 (사진에 믿을 만한 시각이 없어서)");
       return createImageBitmap(f).then(function(bmp){
         var k = Math.min(1, 320 / Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
         c.width = Math.max(1, Math.round(bmp.width * k)); c.height = Math.max(1, Math.round(bmp.height * k));
         c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
-        var det = ("BarcodeDetector" in window) ? new BarcodeDetector().detect(bmp).catch(function(){ return []; }) : Promise.resolve([]);
-        return Promise.all([new Promise(function(r){ c.toBlob(r, "image/jpeg", 0.7); }), det]).then(function(x){ return {blob:x[0], codes:x[1]}; });
+        var det; try{ det = ("BarcodeDetector" in window) ? new BarcodeDetector().detect(bmp).catch(function(){ return []; }) : Promise.resolve([]); }catch(e){ det = Promise.resolve([]); }   // 바코드 읽기가 던져도 사진 저장은 막지 않는다
+        return Promise.all([new Promise(function(r){ c.toBlob(r, "image/jpeg", 0.7); }), det]).then(function(x){ if(bmp.close) bmp.close(); return {blob:x[0], codes:x[1]}; });
       }).then(function(r){
+        if(tok !== phTok) return;
         if(!r.blob) throw new Error("blob");
         phCur = {t:t, blob:r.blob};
+        if($("ph_prev").src.indexOf("blob:") === 0) URL.revokeObjectURL($("ph_prev").src);
         $("ph_prev").src = URL.createObjectURL(r.blob); $("ph_time").textContent = fmtT(t); $("ph_src").textContent = src;
         var code = r.codes && r.codes[0] && r.codes[0].rawValue; $("ph_code").value = (typeof code === "string" && /^[0-9A-Za-z-]{4,32}$/.test(code)) ? code : "";
         $("ph_form").style.display = "";
       });
-    }).catch(function(){ phReset(); toast("사진을 읽지 못했어요"); });
+    }).catch(function(){ if(tok === phTok){ phReset(); toast("사진을 읽지 못했어요"); } });
   };
   $("ph_save").onclick = function(){
-    if(!phCur) return;
+    if(!phCur || phSaving) return;
     var code = $("ph_code").value.trim(); if(code && !/^[0-9A-Za-z-]{4,32}$/.test(code)) return toast("바코드 번호는 숫자·영문 4~32자로 적어 주세요");
-    var id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8), cur = phCur;
-    mTx("readwrite", function(s){ return s.put(cur.blob, id); }).then(function(){
-      st.media.unshift({id:id, t:cur.t, saved:Date.now(), code:code, note:$("ph_note").value.trim().slice(0, 40)}); st.media = st.media.slice(0, 200); save();
-      phReset(); renderMedia(); toast("촬영 시각과 함께 남겼어요");
-    }).catch(function(){ toast("사진을 저장하지 못했어요. 저장 공간을 확인해 주세요"); });
+    var note = $("ph_note").value.trim().slice(0, 40), id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8), cur = phCur;   // 누른 순간의 메모·바코드를 잡아 둔다
+    phSaving = true; $("ph_save").disabled = true;
+    mTx("readwrite", function(x){ return x.put(cur.blob, id); }).then(function(){
+      var before = st.media.slice();
+      st.media.unshift({id:id, t:cur.t, saved:Date.now(), code:code, note:note});
+      var evicted = st.media.slice(200); st.media = st.media.slice(0, 200);
+      if(!save()){   // 기록이 안 남았으면 사진도 되돌린다
+        st.media = before;
+        return mTx("readwrite", function(x){ return x.delete(id); }).catch(function(){}).then(function(){ toast("기록을 저장하지 못했어요. 저장 공간을 확인해 주세요"); });
+      }
+      evicted.forEach(function(m){ mTx("readwrite", function(x){ return x.delete(m.id); }).catch(function(){}); });   // 200건을 넘어 밀려난 사진도 지운다
+      if(phCur === cur) phReset();
+      renderMedia(); toast("촬영 시각과 함께 남겼어요");
+    }).catch(function(){ toast("사진을 저장하지 못했어요. 저장 공간을 확인해 주세요"); })
+      .then(function(){ phSaving = false; $("ph_save").disabled = false; });
   };
   function renderMedia(){
-    var ul = $("ph_list"); ul.textContent = "";
-    st.media.slice(0, 20).forEach(function(m){
+    var ul = $("ph_list"); ul.textContent = ""; $("ph_more").style.display = st.media.length > phShown ? "" : "none";
+    st.media.slice(0, phShown).forEach(function(m){
       var li = document.createElement("li"), im = document.createElement("img"), body = document.createElement("div"), del = document.createElement("button");
       im.alt = "기록한 사진"; body.className = "body";
       var h = document.createElement("div"); h.textContent = m.note || "사진 기록"; var mt = document.createElement("div"); mt.className = "meta"; mt.textContent = fmtT(m.t) + (m.code ? " · 바코드 " + m.code : "");
       body.appendChild(h); body.appendChild(mt);
       del.className = "del"; del.type = "button"; del.textContent = "×"; del.setAttribute("aria-label", "이 사진 기록 지우기");
-      del.onclick = function(){ mTx("readwrite", function(s){ return s.delete(m.id); }).catch(function(){}).then(function(){ st.media = st.media.filter(function(x){ return x.id !== m.id; }); save(); renderMedia(); }); };
+      del.onclick = function(){ mTx("readwrite", function(x){ return x.delete(m.id); }).then(function(){ st.media = st.media.filter(function(y){ return y.id !== m.id; }); save(); renderMedia(); }, function(){ toast("사진을 지우지 못했어요. 다시 눌러 주세요"); }); };
       li.appendChild(im); li.appendChild(body); li.appendChild(del); ul.appendChild(li);
       mTx("readonly", function(s){ return s.get(m.id); }).then(function(b){ if(b){ var u = URL.createObjectURL(b); im.onload = function(){ URL.revokeObjectURL(u); }; im.src = u; } }).catch(function(){});
     });
   }
+  $("ph_more").onclick = function(){ phShown += 20; renderMedia(); };
   if(window.Native){ $("ph_btn").style.display = "none"; $("ph_native").style.display = ""; }   // 앱 셸 WebView 에는 사진 선택기가 아직 없다
   $("m_save").onclick = function(){
     var co = $("m_co").value, pf = $("m_puff").value, n = 0;
@@ -1007,6 +1031,7 @@ html.big body{zoom:1.18;}
         var added = 0; d.logs.forEach(function(r){ if(r && r.t && !seen[r.t]){ st.logs.push(r); added++; } });
         st.logs.sort(function(a,b){ return b.t-a.t; });
         Object.keys(d.meds||{}).forEach(function(k){ st.meds[k]=true; });
+        cleanMedia(d.media).forEach(function(m){ if(!st.media.some(function(x){ return x.id === m.id; })) st.media.push(m); }); st.media.sort(function(a,b){ return b.t - a.t; }); st.media = st.media.slice(0, 200);   // 사진은 기기 안에만 있어 가져온 기록에는 그림 없이 시각·바코드·메모만 들어온다
         (d.measures||[]).forEach(function(m){ if(!st.measures.some(function(x){ return x.t===m.t&&x.kind===m.kind; })) st.measures.push(m); });
         st.measures.sort(function(a,b){ return b.t-a.t; });
         (d.devices||[]).forEach(function(v){ if(v && v.id && !st.devices.some(function(x){ return x.id===v.id; })) st.devices.push(v); }); // 스티커 기기 목록도 (#10 Codex)
@@ -1025,7 +1050,8 @@ html.big body{zoom:1.18;}
   $("p_wipe").onclick = function(){
     if(!confirm("모든 기록과 설정을 지울까요? 되돌릴 수 없어요.")) return;
     if(!confirm("정말 지울까요? 먼저 내보내기를 해 두는 것이 좋아요.")) return;
-    try{ localStorage.removeItem(KEY); localStorage.removeItem(KEY+".corrupt"); }catch(e){} location.reload();   // 보존해 둔 깨진 원문도 함께 (VN-116-3 Codex)
+    var done = function(){ try{ localStorage.removeItem(KEY); localStorage.removeItem(KEY+".corrupt"); }catch(e){} location.reload(); };
+    mTx("readwrite", function(x){ return x.clear(); }).catch(function(){}).then(done);   // 사진 보관소(IndexedDB)도 함께 비운다 — 안 그러면 앱에서 못 지우는 사진이 남는다   // 보존해 둔 깨진 원문도 함께 (VN-116-3 Codex)
   };
 
   // 알림 — 정해진 시각(아침·저녁)만. 무작위 없음. 첫 2주 2건 → 저녁 1건 → 달마다 절반 → 3개월 멈춤 (docs/DESIGN.md)
