@@ -874,7 +874,7 @@ html.big body{zoom:1.18;}
         if(!save()){ st.media = before; return toast("지우지 못했어요. 저장 공간을 확인해 주세요"); }
         renderMedia();
         mTx("readwrite", function(x){ return x.delete(m.id); }).catch(function(){   // 사진을 못 지웠으면 기록을 되돌려, 앱에서 다시 지울 수 있게 한다
-          if(!st.media.some(function(y){ return y.id === m.id; })){ st.media = before.filter(function(y){ return y.id === m.id || st.media.some(function(z){ return z.id === y.id; }); }); save(); }
+          if(!st.media.some(function(y){ return y.id === m.id; })){ st.media.push(m); st.media.sort(function(p, q){ return q.t - p.t; }); st.media = st.media.slice(0, 200); save(); }   // 그 사이 새로 들어온 기록은 그대로 두고 지우려던 기록만 돌려놓는다
           renderMedia(); toast("사진을 지우지 못했어요. 다시 눌러 주세요");
         });
       };
