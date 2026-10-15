@@ -548,6 +548,12 @@ html.big body{zoom:1.18;}
   var lastRev = "0", snaps = {};     // lastRev: 내가 마지막으로 쓰거나 받아들인 저장본의 표식 · snaps: 최근 저장본 몇 개(동시에 쓴 탭과 합칠 때 공통 출발점으로 씀)
   try{ lastRev = (JSON.parse(bootRaw) || {})._rev || "0"; }catch(e){}
   var lastRaw = bootRaw, lastObj = null;   // lastRaw 는 load() 가 읽은 바로 그 값(시작 직전 다른 탭이 쓴 것을 놓치지 않게) · lastObj: 시작을 마친 뒤의 상태에서 채운다
+  function noLists(x){   // 목록은 비우고 값은 그대로 둔 사본 — 내가 건드리지 않은 값은 들어온 저장의 새 값을 받아들이게 하는 출발점
+    if(Array.isArray(x)) return [];
+    if(x && typeof x === "object"){ var o = {}; Object.keys(x).forEach(function(k){ o[k] = noLists(x[k]); }); return o; }
+    return x;
+  }
+  function revTime(r){ return parseInt(String(r).slice(0, 8), 36) || 0; }   // 표식 앞 8글자는 쓴 시각(Date.now 36진수)
   function isObj(x){ return !!x && typeof x === "object" && !Array.isArray(x); }
   function jeq(a, b){ return JSON.stringify(a) === JSON.stringify(b); }
   function itemKey(x){   // 같은 기록이면 같은 열쇠, 다른 기록이면 (같은 시각이어도) 다른 열쇠
@@ -604,7 +610,7 @@ html.big body{zoom:1.18;}
     Object.keys(full).forEach(function(k){ if(k !== "_rev" && k !== "_prev") theirs[k] = full[k]; });
     // 그 저장이 내가 마지막으로 쓰거나 받아들인 저장본 위에서 이뤄진 게 아니면, 두 탭이 동시에 쓴 것이다 → 둘의 공통 출발점(그 저장의 앞 저장본)에서 다시 합친다
     var concurrent = rev !== lastRev && prev !== lastRev, base = (concurrent && snaps["r" + prev]) ? snaps["r" + prev] : lastObj;
-    if(concurrent && !snaps["r" + prev]) base = {};   // 그 저장의 앞 저장본을 못 봤다면(이벤트를 놓쳤을 때) 내 상태를 공통 출발점으로 삼지 않고 목록은 합집합, 설정 같은 값은 내 쪽(최신)
+    if(concurrent && !snaps["r" + prev]) base = revTime(rev) >= revTime(lastRev) ? noLists(lastObj) : {};   // 그 저장의 앞 저장본을 못 봤다면: 더 새 저장이면(건너뛴 저장이 있을 뿐) 내가 안 건드린 값은 새 값을 받고 목록은 합집합, 더 오래된 저장이면(오래 멈춘 탭) 값은 내 쪽(최신)을 지킨다
     if(full._rev && ("r" + rev) in snaps){ base = snaps["r" + rev]; concurrent = true; }   // 옛 탭이 받은 표식을 그대로 두고 내용을 바꿔 다시 쓴 것 — 그 표식의 원래 저장본이 공통 출발점이다
     if(!full._rev){ base = {}; concurrent = true; }   // 표식 없는 옛 탭의 낡은 저장도 같게 — 목록은 합집합, 설정 같은 값은 내 쪽을 지킨다
     var old = {}; Object.keys(st).forEach(function(k){ old[k] = st[k]; });
