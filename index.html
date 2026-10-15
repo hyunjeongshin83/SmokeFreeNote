@@ -609,6 +609,7 @@ html.big body{zoom:1.18;}
     // 그 저장이 내가 마지막으로 쓰거나 받아들인 저장본 위에서 이뤄진 게 아니면, 두 탭이 동시에 쓴 것이다 → 둘의 공통 출발점(그 저장의 앞 저장본)에서 다시 합친다
     var concurrent = rev !== lastRev && prev !== lastRev, base = (concurrent && snaps["r" + prev]) ? snaps["r" + prev] : lastObj;
     if(concurrent && !snaps["r" + prev]) base = noLists(theirs);   // 그 저장의 앞 저장본을 못 봤다면(이벤트를 놓쳤을 때) 내 상태를 공통 출발점으로 삼지 않고 목록은 합집합, 설정 같은 값은 내 쪽(최신)
+    if(full._rev && rev !== lastRev && ("r" + rev) in snaps){ base = snaps["r" + rev]; concurrent = true; }   // 옛 탭이 받은 표식을 그대로 두고 내용을 바꿔 다시 쓴 것 — 그 표식의 원래 저장본이 공통 출발점이다
     if(!full._rev){ base = noLists(theirs); concurrent = true; }   // 표식 없는 옛 탭의 낡은 저장도 같게 — 목록은 합집합, 설정 같은 값은 내 쪽을 지킨다
     var old = {}; Object.keys(st).forEach(function(k){ old[k] = st[k]; });
     var merged = relink(old, merge3(base, st, theirs));
