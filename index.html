@@ -157,6 +157,7 @@ html.big body{zoom:1.18;}
 .modal{position:fixed;inset:0;background:rgba(8,74,49,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:10;}
 .modal.on{display:flex;}
 .modal .card{max-width:398px;width:100%;text-align:center;}
+.modal .card:focus{outline:none;}   /* 열릴 때 스크립트가 카드로 포커스를 옮긴다(낭독 시작점). 단추의 초점 링은 그대로 */
 .timer{font-size:3.25rem;font-weight:900;color:var(--g6);font-variant-numeric:tabular-nums;margin:10px 0;}
 .tip{font-size:1rem;color:var(--ink);line-height:1.5;min-height:48px;}
 
@@ -387,9 +388,9 @@ html.big body{zoom:1.18;}
   <button data-v="help"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-help"/></svg><span>도움</span></button>
 </nav>
 
-<div class="modal" id="sos">
-  <div class="card">
-    <div class="title">5분만 버텨봐요</div>
+<div class="modal" id="sos" role="dialog" aria-modal="true" aria-labelledby="sos_h">
+  <div class="card" id="sos_card" tabindex="-1">
+    <div class="title" id="sos_h">5분만 버텨봐요</div>
     <p class="sub">담배 생각은 보통 몇 분이면 지나가요.</p>
     <div class="timer" id="sos_t">5:00</div>
     <div class="tip" id="sos_tip"></div>
@@ -400,7 +401,7 @@ html.big body{zoom:1.18;}
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status"></div>
 
 <script src="vendor/qrcodejs-1.0.0.min.js"></script>
 <script>
@@ -618,9 +619,11 @@ html.big body{zoom:1.18;}
 
   // 흡연 욕구 SOS
   var sosTimer = null;
+  var sosOpener = null;   // 창을 연 단추 — 닫으면 포커스를 돌려준다 (VN-144-1)
   $("h_sos").onclick = function(){
     var left = 300, ti = 0;
-    $("sos").classList.add("on");
+    if(!$("sos").classList.contains("on")) sosOpener = document.activeElement;
+    $("sos").classList.add("on"); $("sos_card").focus();
     function step(){
       $("sos_t").textContent = Math.floor(left/60)+":"+("0"+left%60).slice(-2);
       if(left%30===0) $("sos_tip").textContent = TIPS[ti++ % TIPS.length];
@@ -629,7 +632,21 @@ html.big body{zoom:1.18;}
     }
     clearInterval(sosTimer); step(); sosTimer = setInterval(step, 1000);
   };
-  function closeSos(){ clearInterval(sosTimer); $("sos").classList.remove("on"); }
+  function closeSos(){
+    clearInterval(sosTimer); $("sos").classList.remove("on");
+    var o = (sosOpener && sosOpener.offsetParent) ? sosOpener : $("h_sos");   // 대처법 카드 단추는 열리면서 가려지므로 홈 단추로
+    sosOpener = null; if(o && o.focus) o.focus();
+  }
+  // 창이 열려 있는 동안: Esc = 닫기, Tab 은 창 안에서만 돈다 (뒤 화면으로 새지 않게)
+  document.addEventListener("keydown", function(e){
+    if(!$("sos").classList.contains("on")) return;
+    if(e.key === "Escape"){ e.preventDefault(); $("sos_close").click(); return; }
+    if(e.key !== "Tab") return;
+    var first = $("sos_close"), last = $("sos_done"), a = document.activeElement;
+    if(e.shiftKey && (a === first || a === $("sos_card"))){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && a === last){ e.preventDefault(); first.focus(); }
+    else if(!$("sos").contains(a)){ e.preventDefault(); first.focus(); }
+  });
   $("sos_close").onclick = closeSos;
   $("sos_done").onclick = function(){ closeSos(); var r = {v:2, t:Date.now(), lv:"보통", mood:null, trig:[], other:false, avail:false, cope:["5분 버티기"], slip:false}; if(sosFrom){ r.from = sosFrom; sosFrom = null; } st.logs.unshift(r); save(); toast("멋져요! 기록에 남겼어요"); };
   $("sos_close").addEventListener("click", function(){ sosFrom = null; });
