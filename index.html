@@ -157,7 +157,6 @@ html.big body{zoom:1.18;}
 .modal{position:fixed;inset:0;background:rgba(8,74,49,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:10;}
 .modal.on{display:flex;}
 .modal .card{max-width:398px;width:100%;text-align:center;}
-.modal .card:focus{outline:none;}   /* 열릴 때 스크립트가 카드로 포커스를 옮긴다(낭독 시작점). 단추의 초점 링은 그대로 */
 .timer{font-size:3.25rem;font-weight:900;color:var(--g6);font-variant-numeric:tabular-nums;margin:10px 0;}
 .tip{font-size:1rem;color:var(--ink);line-height:1.5;min-height:48px;}
 
@@ -620,9 +619,10 @@ html.big body{zoom:1.18;}
   // 흡연 욕구 SOS
   var sosTimer = null;
   var sosOpener = null;   // 창을 연 단추 — 닫으면 포커스를 돌려준다 (VN-144-1)
-  $("h_sos").onclick = function(){
+  $("h_sos").onclick = function(ev){
     var left = 300, ti = 0;
-    if(!$("sos").classList.contains("on")) sosOpener = document.activeElement;
+    // 마우스·터치로 누르면 브라우저에 따라 단추에 포커스가 안 갈 수 있어 activeElement 대신 이벤트의 단추를 쓴다
+    if(!$("sos").classList.contains("on")) sosOpener = (ev && ev.currentTarget) || document.activeElement;
     $("sos").classList.add("on"); $("sos_card").focus();
     function step(){
       $("sos_t").textContent = Math.floor(left/60)+":"+("0"+left%60).slice(-2);
@@ -634,7 +634,8 @@ html.big body{zoom:1.18;}
   };
   function closeSos(){
     clearInterval(sosTimer); $("sos").classList.remove("on");
-    var o = (sosOpener && sosOpener.offsetParent) ? sosOpener : $("h_sos");   // 대처법 카드 단추는 열리면서 가려지므로 홈 단추로
+    // 연 단추가 보이지 않으면(기록 탭 대처법 카드 단추는 열리면서 가려짐) 지금 보는 화면의 하단 탭으로
+    var o = (sosOpener && sosOpener.offsetParent) ? sosOpener : (document.querySelector("#tabs button.on") || $("h_sos"));
     sosOpener = null; if(o && o.focus) o.focus();
   }
   // 창이 열려 있는 동안: Esc = 닫기, Tab 은 창 안에서만 돈다 (뒤 화면으로 새지 않게)
