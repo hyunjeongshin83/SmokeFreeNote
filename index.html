@@ -635,7 +635,8 @@ html.big body{zoom:1.18;}
     $("h_reason_card").style.display = st.reason ? "" : "none";
     $("h_reason").textContent = st.reason ? "“"+st.reason+"”" : "";
   }
-  setInterval(tick, 1000);
+  var homeDay = null;
+  setInterval(function(){ tick(); var d = new Date().toDateString(); if(homeDay !== null && homeDay !== d) refreshHome(); homeDay = d; }, 1000);   // 자정을 넘기면 메인의 오늘 할 일·최근 기록도 새로 그린다
   // 약 복용 — 하루 한 칸 (docs/DESIGN.md 1절 · 약사 축)
   function renderMed(){ $("h_med").checked = !!st.meds[dkey()]; }
   $("h_med").onchange = function(){ if($("h_med").checked) st.meds[dkey()]=true; else delete st.meds[dkey()]; save(); toast($("h_med").checked?"오늘 복용을 남겼어요":"복용 표시를 지웠어요"); };
@@ -759,7 +760,7 @@ html.big body{zoom:1.18;}
     else if(!$("sos").contains(a)){ e.preventDefault(); first.focus(); }
   });
   $("sos_close").onclick = closeSos;
-  $("sos_done").onclick = function(){ closeSos(); var r = {v:2, t:Date.now(), lv:"보통", mood:null, trig:[], other:false, avail:false, cope:["5분 버티기"], slip:false}; if(sosFrom){ r.from = sosFrom; sosFrom = null; } st.logs.unshift(r); save(); toast("멋져요! 기록에 남겼어요"); refreshHome(); };
+  $("sos_done").onclick = function(){ closeSos(); var r = {v:2, t:Date.now(), lv:"보통", mood:null, trig:[], other:false, avail:false, cope:["5분 버티기"], slip:false}; if(sosFrom){ r.from = sosFrom; sosFrom = null; } st.logs.unshift(r); if(save()){ toast("멋져요! 기록에 남겼어요"); refreshHome(); } else st.logs.shift(); };   // 저장이 안 됐으면 화면에도 남기지 않는다
   $("sos_close").addEventListener("click", function(){ sosFrom = null; });
 
   // 내 설정
