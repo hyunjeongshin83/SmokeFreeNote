@@ -820,7 +820,8 @@ html.big body{zoom:1.18;}
     if(f.size > 30*1024*1024){ $("ph_file").value = ""; return toast("사진이 너무 커요 (30MB까지)"); }
     f.arrayBuffer().then(function(buf){
       if(tok !== phTok) return;
-      var dm = imgDims(buf); if((dm && dm.w * dm.h > 48e6) || (!dm && f.size > 8*1024*1024)){ $("ph_file").value = ""; return toast("사진 해상도가 너무 커요"); }   // 크기를 알 수 없는 형식은 8MB 까지만
+      var dm = imgDims(buf); if(!dm){ $("ph_file").value = ""; return toast("JPEG·PNG·WebP 사진만 올릴 수 있어요"); }   // 크기를 미리 알 수 없는 형식(GIF·AVIF 등)은 펼치다 멈출 수 있어 받지 않는다
+      if(dm.w * dm.h > 48e6){ $("ph_file").value = ""; return toast("사진 해상도가 너무 커요"); }
       var ex = exifTime(buf), ok = plausible(ex), mt = plausible(f.lastModified);
       var t = ok ? ex : (mt ? f.lastModified : Date.now()), src = ok ? "사진에 찍힌 촬영 시각" : (mt ? "파일 수정 시각 (촬영 시각이 없어서)" : "지금 시각 (사진에 믿을 만한 시각이 없어서)");
       return createImageBitmap(f).then(function(bmp){
