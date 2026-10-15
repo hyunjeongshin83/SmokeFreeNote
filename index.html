@@ -889,8 +889,11 @@ html.big body{zoom:1.18;}
     var kept = false; try{ kept = localStorage.getItem(KEY+".corrupt") != null; }catch(e){ kept = true; }   // 깨진 기록을 보존해 둔 동안에는 복구에 쓸 사진을 남긴다
     if(!loadOk || kept) return;
     mTx("readonly", function(x){ return x.getAllKeys(); }).then(function(keys){
+      var live = {}; st.media.forEach(function(m){ live[m.id] = 1; });
+      try{ ((JSON.parse(localStorage.getItem(KEY)) || {}).media || []).forEach(function(m){ if(m && m.id) live[m.id] = 1; }); }catch(e){ return; }   // 다른 탭이 방금 저장한 기록도 본다
       (keys || []).forEach(function(k){
-        if(phSaving || st.media.some(function(m){ return m.id === k; })) return;
+        var made = parseInt(String(k).slice(0, 8), 36);   // 아이디 앞머리가 만든 시각 — 10분 안의 것은 다른 탭이 저장 중일 수 있어 건드리지 않는다
+        if(phSaving || live[k] || !(Date.now() - made > 600000)) return;
         mTx("readwrite", function(x){ return x.delete(k); }).catch(function(){});
       });
     }).catch(function(){});
