@@ -800,7 +800,7 @@ html.big body{zoom:1.18;}
     var urgeN = logs.length;
     var held = urgeN ? Math.round((urgeN - slips.length) / urgeN * 100) + "%" : "—";
     function trigOf(r){ var a = okList(r.trig, TRIG); if(r.other) a.push("옆에 흡연자"); if(r.avail) a.push("담배 있음"); return a; }
-    function rows(){ return logs.map(function(r){ return {t:r.t, kind:(r.slip ? "피움" : "참음"), lv:(LV.indexOf(r.lv) >= 0 ? r.lv : ""), mood:(MOOD.indexOf(r.mood) >= 0 ? r.mood : ""), trig:trigOf(r), cope:okList(r.cope, COPE)}; }); }
+    function rows(){ return logs.map(function(r){ return {t:r.t, kind:(r.slip ? "피움" : "참음"), lv:(LV.indexOf(r.lv) >= 0 ? r.lv : ""), mood:(MOOD.indexOf(r.mood) >= 0 ? r.mood : ""), trig:trigOf(r), cope:okList(r.cope, COPE.concat(["5분 버티기"]))}; }); }
 
     return {days:days, urge:urgeN, held:held, dry:dry, rows:rows};
   }
@@ -820,7 +820,7 @@ html.big body{zoom:1.18;}
   };
   $("p_bak").onclick = function(){ $("p_export").click(); };
   // 안드로이드 셸 WebView 에는 blob 내려받기를 받는 쪽(DownloadListener·저장 다리)이 없어 파일이 만들어지지 않는다 (PR #34 Codex P1) — 셸에서는 단추를 숨기고 화면으로 보여 준다
-  if(window.Native){ $("p_csv").parentNode.style.display = "none"; $("p_note").textContent = "이 화면을 상담 때 그대로 보여 주세요. 파일로 내보내기는 웹(브라우저)에서 할 수 있어요. 이 앱은 기록 도구이며 진단·판정을 하지 않아요."; }
+  if(window.Native){ $("p_csv").parentNode.style.display = "none"; $("p_export").style.display = "none"; $("p_note").textContent = "이 화면을 상담 때 그대로 보여 주세요. 파일로 내보내기는 웹(브라우저)에서 할 수 있어요. 이 앱은 기록 도구이며 진단·판정을 하지 않아요."; }
   var proFrom = null;
   $("p_back").onclick = function(){ show(proFrom || (st.start ? "help" : "start")); };
   Array.prototype.forEach.call(document.querySelectorAll("[data-go]"), function(a){ a.addEventListener("click", function(e){ e.preventDefault(); var on = document.querySelector(".view.on"); proFrom = on ? on.id.slice(2) : null; show(a.dataset.go); }); });
