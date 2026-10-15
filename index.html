@@ -600,7 +600,7 @@ html.big body{zoom:1.18;}
     if(!full || typeof full !== "object") return false;
     var rev = full._rev || "0", prev = full._prev || "0", theirs = {};
     Object.keys(full).forEach(function(k){ if(k !== "_rev" && k !== "_prev") theirs[k] = full[k]; });
-    if(rev !== lastRev && ("r" + rev) in snaps) return false;   // 이미 본 옛 저장본이 다시 읽힌 것 — 새 저장이 아니다
+    if(full._rev && rev !== lastRev && ("r" + rev) in snaps) return false;   // 이미 본 옛 저장본이 다시 읽힌 것 — 새 저장이 아니다
     // 그 저장이 내가 마지막으로 쓰거나 받아들인 저장본 위에서 이뤄진 게 아니면, 두 탭이 동시에 쓴 것이다 → 둘의 공통 출발점(그 저장의 앞 저장본)에서 다시 합친다
     var concurrent = rev !== lastRev && prev !== lastRev, base = (concurrent && snaps["r" + prev]) ? snaps["r" + prev] : lastObj;
     var old = {}; Object.keys(st).forEach(function(k){ old[k] = st[k]; });
