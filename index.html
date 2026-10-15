@@ -1259,6 +1259,7 @@ html.big body{zoom:1.18;}
   baseline();
   // 다른 탭이 저장하면 이 탭에도 합쳐 보여 준다 (입력 중일 수 있는 도움·설정 화면은 건드리지 않는다)
   function rerender(){   // 다른 탭의 변경을 합친 뒤, 열려 있는 화면을 새로 그린다
+    document.documentElement.classList.toggle("big", !!st.big);   // 다른 탭에서 바꾼 큰 글씨 설정도 바로 적용
     var on = document.querySelector(".view.on"); if(!on) return; var v = on.id.slice(2);
     if(!st.start && v !== "start" && v !== "setup"){ show("start"); return; }   // 다른 탭에서 시작 설정이 지워졌으면 이 탭도 시작 화면으로
     if(v === "setup"){ openSetup(); toast("다른 탭에서 설정이 바뀌어 새로 불러왔어요"); return; }   // 낡은 입력칸이 새 설정을 덮어쓰지 않게
