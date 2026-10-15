@@ -597,6 +597,7 @@ html.big body{zoom:1.18;}
   function save(){
     var pr = lastRaw, po = lastObj;
     try{
+      if(lastObj !== null && lastRaw != null && localStorage.getItem(KEY) == null){ location.reload(); return false; }   // 다른 탭이 기록을 지웠다면 낡은 기록을 다시 쓰지 않고 새로 연다
       pullOthers();
       var s = JSON.stringify(st); localStorage.setItem(KEY, s); lastRaw = s; if(lastObj !== null) lastObj = JSON.parse(s); return true;
     }catch(e){ lastRaw = pr; lastObj = po; return false; }   // 쓰기가 실패하면 기준본을 되돌려, 다음 저장이 다른 탭 기록을 다시 합치게 한다
