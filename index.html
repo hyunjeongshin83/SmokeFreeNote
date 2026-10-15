@@ -143,7 +143,7 @@ html.big body{zoom:1.18;}
 .disc{font-size:0.875rem;color:var(--d4);text-align:center;line-height:1.5;margin-top:8px;}
 
 /* 하단 탭 */
-.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:grid;grid-template-columns:repeat(5,1fr);
+.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;display:grid;grid-template-columns:repeat(6,1fr);
   background:#fff;border-top:1px solid var(--line);padding:6px 6px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -6px 20px rgba(8,74,49,.06);}
 /* 글자가 아이콘 옆에 안 들어가면(390px · 글자 200% 에서 칸보다 1.2px 길어 다음 아이콘에 닿았음) 아이콘 밑으로 내려갑니다 — flex-wrap. 100% 는 옆 그대로 */
 /* 아이콘 옆에 글자 (세 앱 공통). 꺼진 탭 --d2 #324744 / 흰 바탕 9.90:1 · 켜진 탭 --g6 #0E6B48 / 흰 바탕 6.53:1 */
@@ -172,6 +172,7 @@ html.big body{zoom:1.18;}
 <body>
 <!-- 선 아이콘 한 벌 (백신노트·메디노트·금연노트 공통 · 24×24 · 선 2px · 글자색을 따름) -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></symbol>
   <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M10 20v-6h4v6"/></symbol>
   <symbol id="i-record" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></symbol>
   <symbol id="i-health" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 0 0-7.1 7.1L12 21.5l8.8-8.8a5 5 0 0 0 0-7.1z"/><path d="M7 12h2.5l1.5-2.5 2 5 1.5-2.5H17"/></symbol>
@@ -183,6 +184,20 @@ html.big body{zoom:1.18;}
 </svg>
 <div class="wrap">
   <div class="eyebrow"><span class="dot"></span><span>금연노트 · SmokeFree Note</span><span class="cute">오늘도 한 걸음</span></div>
+
+  <!-- 시작 페이지 (대표님 요청 2026-10-15 · 처음 열면 여기, 이후에는 맨 앞 탭에서 다시) -->
+  <section class="view" id="v-start">
+    <div class="card">
+      <div class="title">금연노트</div>
+      <p class="sub">당기는 순간을 적고, 넘긴 방법을 모아, 약사·상담자와 함께 볼 수 있는 금연 기록장이에요.</p>
+      
+      <ol class="rank" style="margin-top:12px"><li><span class="n">1</span><div><b style="color:var(--ink)">시작일과 습관을 정해요</b><br><span class="sub">무엇을 피우셨는지, 하루 흡연량, 가격을 알려주세요.</span></div></li><li><span class="n">2</span><div><b style="color:var(--ink)">당길 때 5분만 버티고 적어요</b><br><span class="sub">홈의 「지금 담배가 당겨요」를 누르면 5분 타이머가 켜지고, 기록은 15초면 끝나요.</span></div></li><li><span class="n">3</span><div><b style="color:var(--ink)">내 패턴을 보고 상담에 가져가요</b><br><span class="sub">통계에서 시간대·상황을 보고, 도움 탭에서 파일로 내보내 약사·상담자와 함께 봐요.</span></div></li></ol>
+      <button class="btn" id="st_go" style="margin-top:6px">시작하기</button>
+      <a class="btn ghost" href="pro/index.html" id="st_pro" style="margin-top:9px;text-decoration:none;justify-content:center">약사·상담자와 함께 보기</a>
+    </div>
+    <div class="card"><div class="sect">안심하세요</div><p class="sub" style="margin-top:0">기록은 이 기기에만 저장돼요. 앱이 서버로 보내지 않아요. (글꼴만 외부에서 받아요)</p></div>
+    <p class="disc">금연노트는 금연을 돕는 기록장이며 진료를 대신하지 않아요. 금연상담전화 1544-9030</p>
+  </section>
 
   <!-- ① 설정 전: 금연 시작하기 -->
   <section class="view" id="v-setup">
@@ -198,6 +213,7 @@ html.big body{zoom:1.18;}
         </div>
         <div class="fld"><label for="s_reason">나의 금연 이유 <span style="font-weight:500">(선택)</span></label><input id="s_reason" placeholder="예: 손주와 오래 산책하고 싶어서"></div>
         <button class="btn" id="s_save">금연 시작</button>
+        <button class="btn ghost" id="s_back" style="margin-top:9px">뒤로</button>
       </div>
     </div>
   </section>
@@ -381,6 +397,7 @@ html.big body{zoom:1.18;}
 </div>
 
 <nav class="tabs" id="tabs">
+  <button data-v="start"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-flag"/></svg><span>시작</span></button>
   <button data-v="home"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-home"/></svg><span>오늘</span></button>
   <button data-v="log"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-record"/></svg><span>기록</span></button>
   <button data-v="stats"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-chart"/></svg><span>통계</span></button>
@@ -464,13 +481,17 @@ html.big body{zoom:1.18;}
     document.querySelectorAll(".view").forEach(function(s){ s.classList.toggle("on", s.id==="v-"+v); });
     document.querySelectorAll("#tabs button").forEach(function(b){ b.classList.toggle("on", b.dataset.v===v); });
     $("tabs").style.display = v==="setup" ? "none" : "";
+    if(v==="start") $("st_go").textContent = st.start ? "오늘 화면으로" : "시작하기";
     if(v==="health") renderTimeline();
     if(v==="log") renderLogs();
     if(v==="help"){ renderProfile(); renderNotif(); renderDevices(); }
     if(v==="stats") renderStats();
     window.scrollTo(0,0);
   }
-  document.querySelectorAll("#tabs button").forEach(function(b){ b.onclick=function(){ show(b.dataset.v); }; });
+  document.querySelectorAll("#tabs button").forEach(function(b){ b.onclick=function(){ if(b.dataset.v!=="start" && b.dataset.v!=="help" && !st.start) return openSetup(); show(b.dataset.v); }; });
+  $("s_back").onclick = function(){ show(st.start ? "help" : "start"); };
+  $("st_go").onclick = function(){ if(st.start) show("home"); else openSetup(); };
+  if(window.Native && $("st_pro")) $("st_pro").style.display = "none";   // 안드로이드 셸에는 파일 선택기가 아직 없다 (PR #32)
 
   // 설정
   var kindPick = st.kind;
@@ -849,13 +870,14 @@ html.big body{zoom:1.18;}
   };
 
   resetForm();
-  if(st.start){ show("home"); tick(); } else openSetup();
+  if(st.start){ show("home"); tick(); } else show("start");
   // 홈 화면 바로가기 (manifest shortcuts): ?sos=1 → 5분 버티기, ?tab=log → 기록
   try{
     var q = new URLSearchParams(location.search);
     if(q.get("use")) logUse(q.get("use"));
     if(q.get("nf") && st.notif.log){ for(var ni=st.notif.log.length-1; ni>=0; ni--){ var ne=st.notif.log[ni]; if(ne.k===q.get("nf") && !ne.opened){ ne.opened = Date.now(); save(); break; } } }   // 알림을 눌러 들어옴
     if(st.start && q.get("sos")==="1") $("h_sos").onclick();
+    else if(q.get("tab") === "start") show("start");
     else if(st.start && q.get("tab")) show(q.get("tab"));
     if(q.toString()) history.replaceState(null, "", location.pathname);
   }catch(e){}
