@@ -777,7 +777,9 @@ html.big body{zoom:1.18;}
             if(g16(e) === 0x9003){
               var off = t + g32(e + 8), str = ""; for(var k = 0; k < 19; k++) str += String.fromCharCode(v.getUint8(off + k));
               var mm = /^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)$/.exec(str); if(!mm) return null;
-              return new Date(+mm[1], +mm[2] - 1, +mm[3], +mm[4], +mm[5], +mm[6]).getTime();
+              var dt = new Date(+mm[1], +mm[2] - 1, +mm[3], +mm[4], +mm[5], +mm[6]);
+              if(dt.getMonth() !== +mm[2] - 1 || dt.getDate() !== +mm[3] || dt.getHours() !== +mm[4]) return null;   // 2월 31일 같은 값이 다음 달로 넘어가 버리는 것을 막는다
+              return dt.getTime();
             }
           }
           return null;
@@ -795,6 +797,18 @@ html.big body{zoom:1.18;}
   $("ph_cancel").onclick = phReset;
   var phTok = 0, phSaving = false, phShown = 20;
   function plausible(t){ var n = Date.now(); return typeof t === "number" && isFinite(t) && t <= n + 300000 && t >= n - 3650*864e5; }
+  function imgDims(buf){   // PNG·WebP·JPEG 가로·세로 — 펼치기 전에 크기를 본다
+    try{ var v = new DataView(buf);
+      if(v.getUint32(0) === 0x89504E47) return {w:v.getUint32(16), h:v.getUint32(20)};
+      if(v.getUint32(0) === 0x52494646 && v.getUint32(8) === 0x57454250){
+        var c = v.getUint32(12);
+        if(c === 0x56503858) return {w:1 + (v.getUint8(24) | v.getUint8(25) << 8 | v.getUint8(26) << 16), h:1 + (v.getUint8(27) | v.getUint8(28) << 8 | v.getUint8(29) << 16)};
+        if(c === 0x56503820) return {w:v.getUint16(26, true) & 0x3FFF, h:v.getUint16(28, true) & 0x3FFF};
+        if(c === 0x5650384C){ var b = v.getUint32(21, true); return {w:1 + (b & 0x3FFF), h:1 + ((b >> 14) & 0x3FFF)}; }
+      }
+    }catch(e){}
+    return jpegDims(buf);
+  }
   function jpegDims(buf){   // JPEG 가로·세로(SOF) — 그림을 펼치기 전에 너무 큰 사진을 거른다
     try{ var v = new DataView(buf); if(v.getUint16(0) !== 0xFFD8) return null; var o = 2;
       while(o < v.byteLength - 9){ var m = v.getUint16(o); if(m >= 0xFFC0 && m <= 0xFFCF && m !== 0xFFC4 && m !== 0xFFC8 && m !== 0xFFCC) return {h:v.getUint16(o+5), w:v.getUint16(o+7)}; if(m < 0xFF00) break; o += 2 + v.getUint16(o+2); } }catch(e){}
@@ -806,7 +820,7 @@ html.big body{zoom:1.18;}
     if(f.size > 30*1024*1024){ $("ph_file").value = ""; return toast("사진이 너무 커요 (30MB까지)"); }
     f.arrayBuffer().then(function(buf){
       if(tok !== phTok) return;
-      var dm = jpegDims(buf); if(dm && dm.w * dm.h > 48e6){ $("ph_file").value = ""; return toast("사진 해상도가 너무 커요"); }
+      var dm = imgDims(buf); if((dm && dm.w * dm.h > 48e6) || (!dm && f.size > 8*1024*1024)){ $("ph_file").value = ""; return toast("사진 해상도가 너무 커요"); }   // 크기를 알 수 없는 형식은 8MB 까지만
       var ex = exifTime(buf), ok = plausible(ex), mt = plausible(f.lastModified);
       var t = ok ? ex : (mt ? f.lastModified : Date.now()), src = ok ? "사진에 찍힌 촬영 시각" : (mt ? "파일 수정 시각 (촬영 시각이 없어서)" : "지금 시각 (사진에 믿을 만한 시각이 없어서)");
       return createImageBitmap(f).then(function(bmp){
@@ -1031,7 +1045,7 @@ html.big body{zoom:1.18;}
         var added = 0; d.logs.forEach(function(r){ if(r && r.t && !seen[r.t]){ st.logs.push(r); added++; } });
         st.logs.sort(function(a,b){ return b.t-a.t; });
         Object.keys(d.meds||{}).forEach(function(k){ st.meds[k]=true; });
-        cleanMedia(d.media).forEach(function(m){ if(!st.media.some(function(x){ return x.id === m.id; })) st.media.push(m); }); st.media.sort(function(a,b){ return b.t - a.t; }); st.media = st.media.slice(0, 200);   // 사진은 기기 안에만 있어 가져온 기록에는 그림 없이 시각·바코드·메모만 들어온다
+        cleanMedia(d.media).forEach(function(m){ if(!st.media.some(function(x){ return x.id === m.id; })) st.media.push(m); }); st.media.sort(function(a,b){ return b.t - a.t; }); st.media.slice(200).forEach(function(m){ mTx("readwrite", function(x){ return x.delete(m.id); }).catch(function(){}); }); st.media = st.media.slice(0, 200);   // 사진은 기기 안에만 있어 가져온 기록에는 그림 없이 시각·바코드·메모만 들어온다
         (d.measures||[]).forEach(function(m){ if(!st.measures.some(function(x){ return x.t===m.t&&x.kind===m.kind; })) st.measures.push(m); });
         st.measures.sort(function(a,b){ return b.t-a.t; });
         (d.devices||[]).forEach(function(v){ if(v && v.id && !st.devices.some(function(x){ return x.id===v.id; })) st.devices.push(v); }); // 스티커 기기 목록도 (#10 Codex)
@@ -1051,7 +1065,7 @@ html.big body{zoom:1.18;}
     if(!confirm("모든 기록과 설정을 지울까요? 되돌릴 수 없어요.")) return;
     if(!confirm("정말 지울까요? 먼저 내보내기를 해 두는 것이 좋아요.")) return;
     var done = function(){ try{ localStorage.removeItem(KEY); localStorage.removeItem(KEY+".corrupt"); }catch(e){} location.reload(); };
-    mTx("readwrite", function(x){ return x.clear(); }).catch(function(){}).then(done);   // 사진 보관소(IndexedDB)도 함께 비운다 — 안 그러면 앱에서 못 지우는 사진이 남는다   // 보존해 둔 깨진 원문도 함께 (VN-116-3 Codex)
+    mTx("readwrite", function(x){ return x.clear(); }).then(done, function(){ toast("사진을 지우지 못해 기록을 그대로 두었어요. 다시 시도해 주세요"); });   // 사진 보관소(IndexedDB)가 비워진 뒤에만 기록을 지운다 — 안 그러면 앱에서 못 지우는 사진이 남는다   // 보존해 둔 깨진 원문도 함께 (VN-116-3 Codex)
   };
 
   // 알림 — 정해진 시각(아침·저녁)만. 무작위 없음. 첫 2주 2건 → 저녁 1건 → 달마다 절반 → 3개월 멈춤 (docs/DESIGN.md)
