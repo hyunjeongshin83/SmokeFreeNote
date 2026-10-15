@@ -548,12 +548,14 @@ html.big body{zoom:1.18;}
   var lastRev = "0", snaps = {};     // lastRev: 내가 마지막으로 쓰거나 받아들인 저장본의 표식 · snaps: 최근 저장본 몇 개(동시에 쓴 탭과 합칠 때 공통 출발점으로 씀)
   try{ lastRev = (JSON.parse(bootRaw) || {})._rev || "0"; }catch(e){}
   var lastRaw = bootRaw, lastObj = null;   // lastRaw 는 load() 가 읽은 바로 그 값(시작 직전 다른 탭이 쓴 것을 놓치지 않게) · lastObj: 시작을 마친 뒤의 상태에서 채운다
-  function jeq(a, b){ return JSON.stringify(a) === JSON.stringify(b); }
-  function noLists(x){   // 목록을 모두 비운 사본 — 공통 출발점을 모를 때는 목록을 합집합으로 합친다(내 기록을 잃지 않게)
+  function noLists(x){   // 목록은 비우고 값은 그대로 둔 사본 — 내가 건드리지 않은 값은 들어온 저장의 새 값을 받아들이게 하는 출발점
     if(Array.isArray(x)) return [];
     if(x && typeof x === "object"){ var o = {}; Object.keys(x).forEach(function(k){ o[k] = noLists(x[k]); }); return o; }
     return x;
   }
+  function revTime(r){ return parseInt(String(r).slice(0, 8), 36) || 0; }   // 표식 앞 8글자는 쓴 시각(Date.now 36진수)
+  function isObj(x){ return !!x && typeof x === "object" && !Array.isArray(x); }
+  function jeq(a, b){ return JSON.stringify(a) === JSON.stringify(b); }
   function itemKey(x){   // 같은 기록이면 같은 열쇠, 다른 기록이면 (같은 시각이어도) 다른 열쇠
     if(!x || typeof x !== "object") return "p" + JSON.stringify(x);
     if(x.id != null) return "i" + x.id;
@@ -564,7 +566,8 @@ html.big body{zoom:1.18;}
   function merge3(b, m, t, name){
     if(jeq(m, b)) return t;      // 내가 안 바꿨으면 지금 저장된 것을 따른다
     if(jeq(t, b)) return m;      // 다른 탭이 안 바꿨으면 내 것
-    if(b === undefined && Array.isArray(m) && Array.isArray(t)) b = [];   // 기준본에 없던 목록(예: 처음 만든 알림 장부)을 두 탭이 따로 만들었으면 빈 목록에서 출발한 것으로 합친다
+    if(b === undefined && Array.isArray(m) && Array.isArray(t)) b = [];
+    if(b === undefined && isObj(m) && isObj(t)) b = {};   // 기준본에 없던 묶음(예: 복용 기록 지도)도 빈 묶음에서 출발한 것으로 합쳐 서로의 항목을 지키지 않고 잃지 않게 한다   // 기준본에 없던 목록(예: 처음 만든 알림 장부)을 두 탭이 따로 만들었으면 빈 목록에서 출발한 것으로 합친다
     if(Array.isArray(m) && Array.isArray(t) && Array.isArray(b)){
       var bm = {}, mm = {}, tm = {}, out = [];
       b.forEach(function(x){ bm[itemKey(x)] = x; }); m.forEach(function(x){ mm[itemKey(x)] = x; }); t.forEach(function(x){ tm[itemKey(x)] = x; });
@@ -597,7 +600,7 @@ html.big body{zoom:1.18;}
   }
   function adopt(merged){ Object.keys(st).forEach(function(k){ delete st[k]; }); Object.keys(merged).forEach(function(k){ st[k] = merged[k]; }); }
   function newRev(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
-  function remember(rev, obj){ snaps["r" + rev] = JSON.parse(JSON.stringify(obj)); var ks = Object.keys(snaps); if(ks.length > 6) delete snaps[ks[0]]; }
+  function remember(rev, obj){ if(("r" + rev) in snaps) return; snaps["r" + rev] = JSON.parse(JSON.stringify(obj)); var ks = Object.keys(snaps); if(ks.length > 6) delete snaps[ks[0]]; }
   function pullOthers(inSave){   // 다른 탭이 저장한 것이 있으면 내 상태에 합친다. 합쳤으면 true
     var raw; try{ raw = localStorage.getItem(KEY); }catch(e){ return false; }
     if(lastObj === null || raw === lastRaw || raw == null) return false;
@@ -605,11 +608,11 @@ html.big body{zoom:1.18;}
     if(!full || typeof full !== "object") return false;
     var rev = full._rev || "0", prev = full._prev || "0", theirs = {};
     Object.keys(full).forEach(function(k){ if(k !== "_rev" && k !== "_prev") theirs[k] = full[k]; });
-    if(full._rev && rev !== lastRev && ("r" + rev) in snaps) return false;   // 이미 본 옛 저장본이 다시 읽힌 것 — 새 저장이 아니다
     // 그 저장이 내가 마지막으로 쓰거나 받아들인 저장본 위에서 이뤄진 게 아니면, 두 탭이 동시에 쓴 것이다 → 둘의 공통 출발점(그 저장의 앞 저장본)에서 다시 합친다
     var concurrent = rev !== lastRev && prev !== lastRev, base = (concurrent && snaps["r" + prev]) ? snaps["r" + prev] : lastObj;
-    if(concurrent && !snaps["r" + prev]) base = noLists(lastObj);   // 그 저장의 앞 저장본을 못 봤다면(이벤트를 놓쳤을 때) 내 상태를 공통 출발점으로 삼지 않고 목록을 합집합으로 합친다
-    if(!full._rev){ base = noLists(theirs); concurrent = true; }   // 표식 없는 옛 탭의 낡은 저장도 같게 — 목록은 합집합, 설정 같은 값은 내 쪽을 지킨다
+    if(concurrent && !snaps["r" + prev]) base = revTime(rev) >= revTime(lastRev) ? noLists(lastObj) : {};   // 그 저장의 앞 저장본을 못 봤다면: 더 새 저장이면(건너뛴 저장이 있을 뿐) 내가 안 건드린 값은 새 값을 받고 목록은 합집합, 더 오래된 저장이면(오래 멈춘 탭) 값은 내 쪽(최신)을 지킨다
+    if(full._rev && ("r" + rev) in snaps){ base = snaps["r" + rev]; concurrent = true; }   // 옛 탭이 받은 표식을 그대로 두고 내용을 바꿔 다시 쓴 것 — 그 표식의 원래 저장본이 공통 출발점이다
+    if(!full._rev){ base = {}; concurrent = true; }   // 표식 없는 옛 탭의 낡은 저장도 같게 — 목록은 합집합, 설정 같은 값은 내 쪽을 지킨다
     var old = {}; Object.keys(st).forEach(function(k){ old[k] = st[k]; });
     var merged = relink(old, merge3(base, st, theirs));
     var lost = concurrent && !jeq(merged, theirs);   // 저장된 것에 내 변경이 빠져 있다 = 동시에 써서 내 쪽이 덮였다

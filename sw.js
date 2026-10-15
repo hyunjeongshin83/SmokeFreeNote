@@ -1,5 +1,5 @@
 /* 금연노트 서비스워커 — 오프라인에서도 열리도록 캐시 */
-const CACHE="smokefree-v15";
+const CACHE="smokefree-v22";
 const ASSETS=["index.html","manifest.webmanifest","icon-192.png","icon-512.png","icon-512-maskable.png","apple-touch-icon.png","favicon-32.png","vendor/qrcodejs-1.0.0.min.js"];
 
 const own=(req)=>caches.open(CACHE).then(c=>c.match(req));   // 같은 주소의 다른 앱 캐시는 읽지 않는다
