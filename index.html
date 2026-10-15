@@ -176,6 +176,14 @@ html.big body{zoom:1.18;}
 .ph-list img{width:56px;height:56px;object-fit:cover;border-radius:10px;flex:none;background:var(--g0);}
 .ph-list .body{flex:1;min-width:0;font-size:0.9375rem;color:var(--ink);overflow-wrap:anywhere;}
 .ph-list .meta{font-size:0.8125rem;color:var(--d3);}
+.todo{display:flex;gap:12px;align-items:center;}
+.todo .ck{width:30px;height:30px;border-radius:50%;border:2px solid var(--g4);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--g4);flex:none;}
+.todo.done .ck{background:var(--g4);color:#fff;}
+.todo b{color:var(--ink);font-size:1rem;}
+.btn.sm{width:auto;padding:10px 16px;min-height:44px;flex:none;}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:13px;}
+.quick button{min-height:60px;border-radius:16px;border:1.5px solid var(--line);background:#fff;color:var(--g6);font-family:inherit;font-weight:800;font-size:1rem;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;}
+.quick svg{width:22px;height:22px;flex:none;}
 </style>
 <style id="mn-theme">
 /* 시안 C (2026-10-15 대표님 선택) — 메디노트 틸로 맞춘 색 + 태블릿 두 칸. 값은 MediNote_app.html 의 --brand 줄과 같습니다.
@@ -264,12 +272,23 @@ html.big body{zoom:1.18;}
       <div class="next"><div class="ic"><svg aria-hidden="true" focusable="false"><use href="#i-health"/></svg></div><div style="flex:1"><div class="t" id="h_next_t" style="font-weight:800;color:var(--g6);font-size:0.8125rem"></div><div id="h_next_d" style="font-size:0.9688rem;color:var(--ink);line-height:1.4"></div></div></div>
       <div class="bar"><i id="h_bar" style="width:0%"></i></div>
     </div>
+    <button class="btn sos" id="h_sos"><svg aria-hidden="true" focusable="false"><use href="#i-timer"/></svg>지금 담배가 당겨요</button>
+    <div class="card" id="mn_todo">
+      <div class="sect">오늘 할 일</div>
+      <div class="todo" id="td_row"><span class="ck" id="td_ck" aria-hidden="true">○</span><div style="flex:1;min-width:0"><b id="td_t">오늘 기록 남기기</b><div class="sub" id="td_d" style="margin-top:2px">15초면 돼요</div></div><button type="button" class="btn ghost sm" id="td_go">기록하기</button></div>
+    </div>
+    <div class="quick" role="group" aria-label="바로가기">
+      <button type="button" data-q="log"><svg aria-hidden="true" focusable="false"><use href="#i-record"/></svg>기록하기</button>
+      <button type="button" data-q="stats"><svg aria-hidden="true" focusable="false"><use href="#i-chart"/></svg>통계 보기</button>
+      <button type="button" data-q="pro"><svg aria-hidden="true" focusable="false"><use href="#i-record"/></svg>함께 보기</button>
+      <button type="button" data-q="help"><svg aria-hidden="true" focusable="false"><use href="#i-help"/></svg>도움·상담</button>
+    </div>
+    <div class="card"><div class="sect">최근 기록</div><ul class="log" id="h_recent"></ul></div>
     <div class="card" id="h_reason_card" style="display:none">
       <div class="sect">나의 금연 이유</div>
       <div id="h_reason" style="font-size:1.0625rem;color:var(--ink);font-weight:700;line-height:1.45"></div>
     </div>
     <label class="chk" style="margin:2px 0 10px"><input type="checkbox" id="h_med"> 오늘 약 먹었어요 (니코틴 껌·패치 · 처방약)</label>
-    <button class="btn sos" id="h_sos"><svg aria-hidden="true" focusable="false"><use href="#i-timer"/></svg>지금 담배가 당겨요</button>
     <p class="disc">* 되찾은 시간은 개비당 약 11분으로 계산한 참고 수치예요.</p>
   </section>
 
@@ -465,7 +484,7 @@ html.big body{zoom:1.18;}
 
 <nav class="tabs" id="tabs">
   <button data-v="start"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-flag"/></svg><span>시작</span></button>
-  <button data-v="home"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-home"/></svg><span>오늘</span></button>
+  <button data-v="home"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-home"/></svg><span>메인</span></button>
   <button data-v="log"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-record"/></svg><span>기록</span></button>
   <button data-v="stats"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-chart"/></svg><span>통계</span></button>
   <button data-v="health"><svg class="i" aria-hidden="true" focusable="false"><use href="#i-health"/></svg><span>건강</span></button>
@@ -548,11 +567,12 @@ html.big body{zoom:1.18;}
     document.querySelectorAll(".view").forEach(function(s){ s.classList.toggle("on", s.id==="v-"+v); });
     document.querySelectorAll("#tabs button").forEach(function(b){ b.classList.toggle("on", b.dataset.v===v); });
     $("tabs").style.display = v==="setup" ? "none" : "";
-    if(v==="start") $("st_go").textContent = st.start ? "오늘 화면으로" : "시작하기";
+    if(v==="start") $("st_go").textContent = st.start ? "메인으로" : "시작하기";
     if(v==="health") renderTimeline();
     if(v==="log"){ renderLogs(); renderMedia(); }
     if(v==="help"){ renderProfile(); renderNotif(); renderDevices(); }
     if(v==="stats") renderStats();
+    if(v==="home") renderMain();
     if(v==="pro") renderPro();
     window.scrollTo(0,0);
   }
@@ -615,7 +635,8 @@ html.big body{zoom:1.18;}
     $("h_reason_card").style.display = st.reason ? "" : "none";
     $("h_reason").textContent = st.reason ? "“"+st.reason+"”" : "";
   }
-  setInterval(tick, 1000);
+  var homeDay = null;
+  setInterval(function(){ tick(); var d = new Date().toDateString(); if(homeDay !== null && homeDay !== d) refreshHome(); homeDay = d; }, 1000);   // 자정을 넘기면 메인의 오늘 할 일·최근 기록도 새로 그린다
   // 약 복용 — 하루 한 칸 (docs/DESIGN.md 1절 · 약사 축)
   function renderMed(){ $("h_med").checked = !!st.meds[dkey()]; }
   $("h_med").onchange = function(){ if($("h_med").checked) st.meds[dkey()]=true; else delete st.meds[dkey()]; save(); toast($("h_med").checked?"오늘 복용을 남겼어요":"복용 표시를 지웠어요"); };
@@ -739,7 +760,7 @@ html.big body{zoom:1.18;}
     else if(!$("sos").contains(a)){ e.preventDefault(); first.focus(); }
   });
   $("sos_close").onclick = closeSos;
-  $("sos_done").onclick = function(){ closeSos(); var r = {v:2, t:Date.now(), lv:"보통", mood:null, trig:[], other:false, avail:false, cope:["5분 버티기"], slip:false}; if(sosFrom){ r.from = sosFrom; sosFrom = null; } st.logs.unshift(r); save(); toast("멋져요! 기록에 남겼어요"); };
+  $("sos_done").onclick = function(){ closeSos(); var r = {v:2, t:Date.now(), lv:"보통", mood:null, trig:[], other:false, avail:false, cope:["5분 버티기"], slip:false}; if(sosFrom){ r.from = sosFrom; sosFrom = null; } st.logs.unshift(r); if(save()){ toast("멋져요! 기록에 남겼어요"); refreshHome(); } else { st.logs.shift(); toast("저장하지 못했어요. 저장 공간을 확인해 주세요"); } };   // 저장이 안 됐으면 화면에도 남기지 않고 알린다
   $("sos_close").addEventListener("click", function(){ sosFrom = null; });
 
   // 내 설정
@@ -754,6 +775,28 @@ html.big body{zoom:1.18;}
   };
 
   // 측정값 (CO · 전자담배 앱 주간 사용량) — 기기에서 직접 못 읽어 손으로 옮겨 적음 (docs/DEVICES.md)
+
+  // ── 메인(홈) 화면 — 오늘 할 일 · 바로가기 · 최근 기록 (대표님 요청 2026-10-15)
+  function mainText(l){ return (l.slip ? "피웠어요" : "참았어요") + (l.lv ? " · " + l.lv : ""); }
+  function refreshHome(){ if($("v-home").classList.contains("on")) renderMain(); }   // 메인이 열려 있는 채로 기록이 바뀌면 그 자리에서 다시 그린다
+  function renderMain(){
+    var logs = Array.isArray(st.logs) ? st.logs : [], today = dkey(Date.now());
+    var done = logs.some(function(l){ return dkey(l.t) === today; });
+    $("td_row").classList.toggle("done", done); $("td_ck").textContent = done ? "✓" : "○";
+    $("td_t").textContent = done ? "오늘 기록을 남겼어요" : "오늘 기록 남기기";
+    $("td_d").textContent = done ? "더 있으면 한 번 더 남겨도 돼요" : "15초면 돼요";
+    $("td_go").textContent = done ? "더 남기기" : "기록하기";
+    var ul = $("h_recent"); ul.textContent = "";
+    if(!logs.length){ var e = document.createElement("li"); e.style.border = "none"; e.textContent = "아직 기록이 없어요"; e.className = "sub"; ul.appendChild(e); return; }
+    logs.slice(0, 3).forEach(function(l){
+      var li = document.createElement("li"), b = document.createElement("div"), m = document.createElement("div"), d = new Date(l.t);
+      b.className = "body"; b.textContent = mainText(l); m.className = "meta";
+      m.textContent = (d.getMonth()+1) + "/" + d.getDate() + " " + ("0"+d.getHours()).slice(-2) + ":" + ("0"+d.getMinutes()).slice(-2);
+      b.appendChild(m); li.appendChild(b); ul.appendChild(li);
+    });
+  }
+  $("td_go").onclick = function(){ show("log"); };
+  Array.prototype.forEach.call(document.querySelectorAll("[data-q]"), function(b){ b.onclick = function(){ var on = document.querySelector(".view.on"); proFrom = on ? on.id.slice(2) : null; show(b.dataset.q); }; });   // 「함께 보기」의 뒤로 단추가 메인으로 돌아오게
   // ── 사진·바코드 기록 — 이 기기 안에서만. 사진은 다시 그려 EXIF(위치 포함)를 지운 작은 그림만 IndexedDB 에 둔다
   function cleanMedia(a){ return (Array.isArray(a) ? a : []).filter(function(m){ return m && typeof m.t === "number" && isFinite(m.t) && typeof m.id === "string" && /^[a-z0-9]{6,24}$/.test(m.id); }).slice(0, 200)
     .map(function(m){ return {id:m.id, t:m.t, saved:(typeof m.saved === "number" ? m.saved : m.t), code:(typeof m.code === "string" && /^[0-9A-Za-z-]{4,32}$/.test(m.code) ? m.code : ""), note:(typeof m.note === "string" ? m.note.slice(0, 40) : "")}; }); }
