@@ -873,7 +873,10 @@ html.big body{zoom:1.18;}
         st.media = st.media.filter(function(y){ return y.id !== m.id; });
         if(!save()){ st.media = before; return toast("지우지 못했어요. 저장 공간을 확인해 주세요"); }
         renderMedia();
-        mTx("readwrite", function(x){ return x.delete(m.id); }).catch(function(){});
+        mTx("readwrite", function(x){ return x.delete(m.id); }).catch(function(){   // 사진을 못 지웠으면 기록을 되돌려, 앱에서 다시 지울 수 있게 한다
+          if(!st.media.some(function(y){ return y.id === m.id; })){ st.media = before.filter(function(y){ return y.id === m.id || st.media.some(function(z){ return z.id === y.id; }); }); save(); }
+          renderMedia(); toast("사진을 지우지 못했어요. 다시 눌러 주세요");
+        });
       };
       li.appendChild(im); li.appendChild(body); li.appendChild(del); ul.appendChild(li);
       mTx("readonly", function(s){ return s.get(m.id); }).then(function(b){ if(b){ var u = URL.createObjectURL(b); im.onload = function(){ URL.revokeObjectURL(u); }; im.src = u; } }).catch(function(){});
