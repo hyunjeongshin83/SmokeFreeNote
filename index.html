@@ -544,6 +544,9 @@ html.big body{zoom:1.18;}
   st.notif = st.notif || {}; var NDEF = {on:false, am:"08:30", pm:"21:00", q1:"21:30", q2:"08:00", sent:{}};
   Object.keys(NDEF).forEach(function(k){ if(st.notif[k]==null) st.notif[k]=NDEF[k]; });
   // ── 여러 탭 · 기기 안 저장 합치기 — 다른 탭이 방금 저장한 기록을 낡은 상태로 덮어쓰지 않는다 (3-way 합침: 마지막으로 본 저장본 · 내 상태 · 지금 저장된 것)
+  delete st._rev; delete st._prev;   // 저장본에 붙는 쓰기 표식(아래)은 상태에는 두지 않는다
+  var lastRev = "0", snaps = {};     // lastRev: 내가 마지막으로 쓰거나 받아들인 저장본의 표식 · snaps: 최근 저장본 몇 개(동시에 쓴 탭과 합칠 때 공통 출발점으로 씀)
+  try{ lastRev = (JSON.parse(bootRaw) || {})._rev || "0"; }catch(e){}
   var lastRaw = bootRaw, lastObj = null;   // lastRaw 는 load() 가 읽은 바로 그 값(시작 직전 다른 탭이 쓴 것을 놓치지 않게) · lastObj: 시작을 마친 뒤의 상태에서 채운다
   function jeq(a, b){ return JSON.stringify(a) === JSON.stringify(b); }
   function itemKey(x){   // 같은 기록이면 같은 열쇠, 다른 기록이면 (같은 시각이어도) 다른 열쇠
@@ -588,23 +591,36 @@ html.big body{zoom:1.18;}
     return n;
   }
   function adopt(merged){ Object.keys(st).forEach(function(k){ delete st[k]; }); Object.keys(merged).forEach(function(k){ st[k] = merged[k]; }); }
-  function pullOthers(){   // 다른 탭이 저장한 것이 있으면 내 상태에 합친다. 합쳤으면 true
+  function newRev(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function remember(rev, obj){ snaps["r" + rev] = JSON.parse(JSON.stringify(obj)); var ks = Object.keys(snaps); if(ks.length > 6) delete snaps[ks[0]]; }
+  function pullOthers(inSave){   // 다른 탭이 저장한 것이 있으면 내 상태에 합친다. 합쳤으면 true
     var raw; try{ raw = localStorage.getItem(KEY); }catch(e){ return false; }
     if(lastObj === null || raw === lastRaw || raw == null) return false;
-    var theirs; try{ theirs = JSON.parse(raw); }catch(e){ return false; }
-    if(!theirs || typeof theirs !== "object") return false;
+    var full; try{ full = JSON.parse(raw); }catch(e){ return false; }
+    if(!full || typeof full !== "object") return false;
+    var rev = full._rev || "0", prev = full._prev || "0", theirs = {};
+    Object.keys(full).forEach(function(k){ if(k !== "_rev" && k !== "_prev") theirs[k] = full[k]; });
+    if(rev !== lastRev && ("r" + rev) in snaps) return false;   // 이미 본 옛 저장본이 다시 읽힌 것 — 새 저장이 아니다
+    // 그 저장이 내가 마지막으로 쓰거나 받아들인 저장본 위에서 이뤄진 게 아니면, 두 탭이 동시에 쓴 것이다 → 둘의 공통 출발점(그 저장의 앞 저장본)에서 다시 합친다
+    var concurrent = rev !== lastRev && prev !== lastRev, base = (concurrent && snaps["r" + prev]) ? snaps["r" + prev] : lastObj;
     var old = {}; Object.keys(st).forEach(function(k){ old[k] = st[k]; });
-    adopt(relink(old, merge3(lastObj, st, theirs))); lastRaw = raw; lastObj = JSON.parse(raw); return true;
+    var merged = relink(old, merge3(base, st, theirs));
+    var lost = concurrent && !jeq(merged, theirs);   // 저장된 것에 내 변경이 빠져 있다 = 동시에 써서 내 쪽이 덮였다
+    adopt(merged); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {}; st.devices = st.devices || []; st.notif = st.notif || {}; Object.keys(NDEF).forEach(function(k){ if(st.notif[k] == null) st.notif[k] = NDEF[k]; }); st.media = st.media || [];   // 합친 결과에도 기본값을 채워 둔다
+    lastRaw = raw; lastRev = rev; lastObj = JSON.parse(JSON.stringify(theirs)); remember(rev, theirs);
+    if(lost && !inSave) setTimeout(function(){ save(); }, 0);   // 합친 결과를 다시 저장해 두 탭이 같은 기록으로 모이게 한다
+    return true;
   }
   function save(){
-    var pr = lastRaw, po = lastObj;
+    var pr = lastRaw, po = lastObj, pv = lastRev;
     try{
       if(lastObj !== null && lastRaw != null && localStorage.getItem(KEY) == null){ location.reload(); return false; }   // 다른 탭이 기록을 지웠다면 낡은 기록을 다시 쓰지 않고 새로 연다
-      if(pullOthers()) setTimeout(rerender, 0);   // 저장하며 다른 탭 기록을 합쳤으면 열린 화면도 새로 그린다
-      var s = JSON.stringify(st); localStorage.setItem(KEY, s); lastRaw = s; if(lastObj !== null) lastObj = JSON.parse(s); return true;
-    }catch(e){ lastRaw = pr; lastObj = po; return false; }   // 쓰기가 실패하면 기준본을 되돌려, 다음 저장이 다른 탭 기록을 다시 합치게 한다
+      if(pullOthers(true)) setTimeout(rerender, 0);   // 저장하며 다른 탭 기록을 합쳤으면 열린 화면도 새로 그린다
+      var rev = newRev(), out = {}; Object.keys(st).forEach(function(k){ out[k] = st[k]; }); out._rev = rev; out._prev = lastRev;
+      var s = JSON.stringify(out); localStorage.setItem(KEY, s); lastRaw = s; lastRev = rev; if(lastObj !== null){ lastObj = JSON.parse(JSON.stringify(st)); remember(rev, st); } return true;
+    }catch(e){ lastRaw = pr; lastObj = po; lastRev = pv; return false; }   // 쓰기가 실패하면 기준본을 되돌려, 다음 저장이 다른 탭 기록을 다시 합치게 한다
   }
-  function baseline(){ lastObj = JSON.parse(JSON.stringify(st)); }
+  function baseline(){ lastObj = JSON.parse(JSON.stringify(st)); remember(lastRev, st); }
 
   function $(id){ return document.getElementById(id); }
   // 안내가 머무는 시간 6초 (3초 + 3낱말당 1초 · APP-STYLE 3-5-1 --dur-toast · VaccineNote-Park#94 VN-94-3). 1.8초는 고령 사용자가 읽기 전에 사라졌다.
