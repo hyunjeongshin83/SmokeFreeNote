@@ -737,7 +737,7 @@ html.big body{zoom:1.18;}
     $("h_reason").textContent = st.reason ? "“"+st.reason+"”" : "";
   }
   var homeDay = null;
-  setInterval(function(){ tick(); var d = new Date().toDateString(); if(homeDay !== null && homeDay !== d) refreshHome(); homeDay = d; }, 1000);   // 자정을 넘기면 메인의 오늘 할 일·최근 기록도 새로 그린다
+  setInterval(function(){ greetNow(); tick(); var d = new Date().toDateString(); if(homeDay !== null && homeDay !== d) refreshHome(); homeDay = d; }, 1000);   // 자정을 넘기면 메인의 오늘 할 일·최근 기록도 새로 그린다
   // 약 복용 — 하루 한 칸 (docs/DESIGN.md 1절 · 약사 축)
   function renderMed(){ $("h_med").checked = !!st.meds[dkey()]; }
   $("h_med").onchange = function(){ if($("h_med").checked) st.meds[dkey()]=true; else delete st.meds[dkey()]; save(); toast($("h_med").checked?"오늘 복용을 남겼어요":"복용 표시를 지웠어요"); };
