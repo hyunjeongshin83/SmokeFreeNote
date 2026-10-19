@@ -84,7 +84,8 @@ export function validateHQ(o, now = new Date()) {
   const dm = typeof o.d === 'string' && /^(\d{4})-(\d{2})-(\d{2})$/.exec(o.d); if (!dm) return { ok: false, why: '검진일이 없어요' };
   const dt = new Date(Date.UTC(+dm[1], +dm[2] - 1, +dm[3]));
   if (dt.getUTCFullYear() !== +dm[1] || dt.getUTCMonth() !== +dm[2] - 1 || dt.getUTCDate() !== +dm[3]) return { ok: false, why: '검진일이 달력에 없는 날이에요' };
-  if (dt.getTime() > now.getTime()) return { ok: false, why: '검진일이 오늘 이후예요' };
+  const pad = n => String(n).padStart(2, '0'), today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;   // 사용자의 달력 날짜로 비교 — UTC 자정과 지금 시각을 비교하면 한국의 0~9시에 「오늘」이 미래가 된다
+  if (o.d > today) return { ok: false, why: '검진일이 오늘 이후예요' };
   if (+dm[1] < 1990) return { ok: false, why: '검진일이 너무 옛날이에요' };
   if (!Array.isArray(o.x)) return { ok: false, why: '항목이 없어요' };
   if (o.x.length > MAX_ITEMS) return { ok: false, why: '항목이 너무 많아요' };
@@ -102,6 +103,7 @@ export function validateHQ(o, now = new Date()) {
 
 // 앱 기록으로: measures[] 에 kind:"lab". 가져오기가 t+kind 가 같으면 같은 기록으로 보므로 항목마다 t 를 1초씩 비켜 둔다
 export function toRecords(v, batch) {
-  const noon = new Date(v.date + 'T12:00:00').getTime();
-  return v.items.map((it, i) => ({ t: noon + i * 1000, kind: 'lab', id: `lab:${v.date}:${it.k}`, v: { k: it.k, val: it.val, u: it.unit, src: 'qr', imp: batch } }));
+  const noon = new Date(v.date + 'T12:00:00').getTime(), order = Object.keys(DICT);
+  // t 는 묶음 안의 순서가 아니라 사전의 항목 순서로 — 같은 검진을 다른 순서로 다시 읽어도 같은 항목은 같은 t·id 라 중복으로 걸러지고, 다른 항목은 t 가 다르다
+  return v.items.map(it => ({ t: noon + order.indexOf(it.k) * 1000, kind: 'lab', id: `lab:${v.date}:${it.k}`, v: { k: it.k, val: it.val, u: it.unit, src: 'qr', imp: batch } }));
 }

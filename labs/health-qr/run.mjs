@@ -58,6 +58,25 @@ console.log('\n══ 3. 기록으로 바꾸기: 같은 검진일 항목이 가�
   console.log('   예: ' + JSON.stringify(recs[10]));
 }
 
+console.log('\n══ 3b. 순서와 시간대 (Codex 지적 #43)');
+{
+  const base = H.validateHQ(sample(N), new Date('2026-10-19')), rev = { ...base, items: [...base.items].reverse() };
+  const a = H.toRecords(base, 'b1'), b = H.toRecords(rev, 'b2'), key = r => r.id + '@' + r.t;
+  ok('같은 검진을 거꾸로 읽어도 항목마다 (id, t) 가 같음 → 중복으로 걸러짐', a.map(key).sort().join() === b.map(key).sort().join());
+  const half = H.validateHQ({ ...sample(N), x: sample(N).x.slice(0, 5) }, new Date('2026-10-19')), other = H.validateHQ({ ...sample(N), x: sample(N).x.slice(5, 10) }, new Date('2026-10-19'));
+  const ta = new Set(H.toRecords(half, 'x').map(r => r.t)), clash = H.toRecords(other, 'y').filter(r => ta.has(r.t));
+  ok('같은 날 다른 항목 두 묶음은 t 가 겹치지 않음', clash.length === 0);
+  process.env.TZ = 'Asia/Seoul';
+  const kstMidnight = new Date('2026-10-19T15:30:00Z');   // 서울 2026-10-20 00:30 — UTC 로는 아직 19일
+  ok('서울 0시 30분에 「오늘(10-20)」 검진일을 받음', H.validateHQ({ ...sample(3), d: '2026-10-20' }, kstMidnight).ok === true);
+  ok('같은 시각에 「내일(10-21)」 검진일은 거부', H.validateHQ({ ...sample(3), d: '2026-10-21' }, kstMidnight).ok === false);
+  process.env.TZ = 'America/Los_Angeles';
+  const laEvening = new Date('2026-10-20T03:00:00Z');   // LA 2026-10-19 20:00 — UTC 로는 이미 20일
+  ok('LA 저녁에 「UTC 로는 오늘」인 10-20 검진일은 거부(LA 에서는 내일)', H.validateHQ({ ...sample(3), d: '2026-10-20' }, laEvening).ok === false);
+  ok('LA 저녁에 10-19 검진일은 받음', H.validateHQ({ ...sample(3), d: '2026-10-19' }, laEvening).ok === true);
+  process.env.TZ = 'UTC';
+}
+
 console.log('\n══ 4. 악의적·깨진 입력 (던지지 않고 안전하게 거부하는가)');
 const bad = async (name, text, expectOk) => { const d = await H.decodeAny(text); let v = null; if (d.type === 'hq1') v = H.validateHQ(d.obj, new Date('2026-10-19')); const accepted = !!(v && v.ok); ok(name, accepted === expectOk, `type=${d.type}${d.why ? ' · ' + d.why : ''}${v ? ' · ' + (v.ok ? '받음 ' + v.items.length : '거부: ' + (v.why || '')) : ''}`); return { d, v }; };
 const mk = async (o, mode = 'b45') => H.encodeHQ(o, mode);
