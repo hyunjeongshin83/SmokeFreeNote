@@ -1104,7 +1104,7 @@ html.big body{zoom:1.18;}
   var tLastDefault;
   function tDateSync(){   // 자정을 넘겨 열려 있어도 「오늘」이 어제로 남지 않게 — 사용자가 고른 날짜는 그대로 둔다
     var today = dkey(), el = $("t_date"); el.max = today;
-    if(!el.value || el.value === tLastDefault || el.value > today) el.value = today;
+    if(!el.value || el.value === tLastDefault) el.value = today;   // 사용자가 넣은 값(미래 날짜 포함)은 고쳐 쓰지 않고 저장 때 거부한다
     tLastDefault = today;
   }
   tDateSync();
