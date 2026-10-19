@@ -194,12 +194,18 @@ html.big body{zoom:1.18;}
 .modal{background:rgba(6,65,62,.55);}
 .pro-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;}
 .pro-note{font-size:0.8125rem;color:var(--d3);line-height:1.55;margin-top:10px;}
+.greet{margin:2px 2px 12px;}
+.greet .t{font-family:'Gaegu','Pretendard',cursive;font-size:1.6875rem;font-weight:700;color:var(--ink);line-height:1.2;}
+.greet .s{font-size:0.9375rem;color:var(--d3);margin-top:2px;}
+.sect-row{display:flex;align-items:center;justify-content:space-between;}
+.sect-row .more{font-family:inherit;background:none;border:none;cursor:pointer;color:var(--g6);font-weight:800;font-size:0.9375rem;min-height:44px;min-width:44px;padding:0 4px;}
 @media (min-width:700px){
   .wrap{max-width:720px;padding-left:24px;padding-right:24px;}
   .tabs{max-width:720px;}
   #v-log.on,#v-stats.on,#v-pro.on{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start;}
   #v-pro .full{grid-column:1/-1;}
   #v-home.on{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;align-items:start;}
+  #v-home .greet{grid-column:1/-1;}
   #v-home .hero{grid-row:span 2;}
   #v-home #h_sos{grid-column:1/-1;}
 }
@@ -256,6 +262,7 @@ html.big body{zoom:1.18;}
 
   <!-- ② 홈 -->
   <section class="view" id="v-home">
+    <div class="greet"><div class="t" id="h_greet">안녕하세요</div><div class="s">오늘 하루도 천천히 가요</div></div>
     <div class="card hero">
       <div class="lbl">담배 없이 지낸 지</div>
       <div class="days"><span id="h_days">0</span><small>일째</small></div>
@@ -283,7 +290,7 @@ html.big body{zoom:1.18;}
       <button type="button" data-q="pro"><svg aria-hidden="true" focusable="false"><use href="#i-record"/></svg>함께 보기</button>
       <button type="button" data-q="help"><svg aria-hidden="true" focusable="false"><use href="#i-help"/></svg>도움·상담</button>
     </div>
-    <div class="card"><div class="sect">최근 기록</div><ul class="log" id="h_recent"></ul></div>
+    <div class="card"><div class="sect-row"><div class="sect">최근 기록</div><button type="button" class="more" data-q="log" aria-label="기록 전체 보기">전체 보기</button></div><ul class="log" id="h_recent"></ul></div>
     <div class="card" id="h_reason_card" style="display:none">
       <div class="sect">나의 금연 이유</div>
       <div id="h_reason" style="font-size:1.0625rem;color:var(--ink);font-weight:700;line-height:1.45"></div>
@@ -651,6 +658,10 @@ html.big body{zoom:1.18;}
   function localInput(d){ var z=new Date(d.getTime()-d.getTimezoneOffset()*60000); return z.toISOString().slice(0,16); }
 
   // 화면 전환
+  function greetNow(){
+    var h = new Date().getHours();
+    $("h_greet").textContent = h < 5 ? "늦은 밤이에요" : h < 12 ? "좋은 아침이에요" : h < 18 ? "좋은 오후예요" : "편안한 저녁이에요";
+  }
   function show(v, keep){
     document.querySelectorAll(".view").forEach(function(s){ s.classList.toggle("on", s.id==="v-"+v); });
     document.querySelectorAll("#tabs button").forEach(function(b){ b.classList.toggle("on", b.dataset.v===v); });
@@ -660,7 +671,7 @@ html.big body{zoom:1.18;}
     if(v==="log"){ renderLogs(); renderMedia(); }
     if(v==="help"){ renderProfile(); renderNotif(); renderDevices(); }
     if(v==="stats") renderStats();
-    if(v==="home") renderMain();
+    if(v==="home"){ greetNow(); renderMain(); }
     if(v==="pro") renderPro();
     if(!keep) window.scrollTo(0,0);
   }
@@ -726,7 +737,7 @@ html.big body{zoom:1.18;}
     $("h_reason").textContent = st.reason ? "“"+st.reason+"”" : "";
   }
   var homeDay = null;
-  setInterval(function(){ tick(); var d = new Date().toDateString(); if(homeDay !== null && homeDay !== d) refreshHome(); homeDay = d; }, 1000);   // 자정을 넘기면 메인의 오늘 할 일·최근 기록도 새로 그린다
+  setInterval(function(){ greetNow(); tick(); var d = new Date().toDateString(); if(homeDay !== null && homeDay !== d) refreshHome(); homeDay = d; }, 1000);   // 자정을 넘기면 메인의 오늘 할 일·최근 기록도 새로 그린다
   // 약 복용 — 하루 한 칸 (docs/DESIGN.md 1절 · 약사 축)
   function renderMed(){ $("h_med").checked = !!st.meds[dkey()]; }
   $("h_med").onchange = function(){ if($("h_med").checked) st.meds[dkey()]=true; else delete st.meds[dkey()]; save(); toast($("h_med").checked?"오늘 복용을 남겼어요":"복용 표시를 지웠어요"); };
