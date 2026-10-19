@@ -74,6 +74,9 @@ console.log('\n══ 3b. 순서와 시간대 (Codex 지적 #43)');
   const laEvening = new Date('2026-10-20T03:00:00Z');   // LA 2026-10-19 20:00 — UTC 로는 이미 20일
   ok('LA 저녁에 「UTC 로는 오늘」인 10-20 검진일은 거부(LA 에서는 내일)', H.validateHQ({ ...sample(3), d: '2026-10-20' }, laEvening).ok === false);
   ok('LA 저녁에 10-19 검진일은 받음', H.validateHQ({ ...sample(3), d: '2026-10-19' }, laEvening).ok === true);
+  process.env.TZ = 'Asia/Seoul'; const kst = H.toRecords(base, 'b1');
+  process.env.TZ = 'America/Los_Angeles'; const la = H.toRecords(base, 'b1');
+  ok('같은 검진은 시간대가 달라도 (id, t) 가 같음 (UTC 정오 기준)', kst.map(key).join() === la.map(key).join());
   process.env.TZ = 'UTC';
 }
 

@@ -103,7 +103,7 @@ export function validateHQ(o, now = new Date()) {
 
 // 앱 기록으로: measures[] 에 kind:"lab". 가져오기가 t+kind 가 같으면 같은 기록으로 보므로 항목마다 t 를 1초씩 비켜 둔다
 export function toRecords(v, batch) {
-  const noon = new Date(v.date + 'T12:00:00').getTime(), order = Object.keys(DICT);
+  const noon = Date.parse(v.date + 'T12:00:00Z'), order = Object.keys(DICT);   // UTC 정오 — 기기의 시간대와 상관없이 같은 검진은 같은 t
   // t 는 묶음 안의 순서가 아니라 사전의 항목 순서로 — 같은 검진을 다른 순서로 다시 읽어도 같은 항목은 같은 t·id 라 중복으로 걸러지고, 다른 항목은 t 가 다르다
   return v.items.map(it => ({ t: noon + order.indexOf(it.k) * 1000, kind: 'lab', id: `lab:${v.date}:${it.k}`, v: { k: it.k, val: it.val, u: it.unit, src: 'qr', imp: batch } }));
 }

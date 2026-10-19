@@ -1280,6 +1280,11 @@ html.big body{zoom:1.18;}
     var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "금연노트-"+new Date().toISOString().slice(0,10)+".json"; document.body.appendChild(a); a.click();
     setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500); toast("파일로 내보냈어요");
   };
+  function sameMeasure(a, b){   // 같은 기록인가 — id 가 있으면 종류+id 만 본다(시각은 기기·시간대마다 다를 수 있다). id 가 없는 옛 기록은 예전처럼 시각+종류
+    if(!a || !b || a.kind !== b.kind) return false;
+    if(a.id != null || b.id != null) return a.id === b.id;
+    return a.t === b.t;
+  }
   $("p_import").onclick = function(){ $("p_file").click(); };
   $("p_file").onchange = function(){
     var f = $("p_file").files[0]; if(!f) return;
@@ -1293,7 +1298,7 @@ html.big body{zoom:1.18;}
         st.logs.sort(function(a,b){ return b.t-a.t; });
         Object.keys(d.meds||{}).forEach(function(k){ st.meds[k]=true; });
         cleanMedia(d.media).forEach(function(m){ if(!st.media.some(function(x){ return x.id === m.id; })) st.media.push(m); }); st.media.sort(function(a,b){ return b.t - a.t; }); var gone = st.media.slice(200); st.media = st.media.slice(0, 200);   // 사진은 기기 안에만 있어 가져온 기록에는 그림 없이 시각·바코드·메모만 들어온다
-        (d.measures||[]).forEach(function(m){ if(!st.measures.some(function(x){ return x.t===m.t&&x.kind===m.kind&&x.id===m.id; })) st.measures.push(m); });
+        (d.measures||[]).forEach(function(m){ if(!st.measures.some(function(x){ return sameMeasure(x, m); })) st.measures.push(m); });
         st.measures.sort(function(a,b){ return b.t-a.t; });
         (d.devices||[]).forEach(function(v){ if(v && v.id && !st.devices.some(function(x){ return x.id===v.id; })) st.devices.push(v); }); // 스티커 기기 목록도 (#10 Codex)
         // 새 폰은 가져오기 전에 시작 설정을 먼저 마치므로, 백업이 더 이르고 지금 시도 이력이 없으면 백업의 시작 정보로 되돌립니다 (VN-116-1)
