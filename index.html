@@ -1048,6 +1048,7 @@ html.big body{zoom:1.18;}
     var days = []; for(var i=6;i>=0;i--){ var t0 = day0.getTime()-i*86400000; days.push({t0:t0, t1:t0+86400000, c:0, s:0}); }
     var crave=0, slip=0, bands=BANDS.map(function(){ return 0; }), trig={}, mood={};
     st.logs.forEach(function(r){
+      if(r.from) return;   // 5분 버티기 완료 기록(from)은 원래 당김의 결과라 새 당김으로 세지 않는다 — 상담자 요약(proSummary)과 같은 기준 (VN-150-1)
       days.forEach(function(d){ if(r.t>=d.t0 && r.t<d.t1){ d.c++; if(r.slip) d.s++; } });
       if(r.t >= days[0].t0){ crave++; if(r.slip) slip++; }
       var h = new Date(r.t).getHours(); BANDS.forEach(function(b,i){ if(h>=b[1]&&h<=b[2]) bands[i]++; });
