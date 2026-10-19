@@ -339,7 +339,7 @@ html.big body{zoom:1.18;}
       <div class="fld" style="margin-top:12px"><label for="t_type">어떤 검사였나요</label>
         <select id="t_type"><option value="kit">자가 키트 (소변·타액 코티닌)</option><option value="cot">보건소·의료기관 코티닌</option><option value="co">보건소 날숨 CO</option></select></div>
       <div class="fld" id="t_res_w"><label for="t_res">결과</label>
-        <select id="t_res"><option value="neg">음성</option><option value="pos">양성</option><option value="faint">희미한 줄</option></select></div>
+        <select id="t_res"><option value="">결과를 골라 주세요</option><option value="neg">음성</option><option value="pos">양성</option><option value="faint">희미한 줄</option></select></div>
       <div class="fld" id="t_val_w" style="display:none"><label for="t_val" id="t_val_l">수치</label><input type="number" id="t_val" min="0" max="99999" step="any" inputmode="decimal"></div>
       <div class="row2">
         <div class="fld"><label for="t_date">검사한 날</label><input type="date" id="t_date"></div>
@@ -713,7 +713,7 @@ html.big body{zoom:1.18;}
     $("tabs").style.display = v==="setup" ? "none" : "";
     if(v==="start") $("st_go").textContent = st.start ? "메인으로" : "시작하기";
     if(v==="health") renderTimeline();
-    if(v==="log"){ renderLogs(); renderMedia(); }
+    if(v==="log"){ renderLogs(); renderMedia(); tDateSync(); }
     if(v==="help"){ renderProfile(); renderNotif(); renderDevices(); }
     if(v==="stats") renderStats();
     if(v==="home"){ greetNow(); renderMain(); }
@@ -1101,18 +1101,28 @@ html.big body{zoom:1.18;}
   function testLine(m){ var v = m.v || {}; return (TEST_NAME[v.type] || "검사") + " " + (v.type === "kit" ? (TEST_RES[v.res] || "") : (v.val + " " + (TEST_UNIT[v.type] || ""))); }
   function tSync(){ var kit = $("t_type").value === "kit"; $("t_res_w").style.display = kit ? "" : "none"; $("t_val_w").style.display = kit ? "none" : ""; $("t_val_l").textContent = $("t_type").value === "co" ? "날숨 CO (ppm)" : "코티닌 (ng/mL)"; }
   $("t_type").onchange = tSync; tSync();
-  $("t_date").value = $("t_date").max = dkey();
+  var tLastDefault;
+  function tDateSync(){   // 자정을 넘겨 열려 있어도 「오늘」이 어제로 남지 않게 — 사용자가 고른 날짜는 그대로 둔다
+    var today = dkey(), el = $("t_date"); el.max = today;
+    if(!el.value || el.value === tLastDefault || el.value > today) el.value = today;
+    tLastDefault = today;
+  }
+  tDateSync();
+  function fmtYMD(ds){ var p = String(ds).split("-"); return p.length === 3 ? (+p[1]) + "/" + (+p[2]) : ""; }   // 검사일은 날짜 문자열 그대로 — 시간대가 바뀌어도 하루가 밀리지 않는다
   $("t_save").onclick = function(){
+    tDateSync();
     var ty = $("t_type").value, ds = $("t_date").value, v;
     if(!ds) return toast("검사한 날을 골라 주세요");
     if(ds > dkey()) return toast("오늘 이후 날짜는 적을 수 없어요");
-    if(ty === "kit") v = {type:"kit", res:$("t_res").value};
-    else { var n = $("t_val").value; if(n === "" || !(+n >= 0)) return toast("수치를 적어 주세요"); v = {type:ty, val:+n}; }
+    if(ty === "kit"){ if(!$("t_res").value) return toast("결과를 골라 주세요"); v = {type:"kit", res:$("t_res").value}; }
+    else { var n = $("t_val").value, x = +n; if(n === "" || !isFinite(x) || x < 0 || x > 99999) return toast("수치를 0에서 99999 사이로 적어 주세요"); v = {type:ty, val:x}; }
+    v.date = ds;
     var pl = $("t_place").value.trim(); if(pl) v.place = pl.slice(0, 30);
     var t = ds === dkey() ? Date.now() : new Date(ds + "T12:00:00").getTime();
-    while(st.measures.some(function(x){ return x.kind === "test" && x.t === t; })) t += 1000;   // 가져오기가 같은 시각·종류를 같은 기록으로 보므로 겹치지 않게
-    st.measures.unshift({t:t, kind:"test", v:v}); save();
-    $("t_val").value = ""; $("t_place").value = ""; toast("검사 결과를 저장했어요");
+    var rec = {t:t, kind:"test", id:"t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), v:v};   // 고유 id — 두 탭·기기에서 같은 날 적어도 가져오기에서 겹치지 않는다
+    st.measures.unshift(rec); st.measures.sort(function(a, b){ return b.t - a.t; });   // 지난 날짜를 적어도 목록은 늘 최신이 앞
+    if(!save()){ var i = st.measures.indexOf(rec); if(i >= 0) st.measures.splice(i, 1); return toast("저장하지 못했어요. 저장 공간을 확인해 주세요"); }   // 입력은 그대로 둔다
+    $("t_val").value = ""; $("t_place").value = ""; $("t_res").value = ""; toast("검사 결과를 저장했어요");   // 결과를 비워 두 번 눌러도 같은 기록이 또 생기지 않는다
   };
 
   // 통계 — 기기 센싱 대신 시각·상황 패턴으로 나만의 위험 순간을 보여 줌
@@ -1155,7 +1165,7 @@ html.big body{zoom:1.18;}
       + (pf.length ? '<li><span class="n">주</span><span>'+pf[0].v+' '+KINDL[st.kind][3]+' <small style="color:var(--d3)">· '+fmtD(pf[0].t)+(pf.length>1?' (전: '+pf[1].v+')':'')+'</small></span></li>' : '')
       || '<li style="color:var(--d3)">기록 탭에서 CO·주간 사용량을 적으면 여기 보여요</li>';
     var te = st.measures.filter(function(m){ return m.kind==="test" && m.v; }).sort(function(a,b){ return b.t-a.t; }).slice(0,5);
-    $("st_test").innerHTML = te.length ? te.map(function(m){ return '<li><span class="n">검</span><span>'+esc(testLine(m))+' <small style="color:var(--d3)">· '+fmtD(m.t)+(m.v.place?' · '+esc(m.v.place):'')+'</small></span></li>'; }).join("") : '<li style="color:var(--d3)">기록 탭에서 검사 결과를 적으면 여기 보여요</li>';
+    $("st_test").innerHTML = te.length ? te.map(function(m){ return '<li><span class="n">검</span><span>'+esc(testLine(m))+' <small style="color:var(--d3)">· '+(m.v.date?fmtYMD(m.v.date):fmtD(m.t))+(m.v.place?' · '+esc(m.v.place):'')+'</small></span></li>'; }).join("") : '<li style="color:var(--d3)">기록 탭에서 검사 결과를 적으면 여기 보여요</li>';
     var att = st.attempts.map(function(a,i){ return {n:i+1, d:Math.floor((a.end-a.start)/86400000), s:a.start}; });
     if(st.start) att.push({n:att.length+1, d:Math.floor((now-st.start)/86400000), s:st.start, cur:true});
     $("st_att").innerHTML = att.length ? att.map(function(a){ return '<li><span class="n">'+a.n+'</span><span>'+fmtD(a.s)+' 시작 · '+a.d+'일'+(a.cur?' <b style="color:var(--g6)">진행 중</b>':'')+'</span></li>'; }).join("") : '<li style="color:var(--d3)">아직 시작하지 않았어요</li>';
@@ -1283,7 +1293,7 @@ html.big body{zoom:1.18;}
         st.logs.sort(function(a,b){ return b.t-a.t; });
         Object.keys(d.meds||{}).forEach(function(k){ st.meds[k]=true; });
         cleanMedia(d.media).forEach(function(m){ if(!st.media.some(function(x){ return x.id === m.id; })) st.media.push(m); }); st.media.sort(function(a,b){ return b.t - a.t; }); var gone = st.media.slice(200); st.media = st.media.slice(0, 200);   // 사진은 기기 안에만 있어 가져온 기록에는 그림 없이 시각·바코드·메모만 들어온다
-        (d.measures||[]).forEach(function(m){ if(!st.measures.some(function(x){ return x.t===m.t&&x.kind===m.kind; })) st.measures.push(m); });
+        (d.measures||[]).forEach(function(m){ if(!st.measures.some(function(x){ return x.t===m.t&&x.kind===m.kind&&x.id===m.id; })) st.measures.push(m); });
         st.measures.sort(function(a,b){ return b.t-a.t; });
         (d.devices||[]).forEach(function(v){ if(v && v.id && !st.devices.some(function(x){ return x.id===v.id; })) st.devices.push(v); }); // 스티커 기기 목록도 (#10 Codex)
         // 새 폰은 가져오기 전에 시작 설정을 먼저 마치므로, 백업이 더 이르고 지금 시도 이력이 없으면 백업의 시작 정보로 되돌립니다 (VN-116-1)
