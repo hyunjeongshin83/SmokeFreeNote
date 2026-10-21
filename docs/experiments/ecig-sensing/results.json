@@ -1,0 +1,449 @@
+{
+  "params": {
+    "tx_1m_dbm": -59.0,
+    "path_loss_n": 2.2,
+    "shadow_sigma_db": 6.0,
+    "fading_sigma_db": 3.0,
+    "rx_mid_dbm": -90.0,
+    "rx_slope_db": 2.0,
+    "scan_duty": 0.5,
+    "ecig_adv_intervals_s": [
+      0.5,
+      1.0,
+      1.28
+    ],
+    "other_adv_intervals_s": [
+      0.1,
+      0.25,
+      0.5,
+      1.0
+    ],
+    "target_dist_m": [
+      0.3,
+      3.0
+    ],
+    "mfg_table_coverage": 0.9,
+    "collision_rate": 0.02,
+    "connect_ok": 0.92,
+    "top_k": 3,
+    "occasion_gap_min": 40.0,
+    "puffs_per_occasion": 8.0,
+    "inter_puff_s": 20.0,
+    "puff_dur_s": 3.0,
+    "puff_dur_sigma": 0.35,
+    "user_dur_sigma": 0.25,
+    "oor_per_day": 5.0,
+    "oor_median_min": 25.0,
+    "oor_sigma": 0.8,
+    "rf_per_day": 8.0,
+    "rf_median_s": 45.0,
+    "rf_sigma": 0.7,
+    "bg_kill_per_day": 1.5,
+    "bg_kill_median_min": 15.0,
+    "bg_sigma": 0.8,
+    "reconnect_delay_s": [
+      1.0,
+      30.0
+    ],
+    "notify_loss": 0.01,
+    "rtc_ppm_sigma": 80.0,
+    "liquid_mg_per_s": 0.45,
+    "liquid_sigma_puff": 0.3,
+    "liquid_sigma_user": 0.2,
+    "liquid_density_mg_per_ul": 1.1,
+    "conc_mg_ml": 20.0,
+    "stream_hz": 2.0
+  },
+  "seed": 20261021,
+  "exp1": {
+    "집(주변 8대)": [
+      {
+        "scan_s": 1,
+        "recall_scan": 0.541,
+        "recall_candidate": 0.5186666666666667,
+        "recall_top3": 0.5186666666666667,
+        "recall_final": 0.517,
+        "precision_1stage": 0.8083116883116883,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 2,
+        "recall_scan": 0.7646666666666667,
+        "recall_candidate": 0.7286666666666667,
+        "recall_top3": 0.7286666666666667,
+        "recall_final": 0.7233333333333334,
+        "precision_1stage": 0.844015444015444,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 3,
+        "recall_scan": 0.8846666666666667,
+        "recall_candidate": 0.852,
+        "recall_top3": 0.852,
+        "recall_final": 0.847,
+        "precision_1stage": 0.8508655126498003,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 5,
+        "recall_scan": 0.9643333333333334,
+        "recall_candidate": 0.93,
+        "recall_top3": 0.93,
+        "recall_final": 0.9246666666666666,
+        "precision_1stage": 0.8664596273291926,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 8,
+        "recall_scan": 0.995,
+        "recall_candidate": 0.9566666666666667,
+        "recall_top3": 0.9566666666666667,
+        "recall_final": 0.951,
+        "precision_1stage": 0.8506224066390041,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 10,
+        "recall_scan": 0.998,
+        "recall_candidate": 0.9563333333333334,
+        "recall_top3": 0.9563333333333334,
+        "recall_final": 0.95,
+        "precision_1stage": 0.859496704613541,
+        "precision_2stage": 1.0
+      }
+    ],
+    "카페(주변 40대 + 타인 전자담배 1대)": [
+      {
+        "scan_s": 1,
+        "recall_scan": 0.5573333333333333,
+        "recall_candidate": 0.5343333333333333,
+        "recall_top3": 0.5333333333333333,
+        "recall_final": 0.5313333333333333,
+        "precision_1stage": 0.533498759305211,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 2,
+        "recall_scan": 0.7666666666666667,
+        "recall_candidate": 0.7323333333333333,
+        "recall_top3": 0.7313333333333333,
+        "recall_final": 0.7263333333333334,
+        "precision_1stage": 0.5783671513021249,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 3,
+        "recall_scan": 0.878,
+        "recall_candidate": 0.845,
+        "recall_top3": 0.84,
+        "recall_final": 0.8363333333333334,
+        "precision_1stage": 0.5956803455723542,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 5,
+        "recall_scan": 0.9696666666666667,
+        "recall_candidate": 0.926,
+        "recall_top3": 0.924,
+        "recall_final": 0.9186666666666666,
+        "precision_1stage": 0.6083156779661016,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 8,
+        "recall_scan": 0.9943333333333333,
+        "recall_candidate": 0.9513333333333334,
+        "recall_top3": 0.9466666666666667,
+        "recall_final": 0.9393333333333334,
+        "precision_1stage": 0.6209056505285137,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 10,
+        "recall_scan": 0.9986666666666667,
+        "recall_candidate": 0.961,
+        "recall_top3": 0.9576666666666667,
+        "recall_final": 0.949,
+        "precision_1stage": 0.6061805644234453,
+        "precision_2stage": 1.0
+      }
+    ],
+    "다중 전자담배(주변 25대 + 5대)": [
+      {
+        "scan_s": 1,
+        "recall_scan": 0.538,
+        "recall_candidate": 0.5146666666666667,
+        "recall_top3": 0.49633333333333335,
+        "recall_final": 0.49366666666666664,
+        "precision_1stage": 0.6898373124867948,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 2,
+        "recall_scan": 0.783,
+        "recall_candidate": 0.7493333333333333,
+        "recall_top3": 0.6983333333333334,
+        "recall_final": 0.6953333333333334,
+        "precision_1stage": 0.7049242712535201,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 3,
+        "recall_scan": 0.8813333333333333,
+        "recall_candidate": 0.8466666666666667,
+        "recall_top3": 0.7816666666666666,
+        "recall_final": 0.7776666666666666,
+        "precision_1stage": 0.7095336304969729,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 5,
+        "recall_scan": 0.9676666666666667,
+        "recall_candidate": 0.9326666666666666,
+        "recall_top3": 0.852,
+        "recall_final": 0.8476666666666667,
+        "precision_1stage": 0.7150170648464164,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 8,
+        "recall_scan": 0.994,
+        "recall_candidate": 0.9516666666666667,
+        "recall_top3": 0.8593333333333333,
+        "recall_final": 0.8516666666666667,
+        "precision_1stage": 0.7146145673474206,
+        "precision_2stage": 1.0
+      },
+      {
+        "scan_s": 10,
+        "recall_scan": 0.9963333333333333,
+        "recall_candidate": 0.9553333333333334,
+        "recall_top3": 0.87,
+        "recall_final": 0.8626666666666667,
+        "precision_1stage": 0.721069997643177,
+        "precision_2stage": 1.0
+      }
+    ]
+  },
+  "exp2": {
+    "OS 가 앱을 멈추는 폰(백그라운드 제한)": [
+      {
+        "config": "실시간만 (기기 저장 없음)",
+        "completeness_midnight_mean": 0.8010279353640342,
+        "completeness_midnight_p05": 0.5755120030007502,
+        "completeness_after_resync_mean": 0.8010279353640342,
+        "ts_err_p99_s": null
+      },
+      {
+        "config": "링버퍼 16건",
+        "completeness_midnight_mean": 0.973861811690412,
+        "completeness_midnight_p05": 0.8710849673202614,
+        "completeness_after_resync_mean": 0.9746337233994046,
+        "ts_err_p99_s": 0.6808109277168318
+      },
+      {
+        "config": "링버퍼 64건",
+        "completeness_midnight_mean": 0.997818762780353,
+        "completeness_midnight_p05": 1.0,
+        "completeness_after_resync_mean": 0.9996486466307088,
+        "ts_err_p99_s": 0.9508512783984319
+      },
+      {
+        "config": "링버퍼 256건",
+        "completeness_midnight_mean": 0.9988444918490811,
+        "completeness_midnight_p05": 1.0,
+        "completeness_after_resync_mean": 1.0,
+        "ts_err_p99_s": 1.1139970770916865
+      },
+      {
+        "config": "카운터형 기기 (IQOS 류, 개수만)",
+        "completeness_midnight_mean": 0.9983903747615596,
+        "completeness_midnight_p05": 1.0,
+        "completeness_after_resync_mean": 1.0,
+        "ts_err_p99_s": null
+      }
+    ],
+    "포그라운드 서비스 유지": [
+      {
+        "config": "실시간만 (기기 저장 없음)",
+        "completeness_midnight_mean": 0.8265487060441303,
+        "completeness_midnight_p05": 0.6124872448979592,
+        "completeness_after_resync_mean": 0.8265487060441303,
+        "ts_err_p99_s": null
+      },
+      {
+        "config": "링버퍼 16건",
+        "completeness_midnight_mean": 0.9752528759465434,
+        "completeness_midnight_p05": 0.8685291005291005,
+        "completeness_after_resync_mean": 0.9762572049395507,
+        "ts_err_p99_s": 0.6854604368023339
+      },
+      {
+        "config": "링버퍼 64건",
+        "completeness_midnight_mean": 0.9989115145274992,
+        "completeness_midnight_p05": 1.0,
+        "completeness_after_resync_mean": 0.9999969834087481,
+        "ts_err_p99_s": 0.94771477553173
+      },
+      {
+        "config": "링버퍼 256건",
+        "completeness_midnight_mean": 0.9984343264384299,
+        "completeness_midnight_p05": 1.0,
+        "completeness_after_resync_mean": 1.0,
+        "ts_err_p99_s": 0.993780621391205
+      },
+      {
+        "config": "카운터형 기기 (IQOS 류, 개수만)",
+        "completeness_midnight_mean": 0.9983732005006962,
+        "completeness_midnight_p05": 1.0,
+        "completeness_after_resync_mean": 1.0,
+        "ts_err_p99_s": null
+      }
+    ],
+    "_snapshot_completeness_gap": {
+      "snapshots": 1475,
+      "mean_overestimate": 0.016046058171480918,
+      "p95_overestimate": 0.11600518582541049,
+      "frac_over_5pp": 0.07457627118644068,
+      "snapshots_while_disconnected": 0.19186440677966102,
+      "frac_over_5pp_while_disconnected": 0.38869257950530034
+    },
+    "_counter_binning": {
+      "읽기 1.0s": {
+        "count_err": -0.0019008180306167475,
+        "hourly_abs_err_frac": 0.1674077594107464
+      },
+      "읽기 5.0s": {
+        "count_err": -0.001111662191513742,
+        "hourly_abs_err_frac": 0.1689555506148347
+      },
+      "읽기 30.0s": {
+        "count_err": -0.18329048843187662,
+        "hourly_abs_err_frac": 0.31864610111396746
+      }
+    },
+    "_duration_from_2Hz_stream_rel_err_mean": 0.05907277673026244,
+    "_duration_from_2Hz_stream_rel_err_p95": 0.15486494082079394
+  },
+  "exp3_accuracy": [
+    {
+      "estimator": "E1 퍼프 수 × 고정 평균",
+      "abs_rel_err_median": 0.21594130614057025,
+      "abs_rel_err_p90": 0.474132302570201,
+      "within_25pct": 0.5835714285714285
+    },
+    {
+      "estimator": "E2 기기가 보낸 퍼프 길이",
+      "abs_rel_err_median": 0.12810526120245125,
+      "abs_rel_err_p90": 0.3067138469540459,
+      "within_25pct": 0.8223809523809524
+    },
+    {
+      "estimator": "E3 2 Hz 스트림에서 잰 길이",
+      "abs_rel_err_median": 0.12864149479788728,
+      "abs_rel_err_p90": 0.3058281847791773,
+      "within_25pct": 0.8230952380952381
+    }
+  ],
+  "exp3_trend": [
+    {
+      "scenario": "A 무작위 손실",
+      "comp_week1": 1.0,
+      "comp_week2": 1.0,
+      "corrected": false,
+      "false_alarm_10": 0.12666666666666668,
+      "detect_10": 0.84,
+      "false_alarm_20": 0.008333333333333333,
+      "detect_20": 0.485,
+      "ratio_same_sd": 0.10025794418364947
+    },
+    {
+      "scenario": "A 무작위 손실",
+      "comp_week1": 0.9,
+      "comp_week2": 0.9,
+      "corrected": false,
+      "false_alarm_10": 0.19333333333333333,
+      "detect_10": 0.8466666666666667,
+      "false_alarm_20": 0.02,
+      "detect_20": 0.49833333333333335,
+      "ratio_same_sd": 0.11325175384436623
+    },
+    {
+      "scenario": "A 무작위 손실",
+      "comp_week1": 0.9,
+      "comp_week2": 0.9,
+      "corrected": true,
+      "false_alarm_10": 0.16166666666666665,
+      "detect_10": 0.8483333333333334,
+      "false_alarm_20": 0.025,
+      "detect_20": 0.505,
+      "ratio_same_sd": 0.103135071691109
+    },
+    {
+      "scenario": "A 무작위 손실",
+      "comp_week1": 0.8,
+      "comp_week2": 0.8,
+      "corrected": false,
+      "false_alarm_10": 0.15666666666666668,
+      "detect_10": 0.7983333333333333,
+      "false_alarm_20": 0.02666666666666667,
+      "detect_20": 0.5083333333333333,
+      "ratio_same_sd": 0.1236614408459012
+    },
+    {
+      "scenario": "A 무작위 손실",
+      "comp_week1": 0.8,
+      "comp_week2": 0.8,
+      "corrected": true,
+      "false_alarm_10": 0.16,
+      "detect_10": 0.8716666666666667,
+      "false_alarm_20": 0.021666666666666667,
+      "detect_20": 0.5033333333333333,
+      "ratio_same_sd": 0.10153619202970739
+    },
+    {
+      "scenario": "B 2주차 -0.15 체계적",
+      "comp_week1": 0.95,
+      "comp_week2": 0.8,
+      "corrected": false,
+      "false_alarm_10": 0.7166666666666667,
+      "detect_10": 0.99,
+      "false_alarm_20": 0.3333333333333333,
+      "detect_20": 0.91,
+      "ratio_same_sd": 0.09836540157060822
+    },
+    {
+      "scenario": "B 2주차 -0.15 체계적",
+      "comp_week1": 0.95,
+      "comp_week2": 0.8,
+      "corrected": true,
+      "false_alarm_10": 0.18333333333333332,
+      "detect_10": 0.8716666666666667,
+      "false_alarm_20": 0.018333333333333333,
+      "detect_20": 0.5083333333333333,
+      "ratio_same_sd": 0.10508178490242592
+    },
+    {
+      "scenario": "B 2주차 -0.15 체계적",
+      "comp_week1": 0.85,
+      "comp_week2": 0.7,
+      "corrected": false,
+      "false_alarm_10": 0.7466666666666667,
+      "detect_10": 0.9883333333333333,
+      "false_alarm_20": 0.37666666666666665,
+      "detect_20": 0.915,
+      "ratio_same_sd": 0.10352593111959046
+    },
+    {
+      "scenario": "B 2주차 -0.15 체계적",
+      "comp_week1": 0.85,
+      "comp_week2": 0.7,
+      "corrected": true,
+      "false_alarm_10": 0.14666666666666667,
+      "detect_10": 0.8383333333333334,
+      "false_alarm_20": 0.015,
+      "detect_20": 0.49,
+      "ratio_same_sd": 0.10235153897336911
+    }
+  ]
+}
