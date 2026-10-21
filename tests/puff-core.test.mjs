@@ -220,6 +220,43 @@ test("가짜 기기: 끊긴 구간이 지금을 덮으면 연결 안 됨(동기�
   assert.deepEqual(P.linkAt(hit.intervals, T0 - DAY), { connected: true });
 });
 
+function findTailSim() {
+  for (const days of [5, 21]) for (let seed = 1; seed < 400; seed++) {
+    const to = T0 + days * DAY, sim = P.simulateDevice(T0, to, { seed, disconnects: "heavy", bufferK: 256 });
+    if (sim.withheld.length) return { sim, to };
+  }
+  return null;
+}
+
+test("다시 연결하면 끊긴 동안 기기에 쌓인 꼬리를 가져온다 (표시만 바꾸면 100 % 로 오해)", () => {
+  const { sim, to } = findTailSim();
+  const st = P.newState(); P.ingest(st, sim.records, "live", to); st.emu = { withheld: sim.withheld };
+  const before = st.puffs.length;
+  assert.equal(P.completeness(st, { connected: true }).pct, 100, "꼬리는 일련번호 맨 뒤라 빠진 줄 모름 — 그래서 가져와야 한다");
+  const r = P.reconnect(st, to + 1000);
+  assert.equal(r.added, sim.withheld.length);
+  assert.equal(st.puffs.length, before + sim.withheld.length);
+  assert.equal(st.puffs.length, sim.truth, "링버퍼가 충분하면 기기가 만든 전부가 앱에 있다");
+  assert.equal(P.missingCount(st), 0);
+  assert.deepEqual(st.emu.withheld, []);
+  assert.equal(P.reconnect(st, to + 2000).added, 0, "두 번째 연결은 더 가져올 것이 없다");
+});
+
+test("저장했다 불러와도 아직 못 가져온 꼬리가 남아 있다", () => {
+  const { sim, to } = findTailSim();
+  const st = P.newState(); P.ingest(st, sim.records, "live", to); st.emu = { withheld: sim.withheld };
+  const mem = {}; const store = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); } };
+  P.save(store, st);
+  const back = P.load(store);
+  assert.equal(back.emu.withheld.length, sim.withheld.length);
+  assert.equal(P.reconnect(back, to).added, sim.withheld.length);
+  // 깨진 꼬리 기록은 걸러진다
+  mem[P.KEY] = JSON.stringify({ v: 1, puffs: [], emu: { withheld: [{ seq: 1, t: "x", d: 3 }, { seq: 2, t: T0, d: 3 }] } });
+  assert.equal(P.load(store).emu.withheld.length, 1);
+  mem[P.KEY] = JSON.stringify({ v: 1, puffs: [], emu: "깨짐" });
+  assert.deepEqual(P.load(store).emu, { withheld: [] });
+});
+
 test("가짜 기기: 같은 시드는 같은 결과", () => {
   const a = P.simulateDevice(T0, T0 + 7 * DAY, { seed: 5 }), b = P.simulateDevice(T0, T0 + 7 * DAY, { seed: 5 });
   assert.deepEqual(a.records, b.records);

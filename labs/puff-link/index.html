@@ -144,12 +144,16 @@ select,input{width:100%;min-height:44px;font-family:inherit;font-size:1rem;paddi
     state = PuffCore.newState();                                 // 시험용이라 매번 새로 만듭니다 (기간이 겹쳐 쌓이지 않게)
     var sim = PuffCore.simulateDevice(from, now, { seed: (now % 100000) + 1, bufferK: +$("selK").value, disconnects: $("selDisc").value });
     var r = PuffCore.ingest(state, sim.records, "live", now);
-    var saved = PuffCore.save(store, state);
+    state.emu = { withheld: sim.withheld };                                // 아직 끊겨 있어 기기에 남아 있는 꼬리 — 재연결하면 가져옴
+    var saved = PuffCore.save(store, state);                               // emu 까지 저장해야 새로 고침 뒤에도 꼬리를 가져올 수 있음
     link.connected = PuffCore.linkAt(sim.intervals, now).connected;       // 끊긴 구간이 지금을 덮으면 동기화 대기로
     render();
     $("devHint").textContent = "가짜 기기가 만든 " + sim.truth + "건 중 " + r.added + "건이 도착했어요." + ((saved && !usingMem) ? "" : " 이 폰에 저장하지 못해 화면을 닫으면 사라져요.");
   });
-  $("btnLink").addEventListener("click", function(){ link.connected = !link.connected; render(); });
+  $("btnLink").addEventListener("click", function(){
+    if (!link.connected) { PuffCore.reconnect(state, Date.now()); PuffCore.save(store, state); }   // 다시 연결하면 끊긴 동안 쌓인 기록을 가져옴
+    link.connected = !link.connected; render();
+  });
   $("conc").addEventListener("input", render);
   $("btnClear").addEventListener("click", function(){
     if (!confirm("이 화면의 가짜 기록을 모두 지울까요? 금연노트의 다른 기록은 그대로예요.")) return;

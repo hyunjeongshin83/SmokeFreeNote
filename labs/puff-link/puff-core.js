@@ -205,6 +205,16 @@
     return { added: r.added, reset: false };
   }
 
+  /* 가짜 기기에 다시 연결 — 끊긴 동안 기기에 쌓인 기록(state.emu.withheld)을 가져옵니다.
+   * 연결 표시만 바꾸면 일련번호 맨 뒤에 있는 꼬리는 빠진 줄 몰라 완전성이 100 % 로 나옵니다 (Codex 지적).
+   * 실기기에서는 provider.readSince(state.maxSeq) 가 이 자리를 맡습니다. */
+  function reconnect(state, now) {
+    var w = state.emu && Array.isArray(state.emu.withheld) ? state.emu.withheld : [];
+    var r = ingest(state, w, "resync", now);
+    if (state.emu) state.emu.withheld = [];
+    return r;
+  }
+
   /* ───────────── 저장 ───────────── */
   function load(storage) {
     try {
@@ -216,6 +226,7 @@
       s.minSeq = s.puffs.length ? Math.min.apply(null, s.puffs.map(function (p) { return p.seq; })) : null;
       s.maxSeq = s.puffs.length ? Math.max.apply(null, s.puffs.map(function (p) { return p.seq; })) : null;
       s.puffs.sort(function (a, b) { return a.seq - b.seq; });
+      if (s.emu && Array.isArray(s.emu.withheld)) s.emu.withheld = s.emu.withheld.filter(validRecord); else if (s.emu) s.emu = { withheld: [] };
       return s;
     } catch (e) { return newState(); }
   }
@@ -269,8 +280,8 @@
 
   /* 가짜 기기가 [fromMs, toMs) 동안 만든 퍼프가 앱에 도착하는 모습.
    * opts: { seed, bufferK(0=저장 없음), disconnects:'none'|'normal'|'heavy', thinFrom, thin, startSeq, noDuration }
-   * 반환: { records:[{seq,t,d,src}], truth, intervals, truthRecords } — records 는 앱이 받게 되는 것(seq 오름차순),
-   *       truthRecords 는 기기가 실제로 만든 전부(시험용 정답) */
+   * 반환: { records:[{seq,t,d,src}], truth, intervals, truthRecords, withheld } — records 는 앱이 받게 되는 것(seq 오름차순),
+   *       withheld 는 아직 끊겨 있어 기기에 남아 있는 꼬리(재연결하면 받음 · reconnect), truthRecords 는 기기가 만든 전부(시험용 정답) */
   function simulateDevice(fromMs, toMs, opts) {
     opts = opts || {};
     var r = rng(opts.seed || 1), K = opts.bufferK === undefined ? 64 : opts.bufferK, seq = opts.startSeq || 0;
@@ -289,16 +300,19 @@
       if (k < 0) out.push({ seq: p.seq, t: p.t, d: p.d, src: "live" });
       else (per[k] = per[k] || []).push(p);
     });
+    var withheld = [];
     Object.keys(per).forEach(function (k) {
       var lst = per[k], kept = K > 0 ? lst.slice(Math.max(0, lst.length - K)) : [];     // 가득 차면 옛것부터 덮어씀
-      if (iv[k][1] > toMs) return;                                                      // 아직 재연결 전 — 앱은 모름
-      kept.forEach(function (p) { out.push({ seq: p.seq, t: p.t, d: p.d, src: "resync" }); });
+      var rows = kept.map(function (p) { return { seq: p.seq, t: p.t, d: p.d, src: "resync" }; });
+      if (iv[k][1] > toMs) { withheld = withheld.concat(rows); return; }                // 아직 재연결 전 — 앱은 모름, 기기에 남아 있음
+      rows.forEach(function (r) { out.push(r); });
     });
     out.sort(function (a, b) { return a.seq - b.seq; });
-    return { records: out, truth: all.length, intervals: iv, truthRecords: all };
+    withheld.sort(function (a, b) { return a.seq - b.seq; });
+    return { records: out, truth: all.length, intervals: iv, truthRecords: all, withheld: withheld };
   }
 
   return { KEY: KEY, MAX_PUFFS: MAX_PUFFS, DAY: DAY, newState: newState, ingest: ingest, gaps: gaps, missingCount: missingCount,
            completeness: completeness, daySummary: daySummary, nicotineMg: nicotineMg, concValid: concValid, MAX_CONC: MAX_CONC, linkAt: linkAt, weeklyTrend: weeklyTrend, trendText: trendText,
-           ingestCounter: ingestCounter, load: load, save: save, simulateDevice: simulateDevice, validRecord: validRecord };
+           ingestCounter: ingestCounter, reconnect: reconnect, load: load, save: save, simulateDevice: simulateDevice, validRecord: validRecord };
 });
