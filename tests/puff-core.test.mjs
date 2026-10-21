@@ -120,6 +120,31 @@ test("추세: 최근 주에만 누락이 생겨도 줄었다고 오해하지 않
   assert.ok(t.missingThis > 100);
 });
 
+test("추세: 주 경계에 걸친 누락이 있어도 실제 변화가 없으면 줄었다고 하지 않는다", () => {
+  const now = T0 + 21 * DAY;
+  // 13~15일째(0부터) 기록을 통째로 잃음 — 누락 구간이 최근 7일의 시작(14일째)에 걸친다
+  const s = steadyState(100, 21, { drop: r => { const d = Math.floor((r.t - T0) / DAY); return d >= 13 && d <= 15; } });
+  const t = P.weeklyTrend(s, now, { connected: true });
+  assert.equal(t.status, "ok");
+  assert.equal(t.level, "similar", "변화 " + t.change);
+  assert.ok(Math.abs(t.change) < 0.1, "변화 " + t.change);
+  assert.ok(t.missingThis > 100 && t.missingBase > 50, "경계에 걸친 누락이 두 기간에 나뉘어야 한다: " + t.missingThis + " / " + t.missingBase);
+});
+
+test("추세: 진짜로 줄었고 경계에 누락이 걸쳐도 줄었다고 알아본다", () => {
+  const now = T0 + 21 * DAY;
+  const s = steadyState(d => (d >= 14 ? 55 : 100), 21, { drop: r => { const d = Math.floor((r.t - T0) / DAY); return d >= 13 && d <= 15 && r.seq % 2 === 0; } });
+  assert.equal(P.weeklyTrend(s, now, { connected: true }).level, "lower");
+});
+
+test("가짜 기기: thin 0 은 「완전히 끊음」이다 (1 로 바뀌지 않는다)", () => {
+  const sim = P.simulateDevice(T0, T0 + 6 * DAY, { seed: 1, disconnects: "none", thinFrom: T0 + 3 * DAY, thin: 0 });
+  assert.equal(sim.truthRecords.filter(p => p.t >= T0 + 3 * DAY).length, 0);
+  assert.ok(sim.truthRecords.filter(p => p.t < T0 + 3 * DAY).length > 100);
+  const full = P.simulateDevice(T0, T0 + 6 * DAY, { seed: 1, disconnects: "none", thinFrom: T0 + 3 * DAY });
+  assert.ok(full.truthRecords.filter(p => p.t >= T0 + 3 * DAY).length > 100, "thin 을 안 주면 그대로");
+});
+
 test("추세 문장: 단정하지 않고 참고치라고 밝힌다", () => {
   assert.match(P.trendText({ status: "ok", level: "lower", change: -0.3 }), /약 30% 적어요.*참고치/);
   assert.match(P.trendText({ status: "ok", level: "similar", change: 0.05 }), /큰 차이가 없어요/);

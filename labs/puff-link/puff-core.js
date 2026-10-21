@@ -111,13 +111,20 @@
     return Math.round(concMgMl * ul / 1000 * 100) / 100;
   }
 
-  /* 구간 [t0, t1) 의 누락 추정 — 받은 기록 a,b 사이가 비었고 둘 다 구간 안에 있을 때만 셉니다 */
+  /* 구간 [t0, t1) 의 누락 추정. 받은 기록 a,b 사이가 비었을 때, 비어 있는 개수를 [a.t, b.t] 에 고르게 퍼져 있다고 보고
+   * 구간과 겹치는 만큼만 셉니다. 구간 경계에 걸친 누락(여러 날 끊김 · 링버퍼 넘침)을 어느 쪽에도 안 세면
+   * 실제 변화가 없는데 줄어든 것으로 보입니다 (Codex 지적). 가정: 누락이 그 시간 동안 고르다 — 밤에는 틀릴 수 있음. */
   function missingIn(state, t0, t1) {
     var p = state.puffs, i, n = 0;
     for (i = 1; i < p.length; i++) {
-      if (p[i].seq - p[i - 1].seq > 1 && p[i - 1].t >= t0 && p[i].t < t1) n += p[i].seq - p[i - 1].seq - 1;
+      var m = p[i].seq - p[i - 1].seq - 1;
+      if (m <= 0) continue;
+      var a = p[i - 1].t, b = p[i].t;
+      if (b <= a) { if (b >= t0 && b < t1) n += m; continue; }          // 시계가 거꾸로 간 이상 기록 — 뒤쪽 기록의 시각에 둠
+      var lo = Math.max(a, t0), hi = Math.min(b, t1);
+      if (hi > lo) n += m * (hi - lo) / (b - a);
     }
-    return n;
+    return Math.round(n);
   }
 
   function countIn(state, t0, t1) {
@@ -249,7 +256,7 @@
     var r = rng(opts.seed || 1), K = opts.bufferK === undefined ? 64 : opts.bufferK, seq = opts.startSeq || 0;
     var all = [], day;
     for (day = fromMs; day < toMs; day += DAY) {
-      var thin = (opts.thinFrom && day >= opts.thinFrom) ? (opts.thin || 1) : 1;
+      var thin = (opts.thinFrom && day >= opts.thinFrom && opts.thin !== undefined) ? opts.thin : 1;   // 0 은 「완전히 끊음」으로 유효
       genPuffsForDay(r, day, thin).forEach(function (p) { if (p.t >= fromMs && p.t < toMs) all.push(p); });
     }
     all.sort(function (a, b) { return a.t - b.t; });

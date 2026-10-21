@@ -94,7 +94,10 @@ select,input{width:100%;min-height:44px;font-family:inherit;font-size:1rem;paddi
 <script>
 (function(){
   var $ = function(id){ return document.getElementById(id); };
-  var store = (function(){ try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); return localStorage; } catch(e){ return { _m:{}, getItem:function(k){return this._m[k]||null;}, setItem:function(k,v){this._m[k]=String(v);}, removeItem:function(k){delete this._m[k];} }; } })();
+  /* 저장소 탐지는 읽기만 합니다 — 같은 도메인의 다른 값을 덮어쓰거나 지우지 않게 (쓰기 실패는 save() 가 알려 줍니다) */
+  var memStore = { _m: {}, getItem: function(k){ return this._m[k] || null; }, setItem: function(k, v){ this._m[k] = String(v); }, removeItem: function(k){ delete this._m[k]; } };
+  var store = (function(){ try { localStorage.getItem(PuffCore.KEY); return localStorage; } catch(e){ return memStore; } })();
+  var usingMem = store === memStore;
   var state = PuffCore.load(store);
   var link = { connected: false };                               // 가짜 연결 상태 (화면 안에서만)
   var DAY = PuffCore.DAY;
@@ -119,8 +122,10 @@ select,input{width:100%;min-height:44px;font-family:inherit;font-size:1rem;paddi
     bars.setAttribute("aria-label", "시간대별 퍼프 수. 가장 많은 시간대는 " + (day.count ? day.hours.indexOf(Math.max.apply(null, day.hours)) + "시" : "없음"));
 
     var conc = parseFloat($("conc").value);
-    var mg = day.durN ? PuffCore.nicotineMg(day.durS, conc) : null;
-    $("nic").textContent = mg !== null ? "오늘 기화된 액상 속 니코틴 약 " + mg + " mg (참고치)" : (conc > 0 && !day.durN ? "퍼프 길이가 없는 기기라 니코틴 참고치는 보여 드리지 않아요." : "농도를 적으면 기화된 액상 속 니코틴 참고치를 보여 드려요.");
+    var allTimed = day.count > 0 && day.durN === day.count;           // 길이가 없는 퍼프가 섞이면 과소 표시가 되므로 보여 주지 않음
+    var mg = allTimed ? PuffCore.nicotineMg(day.durS, conc) : null;
+    $("nic").textContent = mg !== null ? "오늘 기화된 액상 속 니코틴 약 " + mg + " mg (참고치)"
+      : (conc > 0 && day.count && !allTimed ? "퍼프 길이를 모르는 기록이 섞여 있어 니코틴 참고치는 보여 드리지 않아요." : "농도를 적으면 기화된 액상 속 니코틴 참고치를 보여 드려요.");
 
     var c = PuffCore.completeness(state, link);
     if (c.status === "no-data"){ $("cPct").textContent = "—"; $("cNote").textContent = "기록을 받으면 얼마나 빠짐없이 모였는지 알려 드려요."; }
@@ -136,10 +141,10 @@ select,input{width:100%;min-height:44px;font-family:inherit;font-size:1rem;paddi
     state = PuffCore.newState();                                 // 시험용이라 매번 새로 만듭니다 (기간이 겹쳐 쌓이지 않게)
     var sim = PuffCore.simulateDevice(from, now, { seed: (now % 100000) + 1, bufferK: +$("selK").value, disconnects: $("selDisc").value });
     var r = PuffCore.ingest(state, sim.records, "live", now);
-    PuffCore.save(store, state);
+    var saved = PuffCore.save(store, state);
     link.connected = true;
     render();
-    $("devHint").textContent = "가짜 기기가 만든 " + sim.truth + "건 중 " + r.added + "건이 도착했어요.";
+    $("devHint").textContent = "가짜 기기가 만든 " + sim.truth + "건 중 " + r.added + "건이 도착했어요." + ((saved && !usingMem) ? "" : " 이 폰에 저장하지 못해 화면을 닫으면 사라져요.");
   });
   $("btnLink").addEventListener("click", function(){ link.connected = !link.connected; render(); });
   $("conc").addEventListener("input", render);
