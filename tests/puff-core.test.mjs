@@ -107,6 +107,41 @@ test("추세: 기록 일수가 모자라면 비교하지 않고, 끊겨 있으�
   assert.equal(P.weeklyTrend(steadyState(100, 21), now, { connected: false }).status, "pending");
 });
 
+test("추세: 추적을 시작한 지 얼마 안 돼 기간이 덜 차도 일정하게 쓰면 변화 없음 (하루 평균으로 견줌)", () => {
+  const now = T0 + 21 * DAY;
+  for (const from of [5, 7, 9]) {
+    const s = steadyState(d => (d >= from ? 100 : 0), 21);
+    const t = P.weeklyTrend(s, now, { connected: true });
+    assert.equal(t.status, "ok", "추적 " + from + "일째부터");
+    assert.equal(t.level, "similar", "추적 " + from + "일째부터: " + t.change);
+    assert.ok(Math.abs(t.change) < 0.02);
+  }
+});
+
+test("추세: 덜 찬 기간에서도 진짜로 줄면 줄었다고 알아본다", () => {
+  const now = T0 + 21 * DAY;
+  const s = steadyState(d => (d < 5 ? 0 : d >= 14 ? 60 : 100), 21);
+  const t = P.weeklyTrend(s, now, { connected: true });
+  assert.equal(t.level, "lower");
+  assert.ok(Math.abs(t.change + 0.4) < 0.03, "변화 " + t.change);
+});
+
+test("추세: 기록이 없는 날은 진짜 0 으로 센다 — 퍼프가 사라지는 경우를 가리지 않는다", () => {
+  const now = T0 + 21 * DAY;
+  // 14일은 하루 100건, 최근 7일은 처음 3일만 100건이고 그 뒤 4일은 한 건도 없음(기기는 연결돼 있음)
+  const s = steadyState(d => (d < 14 ? 100 : d < 17 ? 100 : 0), 21);
+  const t = P.weeklyTrend(s, now, { connected: true });
+  assert.equal(t.status, "ok");
+  assert.equal(t.level, "lower");
+  assert.ok(Math.abs(t.change + 0.571) < 0.02, "변화 " + t.change);
+});
+
+test("추세: 앞선 기간을 5일도 추적하지 못했으면 비교하지 않는다", () => {
+  const now = T0 + 21 * DAY;
+  const t = P.weeklyTrend(steadyState(d => (d >= 11 ? 100 : 0), 21), now, { connected: true });
+  assert.equal(t.status, "insufficient");
+});
+
 test("추세: 최근 주에만 누락이 생겨도 줄었다고 오해하지 않는다 (누락 보정)", () => {
   const now = T0 + 21 * DAY;
   const lastWeekStart = T0 + 14 * DAY;

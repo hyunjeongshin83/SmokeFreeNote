@@ -133,42 +133,46 @@
     return n;
   }
 
-  function daysWithData(state, t0, t1) {
-    var seen = {}, n = 0;
-    for (var i = 0; i < state.puffs.length; i++) {
-      var t = state.puffs[i].t;
-      if (t >= t0 && t < t1) { var k = Math.floor((t - t0) / DAY); if (!seen[k]) { seen[k] = 1; n++; } }
-    }
-    return n;
+  /* 기록을 시작한 날(지역 시간 0시) — 이 날부터가 「추적한 기간」 */
+  function trackStart(state) {
+    var m = null;
+    for (var i = 0; i < state.puffs.length; i++) if (m === null || state.puffs[i].t < m) m = state.puffs[i].t;
+    if (m === null) return null;
+    var d = new Date(m); d.setHours(0, 0, 0, 0); return d.getTime();
   }
 
   /* 전주 대비 추세.
-   * 시뮬레이션에서 나온 규칙: ① 이전 2주 평균과 비교 ② 문턱 20 % (10 % 는 자연 변동만으로 거짓경보 13~19 %)
-   * ③ 두 기간 모두 5일 이상 기록 ④ 일련번호 누락을 보정(주 사이 완전성이 바뀐 것을 변화로 오해하지 않게).
+   * 시뮬레이션에서 나온 규칙: ① 이전 2주와 견줌 ② 문턱 20 % (10 % 는 자연 변동만으로 거짓경보 13~19 %)
+   * ③ 두 기간 모두 5일 이상 추적 ④ 일련번호 누락을 보정(주 사이 완전성이 바뀐 것을 변화로 오해하지 않게).
+   * 기간이 덜 찼으면(추적을 시작한 지 얼마 안 됨) 합계가 아니라 **추적한 날수로 나눈 하루 평균**으로 견줍니다 —
+   * 그러지 않으면 일정하게 쓰는 사람이 「늘었다」로 나옵니다 (Codex 지적). 분모는 기록이 있던 날이 아니라
+   * 추적을 시작한 날부터 지금까지의 날수입니다 — 퍼프가 없던 날도 진짜 0 일 수 있기 때문입니다 (끊긴 중에는 만들지 않음).
    * 끊긴 중에는 만들지 않습니다(link.connected === false → pending). */
   function weeklyTrend(state, nowMs, link, opts) {
     opts = opts || {};
     var threshold = opts.threshold || 0.2, minDays = opts.minDays || 5;
     if (link && link.connected === false) return { status: "pending" };
+    var start = trackStart(state);
+    if (start === null) return { status: "insufficient", daysThis: 0, daysBase: 0 };
     var thisT0 = nowMs - 7 * DAY, baseT0 = nowMs - 21 * DAY;
-    var dThis = daysWithData(state, thisT0, nowMs), dBase = daysWithData(state, baseT0, thisT0);
-    if (dThis < minDays || dBase < minDays) return { status: "insufficient", daysThis: dThis, daysBase: dBase };
+    function cover(t0, t1) { return Math.max(0, t1 - Math.max(t0, start)) / DAY; }
+    var dThis = cover(thisT0, nowMs), dBase = cover(baseT0, thisT0);
+    if (dThis < minDays || dBase < minDays) return { status: "insufficient", daysThis: Math.floor(dThis), daysBase: Math.floor(dBase) };
     var cThis = countIn(state, thisT0, nowMs), cBase = countIn(state, baseT0, thisT0);
     var mThis = missingIn(state, thisT0, nowMs), mBase = missingIn(state, baseT0, thisT0);
-    var adjThis = cThis + mThis, adjBase = cBase + mBase;        // 누락을 채워 넣은 추정치
-    if (adjBase <= 0) return { status: "insufficient", daysThis: dThis, daysBase: dBase };
-    var perWeekBase = adjBase / 2;
-    var ratio = adjThis / perWeekBase;
-    var change = ratio - 1;                                        // −0.25 = 25 % 적음
+    var adjThis = cThis + mThis, adjBase = cBase + mBase;          // 누락을 채워 넣은 추정치
+    if (adjBase <= 0) return { status: "insufficient", daysThis: Math.floor(dThis), daysBase: Math.floor(dBase) };
+    var rateThis = adjThis / dThis, rateBase = adjBase / dBase;      // 하루 평균
+    var change = rateThis / rateBase - 1;                            // −0.25 = 25 % 적음
     var level = Math.abs(change) >= threshold ? (change < 0 ? "lower" : "higher") : "similar";
-    return { status: "ok", level: level, change: change, thisWeek: adjThis, baselineWeek: Math.round(perWeekBase),
-             rawThis: cThis, rawBase: cBase, missingThis: mThis, missingBase: mBase, threshold: threshold };
+    return { status: "ok", level: level, change: change, thisWeek: Math.round(rateThis * 7), baselineWeek: Math.round(rateBase * 7),
+             rawThis: cThis, rawBase: cBase, missingThis: mThis, missingBase: mBase, daysThis: Math.floor(dThis), daysBase: Math.floor(dBase), threshold: threshold };
   }
 
   /* 화면에 쓸 문장 — 판단·단정 없이 사실과 한계만 (문구는 대표님 확인 전의 시안) */
   function trendText(t) {
     if (t.status === "pending") return "기기와 연결이 끊겨 있어요. 연결되면 다시 계산해 드릴게요.";
-    if (t.status === "insufficient") return "비교하려면 최근 일주일과 그 앞 이주일에 각각 5일 이상의 기록이 필요해요.";
+    if (t.status === "insufficient") return "비교하려면 최근 7일과 그 앞 2주 중 각각 5일 이상 기록을 모은 기간이 필요해요.";
     var pct = Math.round(Math.abs(t.change) * 100);
     if (t.level === "similar") return "최근 7일 퍼프 수는 앞선 2주 평균과 큰 차이가 없어요. (참고치)";
     if (t.level === "lower") return "최근 7일 퍼프 수가 앞선 2주 평균보다 약 " + pct + "% 적어요. (참고치)";
