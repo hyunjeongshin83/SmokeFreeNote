@@ -347,3 +347,33 @@ test("저장: 다른 키는 건드리지 않고, 깨진 값은 빈 상태로 시
   assert.equal(P.load(st).puffs.length, 0);
   assert.equal(P.save({ setItem() { throw new Error("quota"); } }, s), false);
 });
+
+test("저장 안 함(bufferK 0)이어도 다시 연결하면 꼬리의 끝을 알아 빠진 건수가 드러난다 (Codex)", () => {
+  let found = null;
+  for (let seed = 1; seed < 400 && !found; seed++) {
+    const to = T0 + 5 * DAY, sim = P.simulateDevice(T0, to, { seed, disconnects: "heavy", bufferK: 0 });
+    if (sim.endSeq !== null && sim.records.length && sim.endSeq > sim.records[sim.records.length - 1].seq) found = { sim, to };
+  }
+  const { sim, to } = found;
+  const st = P.newState(); P.ingest(st, sim.records, "live", to); st.emu = { withheld: sim.withheld, endSeq: sim.endSeq };
+  assert.equal(sim.withheld.length, 0);
+  assert.equal(P.completeness(st, { connected: true }).missing, st.puffs[st.puffs.length - 1].seq - st.minSeq + 1 - st.puffs.length);
+  P.reconnect(st, to + 1000);
+  assert.equal(st.maxSeq, sim.endSeq);
+  const c = P.completeness(st, { connected: true });
+  assert.equal(c.known, sim.endSeq - st.minSeq + 1);
+  assert.ok(c.missing > 0 || st.puffs.length === sim.truth);
+  // 저장했다 불러와도 올라간 끝 번호를 잃지 않는다
+  const mem = {}; const store = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); } };
+  P.save(store, st);
+  assert.equal(P.load(store).maxSeq, sim.endSeq);
+});
+
+test("빠진 것이 있으면 100 % 로 반올림하지 않는다 (Codex)", () => {
+  const st = P.newState();
+  const recs = []; for (let i = 0; i < 4000; i++) if (i !== 2000) recs.push({ seq: i, t: T0 + i, d: 2 });
+  P.ingest(st, recs, "live", T0 + 5000);
+  const c = P.completeness(st, { connected: true });
+  assert.equal(c.missing, 1);
+  assert.ok(c.pct < 100, "got=" + c.pct);
+});

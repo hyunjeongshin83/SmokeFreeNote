@@ -144,7 +144,7 @@ select,input{width:100%;min-height:44px;font-family:inherit;font-size:1rem;paddi
     state = PuffCore.newState();                                 // 시험용이라 매번 새로 만듭니다 (기간이 겹쳐 쌓이지 않게)
     var sim = PuffCore.simulateDevice(from, now, { seed: (now % 100000) + 1, bufferK: +$("selK").value, disconnects: $("selDisc").value });
     var r = PuffCore.ingest(state, sim.records, "live", now);
-    state.emu = { withheld: sim.withheld };                                // 아직 끊겨 있어 기기에 남아 있는 꼬리 — 재연결하면 가져옴
+    state.emu = { withheld: sim.withheld, endSeq: sim.endSeq };                                // 아직 끊겨 있어 기기에 남아 있는 꼬리 — 재연결하면 가져옴
     var saved = PuffCore.save(store, state);                               // emu 까지 저장해야 새로 고침 뒤에도 꼬리를 가져올 수 있음
     link.connected = PuffCore.linkAt(sim.intervals, now).connected;       // 끊긴 구간이 지금을 덮으면 동기화 대기로
     render();

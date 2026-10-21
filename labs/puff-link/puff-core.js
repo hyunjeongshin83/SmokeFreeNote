@@ -87,7 +87,9 @@
     if (link && link.connected === false) return { status: "pending", pct: null, lastSync: state.lastSync };
     var known = state.maxSeq - state.minSeq + 1;
     var got = state.puffs.length;
-    return { status: "ok", pct: Math.round(1000 * got / known) / 10, known: known, received: got, missing: known - got };
+    var pct = Math.round(1000 * got / known) / 10;
+    if (got < known && pct > 99.9) pct = 99.9;                       // 하나라도 빠졌으면 100 % 로 반올림하지 않음 (Codex 지적)
+    return { status: "ok", pct: pct, known: known, received: got, missing: known - got };
   }
 
   /* 하루 요약. dayStart = 그날 0시(ms) */
@@ -211,7 +213,9 @@
   function reconnect(state, now) {
     var w = state.emu && Array.isArray(state.emu.withheld) ? state.emu.withheld : [];
     var r = ingest(state, w, "resync", now);
-    if (state.emu) state.emu.withheld = [];
+    var end = state.emu ? state.emu.endSeq : null;                    // 기기가 알려 주는 현재 일련번호 — 버퍼가 비어 있어도 꼬리의 끝을 앎
+    if (typeof end === "number" && isFinite(end) && state.maxSeq !== null && end > state.maxSeq) { state.maxSeq = Math.floor(end); state.tailEnd = state.maxSeq; }
+    if (state.emu) { state.emu.withheld = []; delete state.emu.endSeq; }
     return r;
   }
 
@@ -224,9 +228,12 @@
       if (!s || s.v !== 1 || !Array.isArray(s.puffs)) return newState();
       s.puffs = s.puffs.filter(validRecord);                       // 깨진·옛 기록이 계산을 망치지 않게
       s.minSeq = s.puffs.length ? Math.min.apply(null, s.puffs.map(function (p) { return p.seq; })) : null;
+      var savedMax = s.tailEnd;                                    // 재연결로 알게 된 꼬리의 끝(기록 없이도 올라감)을 잃지 않게
       s.maxSeq = s.puffs.length ? Math.max.apply(null, s.puffs.map(function (p) { return p.seq; })) : null;
+      if (s.maxSeq !== null && typeof savedMax === "number" && isFinite(savedMax) && savedMax > s.maxSeq) s.maxSeq = Math.floor(savedMax);
       s.puffs.sort(function (a, b) { return a.seq - b.seq; });
       if (s.emu && Array.isArray(s.emu.withheld)) s.emu.withheld = s.emu.withheld.filter(validRecord); else if (s.emu) s.emu = { withheld: [] };
+      if (s.emu && "endSeq" in s.emu && !(typeof s.emu.endSeq === "number" && isFinite(s.emu.endSeq))) delete s.emu.endSeq;
       return s;
     } catch (e) { return newState(); }
   }
@@ -309,7 +316,7 @@
     });
     out.sort(function (a, b) { return a.seq - b.seq; });
     withheld.sort(function (a, b) { return a.seq - b.seq; });
-    return { records: out, truth: all.length, intervals: iv, truthRecords: all, withheld: withheld };
+    return { records: out, truth: all.length, intervals: iv, truthRecords: all, withheld: withheld, endSeq: all.length ? seq - 1 : null };
   }
 
   return { KEY: KEY, MAX_PUFFS: MAX_PUFFS, DAY: DAY, newState: newState, ingest: ingest, gaps: gaps, missingCount: missingCount,
