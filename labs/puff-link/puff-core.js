@@ -37,9 +37,11 @@
     return { v: 1, device: null, puffs: [], lastSync: null, minSeq: null, maxSeq: null };
   }
 
+  /* 숫자만 받습니다. 전역 isFinite 는 문자열 "3" 도 통과시켜(합계가 "033" 이 되고 날짜가 NaN 이 됨) Number.isFinite + typeof 로 막음 */
+  function isNum(v) { return typeof v === "number" && Number.isFinite(v); }
   function validRecord(r) {
-    return r && Number.isInteger(r.seq) && r.seq >= 0 && isFinite(r.t) && r.t > 0 &&
-      (r.d === null || r.d === undefined || (isFinite(r.d) && r.d > 0 && r.d <= 30));
+    return !!r && Number.isInteger(r.seq) && r.seq >= 0 && isNum(r.t) && r.t > 0 &&
+      (r.d === null || r.d === undefined || (isNum(r.d) && r.d > 0 && r.d <= 30));
   }
 
   /* 받은 기록을 합칩니다. 같은 seq 는 한 번만 (실시간으로 받은 것을 재동기화로 또 받아도 중복되지 않음). */
@@ -200,6 +202,10 @@
       if (!raw) return newState();
       var s = JSON.parse(raw);
       if (!s || s.v !== 1 || !Array.isArray(s.puffs)) return newState();
+      s.puffs = s.puffs.filter(validRecord);                       // 깨진·옛 기록이 계산을 망치지 않게
+      s.minSeq = s.puffs.length ? Math.min.apply(null, s.puffs.map(function (p) { return p.seq; })) : null;
+      s.maxSeq = s.puffs.length ? Math.max.apply(null, s.puffs.map(function (p) { return p.seq; })) : null;
+      s.puffs.sort(function (a, b) { return a.seq - b.seq; });
       return s;
     } catch (e) { return newState(); }
   }

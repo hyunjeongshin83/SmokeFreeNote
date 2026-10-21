@@ -247,6 +247,27 @@ test("재동기화: 실시간으로 받은 것을 다시 받아도 중복되지 
   assert.equal(s.puffs.length, n);
 });
 
+test("숫자가 아닌 시각·길이는 받지 않는다 (문자열 \"3\" 이 합계를 \"033\" 으로 만들지 않게)", () => {
+  const s = P.newState();
+  const r = P.ingest(s, [
+    { seq: 0, t: String(T0 + 1000), d: 3 }, { seq: 1, t: T0 + 2000, d: "3" }, { seq: 2, t: NaN, d: 3 }, { seq: 3, t: T0 + 3000, d: Infinity },
+    { seq: 4, t: T0 + 4000, d: 3 }, { seq: 5, t: T0 + 5000, d: null }, { seq: 6, t: T0 + 6000 }], "live", T0);
+  assert.deepEqual(r, { added: 3, dup: 0, bad: 4 });
+  const day = P.daySummary(s, T0);
+  assert.equal(day.count, 3);
+  assert.equal(day.durS, 3);
+  assert.equal(typeof day.durS, "number");
+});
+
+test("저장소에서 읽을 때도 깨진 기록은 걸러지고 일련번호 범위가 다시 계산된다", () => {
+  const bad = { v: 1, puffs: [{ seq: 0, t: "x", d: "3" }, { seq: 5, t: T0 + 1000, d: 3 }, { seq: 4, t: T0 + 500, d: 3 }, { seq: 9, t: T0, d: 99 }], minSeq: 0, maxSeq: 9 };
+  const s = P.load({ getItem: () => JSON.stringify(bad) });
+  assert.deepEqual(s.puffs.map(p => p.seq), [4, 5]);
+  assert.equal(s.minSeq, 4);
+  assert.equal(s.maxSeq, 5);
+  assert.equal(P.completeness(s, { connected: true }).pct, 100);
+});
+
 test("저장: 다른 키는 건드리지 않고, 깨진 값은 빈 상태로 시작한다", () => {
   const mem = {}; const st = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); } };
   mem["smokefree.v1"] = '{"logs":[1,2,3]}';
