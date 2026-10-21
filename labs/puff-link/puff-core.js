@@ -106,11 +106,21 @@
     return { count: count, hours: hours, durS: durS, durN: durN };
   }
 
-  /* 기화된 액상 속 니코틴 참고치(mg). 체내 흡수량이 아닙니다. 길이 없는 기록은 세지 않습니다. */
+  /* 기화된 액상 속 니코틴 참고치(mg). 체내 흡수량이 아닙니다. 길이 없는 기록은 세지 않습니다.
+   * 농도는 0 초과 MAX_CONC 이하의 유한한 숫자만 받습니다 — 입력칸의 max 는 직접 입력을 막지 못해 여기서 다시 거릅니다. */
+  var MAX_CONC = 100;
+  function concValid(c) { return typeof c === "number" && Number.isFinite(c) && c > 0 && c <= MAX_CONC; }
   function nicotineMg(durS, concMgMl, mgPerS) {
-    if (!(concMgMl > 0) || !(durS > 0)) return null;
+    if (!concValid(concMgMl) || !(typeof durS === "number" && Number.isFinite(durS) && durS > 0)) return null;
     var ul = (mgPerS || MG_PER_S) * durS / LIQ_DENSITY;
     return Math.round(concMgMl * ul / 1000 * 100) / 100;
+  }
+
+  /* 가짜 기기의 끊긴 구간이 시각 t 를 덮는지 → 지금 연결돼 있는가.
+   * 끊긴 구간이 「지금」을 덮으면 simulateDevice 가 그 구간의 기록을 아직 주지 않으므로 화면은 「동기화 대기」여야 합니다. */
+  function linkAt(intervals, t) {
+    for (var i = 0; i < intervals.length; i++) if (intervals[i][0] <= t && t < intervals[i][1]) return { connected: false };
+    return { connected: true };
   }
 
   /* 구간 [t0, t1) 의 누락 추정. 받은 기록 a,b 사이가 비었을 때, 비어 있는 개수를 [a.t, b.t] 에 고르게 퍼져 있다고 보고
@@ -289,6 +299,6 @@
   }
 
   return { KEY: KEY, MAX_PUFFS: MAX_PUFFS, DAY: DAY, newState: newState, ingest: ingest, gaps: gaps, missingCount: missingCount,
-           completeness: completeness, daySummary: daySummary, nicotineMg: nicotineMg, weeklyTrend: weeklyTrend, trendText: trendText,
+           completeness: completeness, daySummary: daySummary, nicotineMg: nicotineMg, concValid: concValid, MAX_CONC: MAX_CONC, linkAt: linkAt, weeklyTrend: weeklyTrend, trendText: trendText,
            ingestCounter: ingestCounter, load: load, save: save, simulateDevice: simulateDevice, validRecord: validRecord };
 });

@@ -121,11 +121,14 @@ select,input{width:100%;min-height:44px;font-family:inherit;font-size:1rem;paddi
     day.hours.forEach(function(n, h){ var i = document.createElement("i"); i.style.height = Math.round(100 * n / max) + "%"; i.title = h + "시 " + n + "건"; bars.appendChild(i); });
     bars.setAttribute("aria-label", "시간대별 퍼프 수. 가장 많은 시간대는 " + (day.count ? day.hours.indexOf(Math.max.apply(null, day.hours)) + "시" : "없음"));
 
-    var conc = parseFloat($("conc").value);
+    var raw = $("conc").value, bad = $("conc").validity.badInput;         // 1e999 처럼 숫자로 인정되지 않는 입력은 값이 비어 오므로 badInput 으로 구별
+    var conc = raw === "" ? NaN : Number(raw), concOk = PuffCore.concValid(conc), concBad = bad || (raw !== "" && !concOk);
     var allTimed = day.count > 0 && day.durN === day.count;           // 길이가 없는 퍼프가 섞이면 과소 표시가 되므로 보여 주지 않음
-    var mg = allTimed ? PuffCore.nicotineMg(day.durS, conc) : null;
+    var mg = (allTimed && concOk) ? PuffCore.nicotineMg(day.durS, conc) : null;
+    $("conc").setAttribute("aria-invalid", String(concBad));
     $("nic").textContent = mg !== null ? "오늘 기화된 액상 속 니코틴 약 " + mg + " mg (참고치)"
-      : (conc > 0 && day.count && !allTimed ? "퍼프 길이를 모르는 기록이 섞여 있어 니코틴 참고치는 보여 드리지 않아요." : "농도를 적으면 기화된 액상 속 니코틴 참고치를 보여 드려요.");
+      : (concBad ? "농도는 0보다 크고 " + PuffCore.MAX_CONC + " 이하로 적어 주세요."
+      : (concOk && day.count && !allTimed ? "퍼프 길이를 모르는 기록이 섞여 있어 니코틴 참고치는 보여 드리지 않아요." : "농도를 적으면 기화된 액상 속 니코틴 참고치를 보여 드려요."));
 
     var c = PuffCore.completeness(state, link);
     if (c.status === "no-data"){ $("cPct").textContent = "—"; $("cNote").textContent = "기록을 받으면 얼마나 빠짐없이 모였는지 알려 드려요."; }
@@ -142,7 +145,7 @@ select,input{width:100%;min-height:44px;font-family:inherit;font-size:1rem;paddi
     var sim = PuffCore.simulateDevice(from, now, { seed: (now % 100000) + 1, bufferK: +$("selK").value, disconnects: $("selDisc").value });
     var r = PuffCore.ingest(state, sim.records, "live", now);
     var saved = PuffCore.save(store, state);
-    link.connected = true;
+    link.connected = PuffCore.linkAt(sim.intervals, now).connected;       // 끊긴 구간이 지금을 덮으면 동기화 대기로
     render();
     $("devHint").textContent = "가짜 기기가 만든 " + sim.truth + "건 중 " + r.added + "건이 도착했어요." + ((saved && !usingMem) ? "" : " 이 폰에 저장하지 못해 화면을 닫으면 사라져요.");
   });

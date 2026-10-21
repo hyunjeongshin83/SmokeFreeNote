@@ -191,6 +191,35 @@ test("추세 문장: 단정하지 않고 참고치라고 밝힌다", () => {
   }
 });
 
+test("니코틴 참고치: 범위를 벗어난 농도는 계산하지 않는다", () => {
+  for (const bad of [0, -5, 100.5, 200, Infinity, NaN, "20", null, undefined]) assert.equal(P.nicotineMg(30, bad), null, String(bad));
+  assert.equal(P.nicotineMg(30, 100) > 0, true);
+  assert.equal(P.concValid(20), true);
+  assert.equal(P.concValid(100), true);
+  assert.equal(P.concValid(100.01), false);
+  assert.equal(P.nicotineMg(Infinity, 20), null);
+  assert.equal(P.nicotineMg("3", 20), null);
+});
+
+test("가짜 기기: 끊긴 구간이 지금을 덮으면 연결 안 됨(동기화 대기)이고 그 구간의 기록은 아직 없다", () => {
+  const to = T0 + 5 * DAY;
+  let hit = null;
+  for (let seed = 1; seed < 400 && !hit; seed++) {
+    const sim = P.simulateDevice(T0, to, { seed, disconnects: "heavy", bufferK: 64 });
+    if (sim.intervals.some(iv => iv[0] <= to && to < iv[1])) hit = sim;
+  }
+  assert.ok(hit, "지금을 덮는 끊김이 있는 시드를 찾아야 한다");
+  assert.deepEqual(P.linkAt(hit.intervals, to), { connected: false });
+  const iv = hit.intervals.find(x => x[0] <= to && to < x[1]);
+  const got = new Set(hit.records.map(r => r.seq));
+  const inside = hit.truthRecords.filter(p => p.t >= iv[0] && p.t < to);
+  assert.ok(inside.every(p => !got.has(p.seq)), "아직 재연결 전이라 그 구간의 기록은 앱에 없어야 한다");
+  const s = P.newState(); P.ingest(s, hit.records, "live", to);
+  assert.equal(P.completeness(s, P.linkAt(hit.intervals, to)).status, "pending");
+  assert.equal(P.weeklyTrend(s, to, P.linkAt(hit.intervals, to)).status, "pending");
+  assert.deepEqual(P.linkAt(hit.intervals, T0 - DAY), { connected: true });
+});
+
 test("가짜 기기: 같은 시드는 같은 결과", () => {
   const a = P.simulateDevice(T0, T0 + 7 * DAY, { seed: 5 }), b = P.simulateDevice(T0, T0 + 7 * DAY, { seed: 5 });
   assert.deepEqual(a.records, b.records);
