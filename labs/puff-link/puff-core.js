@@ -166,6 +166,8 @@
     opts = opts || {};
     var threshold = opts.threshold || 0.2, minDays = opts.minDays || 5;
     if (link && link.connected === false) return { status: "pending" };
+    if (state.puffs.length && state.maxSeq > state.puffs[state.puffs.length - 1].seq)      // 맨 뒤 몇 건이 시각 없이 빠짐 — 시간에 배분할 수 없으니 추세를 만들지 않음 (Codex)
+      return { status: "tail-unknown", missingTail: state.maxSeq - state.puffs[state.puffs.length - 1].seq };
     var start = trackStart(state);
     if (start === null) return { status: "insufficient", daysThis: 0, daysBase: 0 };
     var thisT0 = nowMs - 7 * DAY, baseT0 = nowMs - 21 * DAY;
@@ -185,6 +187,7 @@
 
   /* 화면에 쓸 문장 — 판단·단정 없이 사실과 한계만 (문구는 대표님 확인 전의 시안) */
   function trendText(t) {
+    if (t.status === "tail-unknown") return "기기가 센 기록 끝 " + t.missingTail + "건을 아직 못 받아서 추세는 보류해요.";
     if (t.status === "pending") return "기기와 연결이 끊겨 있어요. 연결되면 다시 계산해 드릴게요.";
     if (t.status === "insufficient") return "비교하려면 최근 7일과 그 앞 2주 중 각각 5일 이상 기록을 모은 기간이 필요해요.";
     var pct = Math.round(Math.abs(t.change) * 100);

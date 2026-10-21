@@ -377,3 +377,14 @@ test("빠진 것이 있으면 100 % 로 반올림하지 않는다 (Codex)", () =
   assert.equal(c.missing, 1);
   assert.ok(c.pct < 100, "got=" + c.pct);
 });
+
+test("끝 번호는 아는데 맨 뒤 기록의 시각이 없으면 추세를 만들지 않는다 (Codex)", () => {
+  const st = P.newState(), recs = [];
+  for (let d = 0; d < 21; d++) for (let k = 0; k < 10; k++) recs.push({ seq: d * 10 + k, t: T0 + d * DAY + k * 3600e3, d: 2 });
+  P.ingest(st, recs, "live", T0 + 21 * DAY);
+  st.maxSeq += 40;                                  // 기기가 40건 더 셌다는 것만 앎
+  const t = P.weeklyTrend(st, T0 + 21 * DAY, { connected: true });
+  assert.equal(t.status, "tail-unknown");
+  assert.equal(t.missingTail, 40);
+  assert.match(P.trendText(t), /40건/);
+});
