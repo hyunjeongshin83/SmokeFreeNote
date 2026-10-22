@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>금연노트 실험 — 숨 쉬는 박자를 진동으로 (Vibration API)</title>
+<!-- 실험 화면입니다. 앱 본체에서 링크하지 않습니다 (labs/ 아래 별도 화면 규칙).
+     무엇을 실험하나: 「지금 담배가 당겨요」에서 숨 쉬는 박자를 화면만이 아니라 손에 닿는 진동으로도 알려 줄 수 있는지.
+     분당 6번(들이쉬기 4초 · 내쉬기 6초 = 0.1Hz) 박자입니다.
+     Vibration API — 브라우저 내장, 무료, 어떤 데이터도 밖으로 나가지 않고 저장도 하지 않습니다.
+     진동은 보조일 뿐 글자와 그림이 항상 같이 나옵니다. 지원하지 않는 브라우저(iOS Safari 등)에서는 진동 없이 글자와 그림만 나옵니다.
+     효과를 주장하지 않습니다 — 박자를 알려 주는 방법이 되는지(타이밍 · 지원 범위)만 잽니다. -->
+<style>
+  :root{ --brand:#0E6B48; --n-0:#fff; --n-1:#f4f6f5; --n-7:#2b2f2d; --n-5:#5b6360; --fs-body:17px; --fs-sub:15px; --fs-h:21px; --sp-2:8px; --sp-4:16px; --sp-6:24px; --r-2:12px; }
+  html{ font-size:100%; } body{ margin:0; background:var(--n-1); color:var(--n-7); font:var(--fs-body)/1.55 Pretendard,-apple-system,"Noto Sans KR",sans-serif; word-break:keep-all; }
+  main{ max-width:480px; margin:0 auto; padding:var(--sp-6) var(--sp-4); }
+  h1{ font-size:var(--fs-h); margin:0 0 var(--sp-2); } p{ margin:0 0 var(--sp-4); } .sub{ font-size:var(--fs-sub); color:var(--n-5); }
+  .card{ background:var(--n-0); border-radius:var(--r-2); padding:var(--sp-4); margin-bottom:var(--sp-4); }
+  .btn{ display:block; width:100%; min-height:48px; border:0; border-radius:var(--r-2); background:var(--brand); color:#fff; font:inherit; font-weight:700; }
+  .btn.ghost{ background:var(--n-1); color:var(--brand); border:1px solid var(--brand); margin-top:var(--sp-2); }
+  .btn[disabled]{ opacity:.55; }
+  label{ display:flex; align-items:center; gap:var(--sp-2); min-height:44px; }
+  input[type=checkbox]{ width:24px; height:24px; }
+  code{ font-size:var(--fs-sub); background:var(--n-1); padding:1px 5px; border-radius:6px; }
+  .ring{ width:140px; height:140px; margin:0 auto var(--sp-4); border-radius:50%; border:6px solid var(--brand); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:var(--fs-h); color:var(--brand); transition:transform 4s ease-in-out; }
+  .ring.in{ transform:scale(1.25); } .ring.out{ transform:scale(.85); transition-duration:6s; }
+  @media (prefers-reduced-motion:reduce){ .ring, .ring.out{ transition:none; } }
+  .phase{ text-align:center; font-size:var(--fs-h); font-weight:700; margin:0 0 var(--sp-4); }
+</style>
+</head>
+<body>
+<main>
+  <h1>숨 쉬는 박자 · 진동으로 (실험)</h1>
+  <p class="sub">들이쉬기 4초 → 내쉬기 6초(분당 6번)를 글자·그림으로 알려 주고, 원하면 <b>진동도</b> 줍니다. 기록을 만들지 않고 어디에도 보내지 않습니다. 의학적 효과를 말하는 화면이 아닙니다.</p>
+
+  <section class="card">
+    <p id="support" aria-live="polite">확인 중…</p>
+    <label><input type="checkbox" id="useVib"> 진동으로도 알려 주기</label>
+    <div class="ring" id="ring" aria-hidden="true"><span id="sec"></span></div>
+    <p class="phase" id="phase" aria-live="polite">준비</p>
+    <button class="btn" id="start">1분 해 보기</button>
+    <button class="btn ghost" id="stop" disabled>멈추기</button>
+    <p class="sub" id="state" aria-live="polite"></p>
+  </section>
+
+  <section class="card sub">
+    <p>진동 요청 <b id="n">0</b>번 · 받아들여짐 <b id="ok">0</b>번 · 박자 어긋남 최대 <b id="drift">—</b> · <code id="ua"></code></p>
+  </section>
+</main>
+<script>
+(function(){
+  var $=function(i){ return document.getElementById(i); };
+  // 시험용: ?speed=10 이면 10배 빠르게 돕니다 (자동 시험 전용 — 사람이 쓰는 값이 아닙니다)
+  var q=new URLSearchParams(location.search), SPEED=Math.max(1, Math.min(20, +q.get("speed")||1));
+  var IN=4000/SPEED, OUT=6000/SPEED, CYCLES=6;
+  // 진동 모양: 들이쉬기 시작 = 길게 한 번, 내쉬기 시작 = 짧게 두 번. 한 번에 한 박자만 보냅니다 (긴 패턴을 미리 보내면 멈추기가 어려움)
+  var P_IN=[220], P_OUT=[70,90,70];
+  var info={ supported:typeof navigator.vibrate==="function", requested:0, accepted:0, drifts:[], patterns:[] };
+  var timers=[], running=false, t0=0, k=0;
+  function publish(){ document.documentElement.setAttribute("data-vib", JSON.stringify(info)); }
+  function say(m){ $("state").textContent=m; }
+  function buzz(p){
+    if(!$("useVib").checked || !info.supported) return;
+    info.requested++; $("n").textContent=info.requested; info.patterns.push(p.join(","));
+    var r=false; try{ r=navigator.vibrate(p); }catch(e){ r=false; }
+    if(r){ info.accepted++; $("ok").textContent=info.accepted; }
+  }
+  function at(planned, fn){
+    var wait=Math.max(0, planned-(performance.now()-t0));
+    timers.push(setTimeout(function(){
+      var d=Math.abs((performance.now()-t0)-planned); info.drifts.push(Math.round(d*SPEED));   // 실제 시간(ms)으로 되돌려 적음
+      var m=Math.max.apply(null, info.drifts); $("drift").textContent=m+"ms"; fn(); publish();
+    }, wait));
+  }
+  function phase(name, cls, p){ $("phase").textContent=name; $("ring").className="ring "+cls; buzz(p); }
+  function stopAll(done){
+    running=false; timers.forEach(clearTimeout); timers=[];
+    try{ if(info.supported) navigator.vibrate(0); }catch(e){}        // 남은 진동을 바로 끕니다
+    $("ring").className="ring"; $("sec").textContent="";
+    $("start").disabled=false; $("stop").disabled=true;
+    $("phase").textContent=done ? "마쳤어요" : "멈췄어요";
+    say(done ? "1분을 마쳤어요. 어디에도 저장하지 않았어요." : "멈췄어요. 어디에도 저장하지 않았어요."); publish();
+  }
+  $("start").onclick=function(){
+    running=true; info.requested=0; info.accepted=0; info.drifts=[]; info.patterns=[]; $("n").textContent="0"; $("ok").textContent="0"; $("drift").textContent="—";
+    $("start").disabled=true; $("stop").disabled=false; t0=performance.now(); say("");
+    for(k=0;k<CYCLES;k++){
+      (function(c){
+        at(c*(IN+OUT),        function(){ phase("들이쉬세요", "in", P_IN); });
+        at(c*(IN+OUT)+IN,     function(){ phase("내쉬세요", "out", P_OUT); });
+      })(k);
+    }
+    at(CYCLES*(IN+OUT), function(){ stopAll(true); });
+  };
+  $("stop").onclick=function(){ stopAll(false); };
+  document.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden" && running) stopAll(false); });  // 화면을 떠나면 멈춥니다 (백그라운드에서 진동 금지)
+  window.addEventListener("pagehide", function(){ try{ if(info.supported) navigator.vibrate(0); }catch(e){} });
+
+  $("ua").textContent=navigator.userAgent.replace(/\(.*?\)/g,"").slice(0,60);
+  $("useVib").checked=info.supported; $("useVib").disabled=!info.supported;
+  $("support").textContent = info.supported
+    ? "이 브라우저는 진동을 요청할 수 있어요. (기기에 진동 장치가 없거나 무음·절전이면 울리지 않을 수 있어요.)"
+    : "이 브라우저는 진동을 지원하지 않아요. 글자와 그림으로만 알려 드려요.";
+  publish();
+})();
+</script>
+</body>
+</html>
