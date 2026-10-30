@@ -32,7 +32,7 @@ import org.json.JSONObject
  *   requestHealth()    걸음·심박·수면 읽기 권한을 OS 화면으로 묻고, 허락되면 바로 읽어
  *                      window.onNativeHealth(json) 으로 돌려줌
  *   readHealth()       이미 권한이 있으면 읽어서 같은 콜백으로
- * 값은 기기 안에서만 씁니다. 서버로 보내지 않습니다 (docs/DESIGN.md 3절).
+ * 값은 이 폰의 localStorage 에만 둡니다. 서버로 보내지 않습니다 (docs/DESIGN.md 3절). 폰의 자동 백업에는 실려 갈 수 있습니다 (VaccineNote-Park#180 VN-180-5).
  */
 class MainActivity : ComponentActivity() {
 
