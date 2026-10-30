@@ -101,6 +101,7 @@ html{scroll-padding-top:calc(var(--header-h) + 8px);scroll-padding-bottom:calc(v
 .tipcard.hi .t{color:var(--coral);}
 .tipcard .d{font-size:1rem;color:var(--ink);line-height:1.5;}
 .hero .att{font-size:0.875rem;opacity:.92;margin-top:8px;font-weight:700;}
+#h_slip{word-break:keep-all;}   /* 한글이 낱말 가운데서 줄바꿈되지 않게 (VN-181-1) */
 /* 통계 */
 .bars{display:flex;align-items:flex-end;gap:6px;height:110px;padding:6px 2px 0;}
 .bars .b{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;height:100%;}
@@ -273,6 +274,7 @@ html.big body{zoom:1.18;}
       <div class="days"><span id="h_days">0</span><small>일째</small></div>
       <div class="hms" id="h_hms">0시간 0분 0초</div>
       <div class="att" id="h_att"></div>
+      <div class="att" id="h_slip" hidden></div>
     </div>
     <div class="stats">
       <div class="stat"><b id="h_cig">0</b><span id="h_cig_l">안 피운 개비</span></div>
@@ -760,6 +762,13 @@ html.big body{zoom:1.18;}
     $("h_days").textContent = d;
     $("h_hms").textContent = h+"시간 "+m+"분 "+s+"초";
     var acc = st.attempts.reduce(function(a,x){ return a + Math.max(0,(x.end-x.start)/1000); }, 0) + sec;
+    // 이번 시도에 「결국 피웠어요」가 있으면 사실 한 줄 — 위 숫자(리셋하지 않음)와 방금 적은 기록이 어긋나 보이지 않게 (VaccineNote-Park#181 VN-181-1 · 대표님 결정 2026-10-30)
+    var lastSlip = 0; logs_().forEach(function(r){ if(r && r.slip && typeof r.t === "number" && isFinite(r.t) && r.t >= st.start && r.t <= Date.now() && r.t > lastSlip) lastSlip = r.t; });
+    if(lastSlip){
+      var ageH = Math.floor((Date.now() - lastSlip) / 3600000);
+      $("h_slip").textContent = "마지막으로 피운 지 " + (ageH < 1 ? "1시간 안" : ageH < 24 ? ageH + "시간" : Math.floor(ageH / 24) + "일") + " · 이번 시도 " + (d > 0 ? d + "일째 " : "") + "이어가는 중";
+      $("h_slip").hidden = false;
+    } else { $("h_slip").hidden = true; }
     $("h_att").textContent = st.attempts.length ? (st.attempts.length+1)+"회차 시도 · 누적 금연 "+Math.floor(acc/86400)+"일" : "";
     notifTick();
     var cigs = sec/86400*st.perDay;
@@ -836,7 +845,7 @@ html.big body{zoom:1.18;}
     // 앱이 무엇을 보여 줬는지도 기록에 남긴다 — 단계(1 격려 · 2 높은 위험 · 3 복귀)와 대처법 번호.
     // 없으면 「대처법 뒤 참았는지」를 영영 셀 수 없다 (VaccineNote-Park#91 VN-91-1). 기기 안에만, 화면 변화 없음.
     r.stage = r.slip ? 3 : (hi ? 2 : 1); r.tip = TIPS.indexOf(tip); save();
-    el.classList.toggle("hi", !!hi); $("l_tip_sos").style.display = (hi && !r.slip) ? "" : "none";
+    el.classList.toggle("hi", !!hi); $("l_tip_sos").style.display = hi ? "" : "none";   // 피운 직후 카드에도 5분 버티기 (VaccineNote-Park#181 VN-181-2 · 대표님 결정 2026-10-30 · Shiffman 1996: 회복 대처를 시도한 쪽이 같은 날 또 피울 가능성이 낮음)
     if(r.slip){ $("l_tip_t").textContent = "이번 시도는 계속돼요"; $("l_tip_d").textContent = "한 개비는 실패가 아니에요. 다음에 당길 때는 "+tip.replace(/\.$/,"")+" — 지금 니코틴 껌·패치가 있다면 써 보세요."; }
     else if(hi){ $("l_tip_t").textContent = "지금이 위험한 순간이에요"; $("l_tip_d").textContent = tip+" 니코틴 껌이나 사탕이 있다면 지금 하나 드세요. 힘들면 1544-9030 으로 전화해도 돼요."; }
     else { $("l_tip_t").textContent = "잘 넘기셨어요"; $("l_tip_d").textContent = "적어 두면 나만의 위험 상황이 보여요. "+tip; }
