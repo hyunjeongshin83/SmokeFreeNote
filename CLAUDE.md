@@ -12,6 +12,7 @@ docs/COMPETITORS.md  경쟁 앱과 무작위 시험 (사실·출처만)
 docs/DEVICES.md      기기로 흡연을 잴 수 있나 (사실·출처만)
 docs/NATIVE.md       네이티브 앱 4단계 계획 (1·2단계는 android/ 에 있음)
 docs/experiments/ecig-sensing/  전자담배 센서 자동 수집 시뮬레이션 (제안 · 가정 포함 · 앱에 반영 안 됨)
+docs/PUFF-LINK.md    퍼프 연동 뼈대 (labs/puff-link/ · 가짜 기기만 · 앱 본체에 연결 안 됨)
 ```
 
 안드로이드 셸은 `android/` 입니다. 앱 화면은 `index.html` 그대로이고 `assets/` 는 git 에 없습니다 —
