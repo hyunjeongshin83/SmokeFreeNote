@@ -16,8 +16,9 @@ import java.time.Instant
  * 금연노트 — Health Connect 읽기 (걸음 · 심박 · 수면)
  *
  * 왜 이 셋인가 — 흡연 항목은 Health Connect 에 없습니다 (docs/DEVICES.md 5절).
- * 대신 갈망이 많은 시간대와 수면 부족 · 활동량을 견주어 보여 주려는 것입니다.
- * 값은 기기 안에서만 읽고 계산합니다. 서버로 보내지 않습니다.
+ * 대신 걸음 · 심박 · 수면의 마지막 읽기를 화면에 보여 줍니다 (갈망 시간대와 견주는 기능은 아직 없습니다).
+ * 값은 이 폰의 localStorage 에만 둡니다. 서버로 보내지 않습니다. 단, allowBackup=true 라 폰의 자동 백업에 실려 갈 수 있습니다
+ * (VaccineNote-Park#180 VN-180-5).
  *
  * MediNote 의 HealthConnectManager 와 같은 골격이고, 수면을 더했습니다.
  */

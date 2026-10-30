@@ -493,7 +493,7 @@ html.big body{zoom:1.18;}
           </div>
           <ul class="rank" id="q_list" style="margin-top:8px"></ul></div></li>
         <li><span class="st ok">지금</span><div>홈 화면 바로가기<small>앱을 설치하면 아이콘을 길게 눌러 「당겨요」·「기록」으로 바로 들어와요. 기록이 빠를수록 잘 남아요.</small></div></li>
-        <li id="d_health_row" style="display:none"><span class="st ok">앱</span><div>걸음 · 심박 · 수면 (Health Connect)<small>안드로이드 앱에서는 폰의 건강 데이터를 이 기기 안에서만 읽어 갈망이 많은 시간대와 견줘요. 서버로 보내지 않아요.</small>
+        <li id="d_health_row" style="display:none"><span class="st ok">앱</span><div>걸음 · 심박 · 수면 (Health Connect)<small>안드로이드 앱에서는 폰의 건강 데이터(걸음·심박·수면)를 읽어 화면에 보여 줘요. 금연노트는 이 값을 서버로 보내지 않아요. 폰의 자동 백업 설정에 따라 앱 기록과 함께 백업될 수 있어요.</small>
           <button class="btn ghost" id="d_health" style="margin-top:8px">건강 데이터 읽기</button><div class="sub" id="d_health_out"></div></div></li>
       </ul>
     </div>
@@ -1281,7 +1281,7 @@ html.big body{zoom:1.18;}
     window.onNativeHealth = function(r){
       if(!r || r.error){ $("d_health_out").textContent = r && r.error==="denied" ? "권한을 허락하지 않아 읽지 않았어요." : "읽지 못했어요."; return; }
       st.measures.unshift({t:Date.now(), kind:"health", v:{steps:r.steps||0, hrAvg:r.hrAvg==null?null:r.hrAvg, hrN:r.hrN||0, sleepMin:r.sleepMin||0}}); save();
-      $("d_health_out").textContent = "걸음 "+(r.steps||0)+" · 심박 "+(r.hrAvg==null?"—":r.hrAvg+" bpm")+" · 수면 "+Math.round((r.sleepMin||0)/60*10)/10+"시간 — 기기 안에만 저장했어요";
+      $("d_health_out").textContent = "걸음 "+(r.steps||0)+" · 심박 "+(r.hrAvg==null?"—":r.hrAvg+" bpm")+" · 수면 "+Math.round((r.sleepMin||0)/60*10)/10+"시간 — 이 폰에 저장했어요";
     };
   })();
   $("p_export").onclick = function(){
