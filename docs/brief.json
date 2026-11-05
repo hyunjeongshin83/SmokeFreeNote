@@ -1,137 +1,146 @@
 {
- "updated": "2026-10-15T07:50:00Z",
- "runs": [
-  {
-   "at": "2026-10-07T05:23:00Z",
-   "task": "금연앱 · 앱 스타일",
-   "commits": [
+  "updated": "2026-11-05T06:30:00Z",
+  "runs": [
     {
-     "sha": "e51a8fd",
-     "title": "가져오기가 시작일·시도 이력·알림 장부를 되살리고, 깨진 저장값을 보존 (VN-116-1~4)"
-    }
-   ],
-   "issues": [],
-   "prs": [
+      "at": "2026-11-05T06:30:00Z",
+      "task": "최신앱 디자인 · API 실험",
+      "commits": [],
+      "issues": [],
+      "prs": [],
+      "decisions": [],
+      "note": "금연앱 B(API 실험): 한국어 음성 안내(SpeechSynthesis)를 후보로 점검 — 이 실행 환경(헤드리스 Chromium)에는 음성이 0개라 소리 실험을 못 함. 새로 알아낸 것 없음, 이슈 없음"
+    },
     {
-     "n": 26,
-     "title": "가져오기가 시작일·시도 이력·알림 장부를 되살리고, 깨진 저장값을 보존 (VN-116-1~4)",
-     "state": "merged",
-     "opened": "2026-10-07"
-    }
-   ],
-   "decisions": [],
-   "note": "리서치 이슈는 VaccineNote-Park(비공개)에 있음 — 이 파일은 이 저장소의 병합 기록만"
-  },
-  {
-   "at": "2026-10-08T06:43:00Z",
-   "task": "금연앱 · 앱 스타일",
-   "commits": [
+      "at": "2026-10-07T05:23:00Z",
+      "task": "금연앱 · 앱 스타일",
+      "commits": [
+        {
+          "sha": "e51a8fd",
+          "title": "가져오기가 시작일·시도 이력·알림 장부를 되살리고, 깨진 저장값을 보존 (VN-116-1~4)"
+        }
+      ],
+      "issues": [],
+      "prs": [
+        {
+          "n": 26,
+          "title": "가져오기가 시작일·시도 이력·알림 장부를 되살리고, 깨진 저장값을 보존 (VN-116-1~4)",
+          "state": "merged",
+          "opened": "2026-10-07"
+        }
+      ],
+      "decisions": [],
+      "note": "리서치 이슈는 VaccineNote-Park(비공개)에 있음 — 이 파일은 이 저장소의 병합 기록만"
+    },
     {
-     "sha": "ab4b20d",
-     "title": "labs: 5분 버티기 화면 켜 두기 실험 (Screen Wake Lock · VN-121-1)"
-    }
-   ],
-   "issues": [],
-   "prs": [
+      "at": "2026-10-08T06:43:00Z",
+      "task": "금연앱 · 앱 스타일",
+      "commits": [
+        {
+          "sha": "ab4b20d",
+          "title": "labs: 5분 버티기 화면 켜 두기 실험 (Screen Wake Lock · VN-121-1)"
+        }
+      ],
+      "issues": [],
+      "prs": [
+        {
+          "n": 27,
+          "title": "labs: 5분 버티기 화면 켜 두기 실험 (Screen Wake Lock · VN-121-1)",
+          "state": "merged",
+          "opened": "2026-10-08"
+        }
+      ],
+      "decisions": [],
+      "note": "리서치 이슈는 VaccineNote-Park(비공개)에 있음 — 이 파일은 이 저장소의 병합 기록만"
+    },
     {
-     "n": 27,
-     "title": "labs: 5분 버티기 화면 켜 두기 실험 (Screen Wake Lock · VN-121-1)",
-     "state": "merged",
-     "opened": "2026-10-08"
-    }
-   ],
-   "decisions": [],
-   "note": "리서치 이슈는 VaccineNote-Park(비공개)에 있음 — 이 파일은 이 저장소의 병합 기록만"
-  },
-  {
-   "at": "2026-10-09T04:23:00Z",
-   "task": "금연앱 · 앱 스타일",
-   "commits": [
+      "at": "2026-10-09T04:23:00Z",
+      "task": "금연앱 · 앱 스타일",
+      "commits": [
+        {
+          "sha": "c69dce8",
+          "title": "COMPETITORS.md 10절 — 이론 기반 앱 근거를 우리 대처 화면에 대 봄 (VN-124-1)"
+        }
+      ],
+      "issues": [],
+      "prs": [
+        {
+          "n": 28,
+          "title": "COMPETITORS.md 10절 — 이론 기반 앱 근거를 우리 대처 화면에 대 봄 (VN-124-1)",
+          "state": "merged",
+          "opened": "2026-10-09"
+        }
+      ],
+      "decisions": [],
+      "note": "리서치 이슈는 VaccineNote-Park(비공개)에 있음 — 이 파일은 이 저장소의 병합 기록만"
+    },
     {
-     "sha": "c69dce8",
-     "title": "COMPETITORS.md 10절 — 이론 기반 앱 근거를 우리 대처 화면에 대 봄 (VN-124-1)"
-    }
-   ],
-   "issues": [],
-   "prs": [
+      "at": "2026-10-13T04:13:00Z",
+      "task": "금연앱 · 앱 스타일",
+      "commits": [
+        {
+          "sha": "f100ced",
+          "title": "알림: 슬롯마다 따로 보낸 날을 기록 — 아침·저녁 시각이 같으면 1초마다 다시 울리던 것 (VN-137-1)"
+        }
+      ],
+      "issues": [],
+      "prs": [
+        {
+          "n": 29,
+          "title": "알림: 슬롯마다 따로 보낸 날을 기록 — 아침·저녁 시각이 같으면 1초마다 다시 울리던 것 (VN-137-1",
+          "state": "merged",
+          "opened": "2026-10-13"
+        }
+      ],
+      "decisions": [],
+      "note": "리서치 이슈는 VaccineNote-Park(비공개)에 있음 — 이 파일은 이 저장소의 병합 기록만"
+    },
     {
-     "n": 28,
-     "title": "COMPETITORS.md 10절 — 이론 기반 앱 근거를 우리 대처 화면에 대 봄 (VN-124-1)",
-     "state": "merged",
-     "opened": "2026-10-09"
-    }
-   ],
-   "decisions": [],
-   "note": "리서치 이슈는 VaccineNote-Park(비공개)에 있음 — 이 파일은 이 저장소의 병합 기록만"
-  },
-  {
-   "at": "2026-10-13T04:13:00Z",
-   "task": "금연앱 · 앱 스타일",
-   "commits": [
+      "at": "2026-10-15T06:40:00Z",
+      "task": "최신앱 디자인 · API 실험",
+      "commits": [
+        {
+          "sha": "8abd7fd",
+          "title": "갈망 창(5분 버티기) 접근성 (#30)"
+        }
+      ],
+      "issues": [],
+      "prs": [
+        {
+          "n": 30,
+          "title": "갈망 창 접근성",
+          "state": "merged",
+          "opened": "2026-10-15"
+        }
+      ],
+      "decisions": [
+        "VN-144-2: 빈 기록 화면 단추 (예/아니오)",
+        "VN-144-3: 갈망 창 5분 유지 여부"
+      ],
+      "note": "눈에 보이는 변화 없이 키보드·낭독 접근성"
+    },
     {
-     "sha": "f100ced",
-     "title": "알림: 슬롯마다 따로 보낸 날을 기록 — 아침·저녁 시각이 같으면 1초마다 다시 울리던 것 (VN-137-1)"
+      "at": "2026-10-15T07:50:00Z",
+      "task": "금주노트 신설 · 상담자용 요약",
+      "commits": [
+        {
+          "sha": "f09719a",
+          "title": "상담자용 요약 pro/ — 내보낸 파일을 상담용 요약·인쇄·연구용 CSV 로 (#32)"
+        }
+      ],
+      "issues": [],
+      "prs": [
+        {
+          "n": 32,
+          "title": "상담자용 요약 pro/",
+          "state": "merged",
+          "opened": "2026-10-15"
+        }
+      ],
+      "decisions": [
+        "금주노트 Pages 켜기(저장소 Settings → Pages → main/root)",
+        "안드로이드 셸 파일 선택기(onShowFileChooser) 추가 여부"
+      ],
+      "note": "금주노트(NonAlcoholNote) 첫 버전 병합. Pages 는 대표님이 켜야 주소가 열림"
     }
-   ],
-   "issues": [],
-   "prs": [
-    {
-     "n": 29,
-     "title": "알림: 슬롯마다 따로 보낸 날을 기록 — 아침·저녁 시각이 같으면 1초마다 다시 울리던 것 (VN-137-1",
-     "state": "merged",
-     "opened": "2026-10-13"
-    }
-   ],
-   "decisions": [],
-   "note": "리서치 이슈는 VaccineNote-Park(비공개)에 있음 — 이 파일은 이 저장소의 병합 기록만"
-  },
-  {
-   "at": "2026-10-15T06:40:00Z",
-   "task": "최신앱 디자인 · API 실험",
-   "commits": [
-    {
-     "sha": "8abd7fd",
-     "title": "갈망 창(5분 버티기) 접근성 (#30)"
-    }
-   ],
-   "issues": [],
-   "prs": [
-    {
-     "n": 30,
-     "title": "갈망 창 접근성",
-     "state": "merged",
-     "opened": "2026-10-15"
-    }
-   ],
-   "decisions": [
-    "VN-144-2: 빈 기록 화면 단추 (예/아니오)",
-    "VN-144-3: 갈망 창 5분 유지 여부"
-   ],
-   "note": "눈에 보이는 변화 없이 키보드·낭독 접근성"
-  },
-  {
-   "at": "2026-10-15T07:50:00Z",
-   "task": "금주노트 신설 · 상담자용 요약",
-   "commits": [
-    {
-     "sha": "f09719a",
-     "title": "상담자용 요약 pro/ — 내보낸 파일을 상담용 요약·인쇄·연구용 CSV 로 (#32)"
-    }
-   ],
-   "issues": [],
-   "prs": [
-    {
-     "n": 32,
-     "title": "상담자용 요약 pro/",
-     "state": "merged",
-     "opened": "2026-10-15"
-    }
-   ],
-   "decisions": [
-    "금주노트 Pages 켜기(저장소 Settings → Pages → main/root)",
-    "안드로이드 셸 파일 선택기(onShowFileChooser) 추가 여부"
-   ],
-   "note": "금주노트(NonAlcoholNote) 첫 버전 병합. Pages 는 대표님이 켜야 주소가 열림"
-  }
- ]
+  ]
 }
