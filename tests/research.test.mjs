@@ -113,14 +113,15 @@ test("연구용 번호는 P- 와 16진수 8자리", () => { assert.match(R.newPi
 
 // ── 동의 철회 · 지우기 · 문구 버전 (Codex 지적 3건) ───────────────────────────────────────────
 const KEY = "smokefree.research.v1";
-function fresh({ tokenDelay = 15, listDelay = 0, uploadDelay = 0, deleteDelay = 0, deleteStatus = 200 } = {}) {
+function fresh({ tokenDelay = 15, listDelay = 0, uploadDelay = 0, deleteDelay = 0, deleteStatus = 200, seed = null } = {}) {
   delete require.cache[require.resolve("../research.js")];
-  const store = {}, calls = [], revoked = [], rec = { aborted: 0, completed: 0 }, listeners = {};
+  const store = {}, calls = [], raw = [], revoked = [], rec = { aborted: 0, completed: 0 }, listeners = {};
   globalThis.addEventListener = (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); };
   globalThis.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
+  if (seed) store[KEY] = JSON.stringify(seed);
   const hooks = {};
   globalThis.fetch = async (url, opts = {}) => {
-    calls.push((opts.method || "GET") + " " + String(url).split("?")[0]);
+    calls.push((opts.method || "GET") + " " + String(url).split("?")[0]); raw.push({ url: String(url), body: opts.body });
     if ((opts.method || "") === "DELETE") { if (deleteDelay) await new Promise(r => setTimeout(r, deleteDelay)); return { ok: deleteStatus === 200, status: deleteStatus, json: async () => ({}) }; }
     const isUp = String(url).includes("/upload/");
     const delay = isUp ? uploadDelay : listDelay;
@@ -136,8 +137,8 @@ function fresh({ tokenDelay = 15, listDelay = 0, uploadDelay = 0, deleteDelay = 
     initTokenClient: o => ({ requestAccessToken() { setTimeout(() => o.callback({ access_token: "T", expires_in: 3600 }), tokenDelay); } }),
     revoke(t) { revoked.push(t); } } } };
   globalThis.SF_RESEARCH_CONFIG = { enabled: true, clientId: "x".repeat(30), consentText: "문구", consentVersion: "v1" };
-  const R2 = require("../research.js"); R2.init({ getState: () => { if (hooks.onBuild) hooks.onBuild(store); return state(); } });
-  return { R: R2, store, calls, revoked, rec, listeners, hooks };
+  const R2 = require("../research.js"); R2.init({ getState: () => { if (hooks.onBuild) hooks.onBuild(store); return hooks.stateFn ? hooks.stateFn() : state(); } });
+  return { R: R2, store, calls, raw, revoked, rec, listeners, hooks };
 }
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const posts = calls => calls.filter(c => c.startsWith("POST") || c.startsWith("PATCH"));
@@ -303,4 +304,86 @@ test("서비스워커: 다른 정적 자산은 그대로 캐시 우선이고, �
   const sw = loadSw({ cached: { "/vendor/qrcodejs-1.0.0.min.js": 1 } });
   const { res } = await sw.run("/vendor/qrcodejs-1.0.0.min.js"); assert.equal(res.from, "cache"); assert.equal(sw.fetched.length, 0, "캐시에 있으면 네트워크를 부르지 않음");
   assert.match(sw.src, /const CACHE="smokefree-v26"/);
+});
+
+// ── 금주노트 연구 저장(#22)에서 Codex 가 지적해 고친 것들을 같은 코드인 이쪽에도 ───────────────────────────
+const planning = (fn) => { const real = globalThis.setTimeout, planned = []; globalThis.setTimeout = (f, ms, ...a) => { if (ms >= 8000) { planned.push(ms); return 0; } return real(f, ms, ...a); }; return { planned, real, run: fn, done() { globalThis.setTimeout = real; } }; };
+
+test("올리는 중에 sync 가 또 불리면 끝난 뒤 한 번 더 예약된다", async () => {
+  const { R: Rr } = fresh({ tokenDelay: 5, uploadDelay: 80 }); const p = planning();
+  try {
+    const first = Rr.enable(); await new Promise(r => p.real(r, 30));
+    const busy = await Rr.sync(false); assert.equal(busy.why, "busy");
+    assert.equal((await first).ok, true); assert.ok(p.planned.length >= 1);
+  } finally { p.done(); }
+});
+
+test("올리는 동안 이 탭의 기록이 달라졌으면(다른 탭 변경 합침) 올린 뒤 한 번 더 예약한다", async () => {
+  const f = fresh({ tokenDelay: 5, uploadDelay: 60 }); const p = planning();
+  try {
+    const first = f.R.enable(); await new Promise(r => p.real(r, 30));
+    f.hooks.stateFn = () => { const s = state(); s.logs.push({ v: 2, t: at(2026, 11, 6, 7, 0), lv: "보통", mood: null, trig: [], cope: [], slip: true }); return s; };
+    assert.equal((await first).ok, true); assert.ok(p.planned.length >= 1);
+  } finally { p.done(); }
+});
+
+test("다시 열었을 때 마지막으로 올린 뒤 내용이 바뀌어 있으면 한 번 따라잡도록 예약한다 (동의한 경우만)", () => {
+  const p = planning();
+  try {
+    fresh({ seed: { on: true, consentVersion: "v1", pid: "P-old00001", sig: "stale" } }); assert.equal(p.planned.length, 1);
+    p.planned.length = 0; fresh({ seed: { on: false, consentVersion: "v1", pid: "P-old00001" } }); assert.equal(p.planned.length, 0);
+  } finally { p.done(); }
+});
+
+test("올린 직후 상태와 같으면 다시 열어도 예약하지 않는다", async () => {
+  const f = fresh({ tokenDelay: 5 }); assert.equal((await f.R.enable()).ok, true);
+  const sig = f.R.state().sig; assert.ok(sig && sig.length > 0); const p = planning();
+  try { fresh({ seed: { on: true, consentVersion: "v1", pid: "P-old00001", sig } }); } finally { p.done(); }
+  assert.equal(p.planned.length, 0);
+});
+
+test("따라잡기 표지는 표 전체의 내용을 본다 — 수·가장 늦은 시각이 같아도 내용이 다르면 다르다", () => {
+  const a = state(), b = state(), c = state(), d = state(), e = state();
+  assert.equal(R._sigOf(a), R._sigOf(b));
+  b.logs[2] = { ...b.logs[2], lv: "강함", slip: true }; assert.equal(a.logs.length, b.logs.length); assert.notEqual(R._sigOf(a), R._sigOf(b));
+  c.attempts = [{ start: at(2026, 10, 21, 9), end: at(2026, 10, 25, 9) }]; assert.notEqual(R._sigOf(a), R._sigOf(c));
+  d.measures[0] = { ...d.measures[0], v: 99 }; assert.notEqual(R._sigOf(a), R._sigOf(d), "측정값 변경도 감지");
+  e.reason = "다른 글"; assert.equal(R._sigOf(a), R._sigOf(e), "내보내지 않는 글은 무시");
+});
+
+test("구글이 토큰을 거절(401)하면 버려서, 다음 「지금 저장」이 새로 로그인한다", async () => {
+  const f = fresh({ tokenDelay: 5 }); let inits = 0; const oi = globalThis.google.accounts.oauth2.initTokenClient;
+  globalThis.google.accounts.oauth2.initTokenClient = o => { inits++; return oi(o); };
+  const of = globalThis.fetch; let n = 0;
+  globalThis.fetch = (u, o) => (String(u).includes("/upload/") && n++ === 0) ? Promise.resolve({ ok: false, status: 401, json: async () => ({}) }) : of(u, o);
+  assert.equal((await f.R.enable()).ok, false); assert.equal((await f.R.sync(true)).ok, true); assert.equal(inits, 2);
+});
+
+test("파일 찾기는 연구 번호까지 맞는 것만 — 다른 기기의 파일을 덮어쓰지 않는다", async () => {
+  const f = fresh({ tokenDelay: 5 }); assert.equal((await f.R.enable()).ok, true);
+  const pid = f.R.state().pid, list = f.raw.find(x => x.url.includes("/drive/v3/files?")); assert.ok(list);
+  assert.match(decodeURIComponent(list.url.split("q=")[1]), new RegExp("sfPid' and value='" + pid + "'"));
+  const up = f.raw.find(x => x.url.includes("/upload/")); assert.ok(Buffer.from(up.body).toString("utf8").includes('"sfPid":"' + pid + '"'));
+});
+
+test("파일을 찾고 만들고 덮어쓰는 구간은 Web Locks 로 탭 사이에 직렬화된다", async () => {
+  let held = 0, maxHeld = 0; const order = [], q = []; let running = false;
+  const origNav = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  Object.defineProperty(globalThis, "navigator", { configurable: true, writable: true, value: { locks: { request: (name, fn) => new Promise((res, rej) => {
+    const run = async () => { running = true; held++; maxHeld = Math.max(maxHeld, held); order.push(name); try { res(await fn()); } catch (e) { rej(e); } finally { held--; running = false; const nx = q.shift(); if (nx) nx(); } };
+    if (running) q.push(run); else run(); }) } } });
+  try {
+    const f = fresh({ tokenDelay: 5, uploadDelay: 40 }); assert.equal((await f.R.enable()).ok, true);
+    assert.ok(order.includes("smokefree-research-sync")); assert.equal(maxHeld, 1); assert.equal(f.R.state().fileId, "F1");
+  } finally { if (origNav) Object.defineProperty(globalThis, "navigator", origNav); else delete globalThis.navigator; }
+});
+
+test("일별: 기록 없이 끝난 앞 시도의 날들도 담고, 시작일이 오래돼도 오늘까지 이어진다", () => {
+  const NOW2 = at(2026, 11, 10, 12);
+  const st = { kind: "cig", perDay: 10, price: 4500, start: at(2026, 11, 8, 9), attempts: [{ start: at(2026, 11, 1, 9), end: at(2026, 11, 7, 9) }], logs: [], measures: [], meds: {} };
+  const d = R.buildDaily(st, PID, NOW2); assert.equal(d[1][1], "2026-11-01"); assert.equal(d[d.length - 1][1], "2026-11-10");
+  const old = { ...st, start: at(2023, 1, 5, 9), attempts: [] }; const d2 = R.buildDaily(old, PID, NOW);
+  assert.equal(d2[1][1], "2023-01-05"); assert.equal(d2[d2.length - 1][1], "2026-11-06"); assert.ok(d2.length > 1300);
+  const big = { ...st, start: at(2000, 1, 1, 9), attempts: [] }; const d3 = R.buildDaily(big, PID, NOW);
+  assert.equal(d3[d3.length - 1][1], "2026-11-06"); assert.ok(d3.length <= 5002);
 });
