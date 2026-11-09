@@ -260,7 +260,7 @@
   // ── Google 로그인(토큰) · Drive 업로드 ─────────────────────────────────────────────────
   var token = null, tokenExp = 0, tc = null, gsiLoading = null;
   // 세대(epoch): 끄기·지우기를 하면 올라가고, 그 전에 시작한 로그인·조회·업로드는 이 값이 달라져 모두 멈춥니다.
-  var epoch = 0;
+  var epoch = 0, timer = null;
   function stopErr() { var e = new Error("stopped"); e.stopped = true; return e; }
   // 지금 보내도 되는 상태인가: 설정이 준비됐고, 참여자가 켜 두었고, **지금 설정의 동의 문구 버전**에 동의한 경우만.
   function consented() {
@@ -295,9 +295,19 @@
       });
     });
   }
+  // 진행 중인 요청: 끄기·지우기·다른 탭의 철회가 오면 모두 abort 해서 남은 전송을 실제로 멈춘다 (이미 서버에 닿은 것은 회수할 수 없음)
+  var inflight = [];
   function api(url, opts, tk) {
     opts = opts || {}; opts.headers = Object.assign({ Authorization: "Bearer " + tk }, opts.headers || {});
-    return (root.fetch)(url, opts).then(function (r) { if (!r.ok) { var e = new Error("drive_" + r.status); e.status = r.status; throw e; } return r; });
+    var ac = typeof AbortController !== "undefined" ? new AbortController() : null;
+    if (ac) { opts.signal = ac.signal; inflight.push(ac); }
+    var rm = function () { var i = inflight.indexOf(ac); if (i >= 0) inflight.splice(i, 1); };
+    return (root.fetch)(url, opts).then(function (r) { rm(); if (!r.ok) { var e = new Error("drive_" + r.status); e.status = r.status; throw e; } return r; }, function (e) { rm(); throw e; });
+  }
+  function cancelAll() {
+    epoch++; busy = false;   // 진행 중인 로그인·조회·업로드를 모두 무효로 하고
+    inflight.splice(0).forEach(function (ac) { try { ac.abort(); } catch (e) {} });   // 이미 나간 요청도 중단한다
+    if (timer) { clearTimeout(timer); timer = null; }
   }
   function findFile(tk) {
     var q = "appProperties has { key='sfResearch' and value='1' } and trashed=false";
@@ -318,7 +328,7 @@
   }
 
   // ── 동기화 · 켜기/끄기 ─────────────────────────────────────────────────────────────────
-  var getSt = function () { return {}; }, onChange = function () {}, timer = null, busy = false, lastRun = 0;
+  var getSt = function () { return {}; }, onChange = function () {}, busy = false, lastRun = 0;
 
   function sync(interactive) {
     if (!consented()) return Promise.resolve({ ok: false, why: "off" });
@@ -359,8 +369,8 @@
     return sync(true);   // 켠 직후 한 번 — 사용자가 누른 직후라 로그인 창이 열릴 수 있다
   }
   function disable() {
-    epoch++; busy = false;   // 진행 중인 로그인·조회·업로드를 모두 무효로 한다
-    var s = readState(); s.on = false; writeState(s); if (timer) { clearTimeout(timer); timer = null; }
+    cancelAll();
+    var s = readState(); s.on = false; writeState(s);
     revokeToken(token); token = null; tokenExp = 0; onChange();
   }
   // 「모든 기록 지우기」용: 끄고, 동의 시각·문구 버전·연구 번호·Drive 파일 id 까지 이 기기에서 모두 지운다 (다시 켜려면 처음부터 동의)
@@ -375,6 +385,11 @@
       .then(function () { var n = readState(); n.fileId = null; n.lastSync = null; writeState(n); onChange(); return { ok: true }; })
       .catch(function (e) { return { ok: false, why: String(e.message || e).slice(0, 40) }; });
   }
+  // 다른 탭에서 끄거나 지웠다면(연구 저장 키가 바뀜) 이 탭의 예약·진행 중인 전송도 멈춘다
+  if (root.addEventListener) root.addEventListener("storage", function (e) {
+    if (e && e.key !== null && e.key !== STORE_KEY) return;
+    if (!consented()) { cancelAll(); revokeToken(token); token = null; tokenExp = 0; onChange(); }
+  });
   function init(opts) { getSt = opts.getState || getSt; onChange = opts.onChange || onChange; }
 
   return { config: config, state: readState, consented: consented, init: init, touch: touch, sync: sync, enable: enable, disable: disable, reset: reset, deleteRemote: deleteRemote,

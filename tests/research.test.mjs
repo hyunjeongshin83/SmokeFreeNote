@@ -113,14 +113,21 @@ test("연구용 번호는 P- 와 16진수 8자리", () => { assert.match(R.newPi
 
 // ── 동의 철회 · 지우기 · 문구 버전 (Codex 지적 3건) ───────────────────────────────────────────
 const KEY = "smokefree.research.v1";
-function fresh({ tokenDelay = 15, listDelay = 0 } = {}) {
+function fresh({ tokenDelay = 15, listDelay = 0, uploadDelay = 0 } = {}) {
   delete require.cache[require.resolve("../research.js")];
-  const store = {}, calls = [], revoked = [];
+  const store = {}, calls = [], revoked = [], rec = { aborted: 0, completed: 0 }, listeners = {};
+  globalThis.addEventListener = (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); };
   globalThis.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
   globalThis.fetch = async (url, opts = {}) => {
     calls.push((opts.method || "GET") + " " + String(url).split("?")[0]);
-    if (listDelay && !String(url).includes("/upload/")) await new Promise(r => setTimeout(r, listDelay));
-    const body = String(url).includes("/upload/") ? { id: "F1" } : { files: [] };
+    const isUp = String(url).includes("/upload/");
+    const delay = isUp ? uploadDelay : listDelay;
+    if (delay) await new Promise((res, rej) => {
+      const tm = setTimeout(res, delay);
+      if (opts.signal) opts.signal.addEventListener("abort", () => { clearTimeout(tm); rec.aborted++; const e = new Error("aborted"); e.name = "AbortError"; rej(e); });
+    });
+    if (isUp) rec.completed++;
+    const body = isUp ? { id: "F1" } : { files: [] };
     return { ok: true, status: 200, json: async () => body };
   };
   globalThis.google = { accounts: { oauth2: {
@@ -128,7 +135,7 @@ function fresh({ tokenDelay = 15, listDelay = 0 } = {}) {
     revoke(t) { revoked.push(t); } } } };
   globalThis.SF_RESEARCH_CONFIG = { enabled: true, clientId: "x".repeat(30), consentText: "문구", consentVersion: "v1" };
   const R2 = require("../research.js"); R2.init({ getState: () => state() });
-  return { R: R2, store, calls, revoked };
+  return { R: R2, store, calls, revoked, rec, listeners };
 }
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const posts = calls => calls.filter(c => c.startsWith("POST") || c.startsWith("PATCH"));
@@ -180,4 +187,29 @@ test("끈 뒤 기록이 바뀌어도 예약·전송이 없다", async () => {
   const { R: Rr, calls } = fresh();
   await Rr.enable(); Rr.disable(); const n = calls.length; Rr.touch(); await wait(30);
   assert.equal(calls.length, n);
+});
+
+test("P1: 업로드가 이미 시작된 뒤 끄면 진행 중인 요청을 실제로 중단한다", async () => {
+  const { R: Rr, rec, calls } = fresh({ tokenDelay: 5, uploadDelay: 120 });
+  const p = Rr.enable(); await wait(40);                 // 토큰·조회는 끝났고 업로드가 진행 중
+  assert.ok(posts(calls).length >= 1, "업로드가 시작된 상태");
+  Rr.disable(); const r = await p; await wait(30);
+  assert.equal(rec.aborted, 1, "업로드 요청에 취소 신호가 가야 함"); assert.equal(rec.completed, 0, "끝까지 가면 안 됨");
+  assert.equal(r.ok, false); assert.equal(Rr.state().fileId, undefined, "중단된 업로드의 결과로 상태를 되살리지 않음");
+});
+
+test("P1: 다른 탭에서 끄면(storage 이벤트) 이 탭의 진행 중인 업로드도 중단한다", async () => {
+  const { R: Rr, rec, store, listeners } = fresh({ tokenDelay: 5, uploadDelay: 120 });
+  assert.ok(listeners.storage && listeners.storage.length === 1, "storage 이벤트를 듣고 있어야 함");
+  const p = Rr.enable(); await wait(40);
+  store[KEY] = JSON.stringify({ on: false, consentVersion: "v1", pid: "P-x" });               // 다른 탭이 끈 것
+  listeners.storage.forEach(f => f({ key: KEY })); const r = await p; await wait(30);
+  assert.equal(rec.aborted, 1); assert.equal(rec.completed, 0); assert.equal(r.ok, false);
+});
+
+test("다른 키의 storage 이벤트나 동의가 유지되는 변경에는 전송을 멈추지 않는다", async () => {
+  const { R: Rr, rec, listeners } = fresh({ tokenDelay: 5, uploadDelay: 60 });
+  const p = Rr.enable(); await wait(30);
+  listeners.storage.forEach(f => f({ key: "smokefree.v1" })); listeners.storage.forEach(f => f({ key: KEY }));   // 동의는 그대로
+  const r = await p; assert.equal(rec.aborted, 0); assert.equal(rec.completed, 1); assert.equal(r.ok, true);
 });
