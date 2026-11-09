@@ -297,8 +297,13 @@
   }
   // 진행 중인 요청: 끄기·지우기·다른 탭의 철회가 오면 모두 abort 해서 남은 전송을 실제로 멈춘다 (이미 서버에 닿은 것은 회수할 수 없음)
   var inflight = [];
-  function api(url, opts, tk) {
+  // ── 전송 관문 ──────────────────────────────────────────────────────────────────────────────
+  // Drive 로 나가는 모든 요청은 반드시 여기를 지납니다. 엑셀 만들기 같은 동기 작업이 모두 끝난 **fetch 직전 이 줄**에서
+  // ① 작업 세대(gate.epoch)가 그대로인지 ② (건강 정보를 싣는 요청이면) 지금 이 순간 저장소에 적힌 동의가 유효한지를 마지막으로 확인합니다.
+  // 앞에서 확인한 결과를 믿지 않습니다 — 다른 탭이 그 사이 바꿨을 수 있습니다. 새 전송 경로를 만들면 gate 를 반드시 넘기세요.
+  function api(url, opts, tk, gate) {
     opts = opts || {}; opts.headers = Object.assign({ Authorization: "Bearer " + tk }, opts.headers || {});
+    if (gate && (gate.epoch !== epoch || (gate.consent && !consented()))) return Promise.reject(stopErr());
     var ac = typeof AbortController !== "undefined" ? new AbortController() : null;
     if (ac) { opts.signal = ac.signal; inflight.push(ac); }
     var rm = function () { var i = inflight.indexOf(ac); if (i >= 0) inflight.splice(i, 1); };
@@ -309,9 +314,9 @@
     inflight.splice(0).forEach(function (ac) { try { ac.abort(); } catch (e) {} });   // 이미 나간 요청도 중단한다
     if (timer) { clearTimeout(timer); timer = null; }
   }
-  function findFile(tk) {
+  function findFile(tk, my) {
     var q = "appProperties has { key='sfResearch' and value='1' } and trashed=false";
-    return api("https://www.googleapis.com/drive/v3/files?spaces=drive&fields=files(id)&q=" + encodeURIComponent(q), {}, tk).then(function (r) { return r.json(); }).then(function (j) { return j.files && j.files[0] ? j.files[0].id : null; });
+    return api("https://www.googleapis.com/drive/v3/files?spaces=drive&fields=files(id)&q=" + encodeURIComponent(q), {}, tk, { epoch: my }).then(function (r) { return r.json(); }).then(function (j) { return j.files && j.files[0] ? j.files[0].id : null; });
   }
   function multipart(meta, bytes) {
     var b = "sfr" + Math.random().toString(36).slice(2), enc = new TextEncoder();
@@ -320,11 +325,11 @@
     out.set(head, 0); out.set(bytes, head.length); out.set(tail, head.length + bytes.length);
     return { body: out, type: "multipart/related; boundary=" + b };
   }
-  function upload(tk, bytes, fileId) {
+  function upload(tk, bytes, fileId, my) {
     var meta = fileId ? { appProperties: { sfResearch: "1" } } : { name: "금연노트_연구자료.xlsx", mimeType: XLSX_MIME, appProperties: { sfResearch: "1" } };
     var m = multipart(meta, bytes);
     var url = fileId ? "https://www.googleapis.com/upload/drive/v3/files/" + fileId + "?uploadType=multipart&fields=id" : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id";
-    return api(url, { method: fileId ? "PATCH" : "POST", headers: { "Content-Type": m.type }, body: m.body }, tk).then(function (r) { return r.json(); }).then(function (j) { return j.id; });
+    return api(url, { method: fileId ? "PATCH" : "POST", headers: { "Content-Type": m.type }, body: m.body }, tk, { epoch: my, consent: true }).then(function (r) { return r.json(); }).then(function (j) { return j.id; });   // 건강 정보를 싣는 요청 — 관문이 동의까지 확인
   }
 
   // ── 동기화 · 켜기/끄기 ─────────────────────────────────────────────────────────────────
@@ -339,11 +344,11 @@
     return getToken(!!interactive).then(function (tk) {
       if (!alive()) throw stopErr();
       var s = readState();
-      return (s.fileId ? Promise.resolve(s.fileId) : findFile(tk)).then(function (id) {
+      return (s.fileId ? Promise.resolve(s.fileId) : findFile(tk, my)).then(function (id) {
         if (!alive()) throw stopErr();   // 로그인·조회를 기다리는 사이 꺼졌거나 동의 문구가 바뀌었으면 보내지 않는다
         var bytes = toXlsx(buildSheets(getSt(), s.pid, Date.now()));   // 보내기 직전에 만든다
-        return upload(tk, bytes, id).catch(function (e) {
-          if (id && e.status === 404) { if (!alive()) throw stopErr(); return upload(tk, bytes, null); }   // 참여자가 Drive 에서 파일을 지웠으면 새로 만든다
+        return upload(tk, bytes, id, my).catch(function (e) {
+          if (id && e.status === 404) return upload(tk, bytes, null, my);   // 참여자가 Drive 에서 파일을 지웠으면 새로 만든다
           throw e;
         });
       });
@@ -368,22 +373,31 @@
     var s = readState(); s.on = true; s.consentAt = Date.now(); s.consentVersion = c.consentVersion; s.pid = s.pid || newPid(); writeState(s); onChange();
     return sync(true);   // 켠 직후 한 번 — 사용자가 누른 직후라 로그인 창이 열릴 수 있다
   }
-  function disable() {
-    cancelAll();
+  function turnOff(keepToken) {
+    cancelAll();   // 예약 · 진행 중인 로그인·조회·업로드를 모두 무효로 하고 중단
     var s = readState(); s.on = false; writeState(s);
-    revokeToken(token); token = null; tokenExp = 0; onChange();
+    if (!keepToken) { revokeToken(token); token = null; tokenExp = 0; }
+    onChange();
   }
+  function disable() { turnOff(false); }
   // 「모든 기록 지우기」용: 끄고, 동의 시각·문구 버전·연구 번호·Drive 파일 id 까지 이 기기에서 모두 지운다 (다시 켜려면 처음부터 동의)
   function reset() {
     disable();
     try { root.localStorage.removeItem(STORE_KEY); } catch (e) {}
     onChange();
   }
+  // 「Drive 파일 지우기」: **먼저 참여를 끈다**(예약·진행 중 요청 모두 중단) — 그다음 파일을 지운다.
+  // 지우는 동안 자동 저장이 살아 있어 새 파일을 만들거나, 지우기가 실패했는데 참여가 켜진 채 남는 일이 없다.
+  // 이미 가진 토큰은 지우기에만 쓰고 끝나면 취소한다.
   function deleteRemote() {
-    var s = readState(); if (!s.fileId) return Promise.resolve({ ok: true });
-    return getToken(true).then(function (tk) { return api("https://www.googleapis.com/drive/v3/files/" + s.fileId, { method: "DELETE" }, tk); })
-      .then(function () { var n = readState(); n.fileId = null; n.lastSync = null; writeState(n); onChange(); return { ok: true }; })
-      .catch(function (e) { return { ok: false, why: String(e.message || e).slice(0, 40) }; });
+    var id = readState().fileId; if (!id) return Promise.resolve({ ok: true });
+    var held = token && Date.now() < tokenExp ? token : null;
+    turnOff(true);
+    var my = epoch, done = function () { revokeToken(token); token = null; tokenExp = 0; };
+    return (held ? Promise.resolve(held) : getToken(true)).then(function (tk) { return api("https://www.googleapis.com/drive/v3/files/" + id, { method: "DELETE" }, tk, { epoch: my }); })
+      .catch(function (e) { if (e && e.status === 404) return null; throw e; })   // 이미 없으면 지운 것과 같다
+      .then(function () { done(); var n = readState(); if (n.fileId === id) { n.fileId = null; n.lastSync = null; writeState(n); } onChange(); return { ok: true }; })
+      .catch(function (e) { done(); onChange(); return { ok: false, why: String(e && e.message || e).slice(0, 40) }; });
   }
   // 다른 탭에서 끄거나 지웠다면(연구 저장 키가 바뀜) 이 탭의 예약·진행 중인 전송도 멈춘다
   if (root.addEventListener) root.addEventListener("storage", function (e) {
