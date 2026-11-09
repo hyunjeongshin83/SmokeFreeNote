@@ -129,7 +129,7 @@ header a.open{font-size:12.5px;font-weight:700;color:#06413E;background:var(--br
   // ── 데스크톱: 분할 화면 ──
   document.getElementById("load").style.display="none";
   document.getElementById("split").classList.add("on");
-  document.getElementById("fweb").src=APP;
+  document.getElementById("fweb").src=APP + location.search + location.hash;   // 바로가기·북마크의 ?tab · ?sos 등은 웹앱 칸에만 넘긴다 (두 칸에 다 넘기면 ?use= 같은 기록이 두 번 남는다)
   document.getElementById("fmob").src=APP;
 
   var appUrl=new URL(APP,location.href).href;
