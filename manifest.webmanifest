@@ -3,15 +3,15 @@
   "short_name": "금연노트",
   "description": "금연 일수·아낀 돈을 보여주고 흡연 욕구를 기록하는 금연 기록장",
   "lang": "ko",
-  "start_url": "./index.html",
+  "start_url": "./SmokeFree_app.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#EEF8F3",
   "theme_color": "#0A7168",
   "shortcuts": [
-    { "name": "지금 담배가 당겨요", "short_name": "당겨요", "url": "./index.html?sos=1", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
-    { "name": "욕구 기록하기", "short_name": "기록", "url": "./index.html?tab=log", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] }
+    { "name": "지금 담배가 당겨요", "short_name": "당겨요", "url": "./SmokeFree_app.html?sos=1", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "욕구 기록하기", "short_name": "기록", "url": "./SmokeFree_app.html?tab=log", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] }
   ],
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
