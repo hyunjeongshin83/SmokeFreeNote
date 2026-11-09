@@ -27,7 +27,7 @@ body{font-family:'Pretendard','Inter',-apple-system,sans-serif;color:var(--d2);l
   background:linear-gradient(180deg,var(--g0) 0%,#FAFDFB 30%,var(--g0) 100%);
   box-shadow:0 0 60px rgba(0,0,0,.28);padding:22px 16px 110px;}
 /* 진입(스플래시) 화면 — 샘플(Mobile app UI Template)의 첫 화면을 앱 색으로: 화면 전체 그라데이션 가운데 로고·이름 + 한 줄.
-   글자는 앱에 이미 있는 것만 씁니다(이름 「금연노트」 · 머리글의 「오늘도 한 걸음」). 열릴 때 한 번(탭 하나당), 알림·바로가기(?tab · ?sos · ?use · ?nf)로 들어오면 건너뜁니다.
+   글자는 앱에 이미 있는 것만 씁니다(이름 「금연노트」 · 머리글의 「오늘도 한 걸음」). 열 때마다(앱을 켜거나 새로고침할 때), 알림·바로가기(?tab · ?sos · ?use · ?nf)로 들어오면 건너뜁니다.
    JS 가 죽어도 3초 뒤 스스로 사라집니다(sfSplashOut). 흰 글자 대비는 화면 픽셀로 잰 값 — 아래 PR 본문. */
 #splash{position:fixed;inset:0;z-index:100;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;color:#fff;cursor:pointer;overflow:hidden;
   background:linear-gradient(180deg,var(--g4) 0%,var(--g7) 100%);opacity:1;transition:opacity .4s ease;}
@@ -255,7 +255,7 @@ html.big body{zoom:1.18;}
 </style>
 </head>
 <body>
-<script>try{ if(!sessionStorage.getItem("sfSplash") && !/[?&](tab|sos|use|nf)=/.test(location.search)) document.documentElement.classList.add("splash-on"); }catch(e){}</script>
+<script>try{ if(!/[?&](tab|sos|use|nf)=/.test(location.search)) document.documentElement.classList.add("splash-on"); }catch(e){}</script>
 <div id="splash" aria-hidden="true"><div class="mark"><svg aria-hidden="true" focusable="false"><use href="#i-nosmoke"/></svg><span>금연노트</span></div><div class="tag">오늘도 한 걸음</div></div>
 <!-- 선 아이콘 한 벌 (백신노트·메디노트·금연노트 공통 · 24×24 · 선 2px · 글자색을 따름) -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
@@ -1515,13 +1515,12 @@ html.big body{zoom:1.18;}
     if(e.key === KEY && pullOthers()) rerender();
   });
   document.addEventListener("visibilitychange", function(){ if(!document.hidden && pullOthers()) rerender(); });
-  // 진입(스플래시) 화면 — 한 번 보이고(1.6초, 움직임 줄이기면 0.9초) 넘어갑니다. 아무 곳이나 누르거나 Enter·Esc·Space 로도 건너뜁니다.
+  // 진입(스플래시) 화면 — 열 때마다 보이고(1.6초, 움직임 줄이기면 0.9초) 넘어갑니다. 아무 곳이나 누르거나 Enter·Esc·Space 로도 건너뜁니다.
   (function(){
     var root = document.documentElement, el = $("splash"); if(!el || !root.classList.contains("splash-on")) return;
     var done = false, reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
     function hide(){
       if(done) return; done = true;
-      try{ sessionStorage.setItem("sfSplash", "1"); }catch(e){}
       el.classList.add("out");
       setTimeout(function(){ root.classList.remove("splash-on"); }, reduce ? 0 : 450);
     }
