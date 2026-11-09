@@ -35,6 +35,11 @@ body{font-family:'Pretendard','Inter',-apple-system,sans-serif;color:var(--d2);l
 .entry .logo svg{width:36px;height:36px;}
 .entry .title{color:#fff;font-size:2rem;}
 .entry .sub{color:#fff;margin-top:8px;}
+.entry{position:relative;overflow:hidden;isolation:isolate;}
+/* 연초록 원 두 개 — 장식입니다. 글자 뒤(z-index:-1)에 아주 옅게 깔아 흰 글자 대비가 AA 밑으로 내려가지 않게 함 */
+.entry:before,.entry:after{content:"";position:absolute;border-radius:50%;background:var(--g2);pointer-events:none;z-index:-1;}
+.entry:before{width:170px;height:170px;top:-62px;right:-48px;opacity:.14;}
+.entry:after{width:120px;height:120px;bottom:-46px;left:-36px;opacity:.10;}
 .card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:20px 18px 18px;box-shadow:0 12px 36px rgba(8,74,49,.08);margin-bottom:13px;}
 .title{font-family:'Gaegu','Pretendard',cursive;font-size:1.6875rem;font-weight:700;color:var(--ink);}
 .sub{font-size:0.9375rem;color:var(--d3);margin-top:4px;line-height:1.5;}
