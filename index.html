@@ -1449,7 +1449,7 @@ html.big body{zoom:1.18;}
   $("rs_now").onclick = function(){ var R = window.Research; if(!R) return; R.sync(true).then(function(r){ toast(r.ok ? "내 Drive 에 저장했어요" : "저장하지 못했어요. 잠시 뒤 다시 눌러 주세요"); renderResearch(); }); };
   $("rs_del").onclick = function(){
     var R = window.Research; if(!R || !confirm("내 Drive 의 연구 파일을 지울까요? 이 기기의 기록은 그대로예요. 연구 참여도 꺼져요.")) return;
-    R.deleteRemote().then(function(r){ if(r.ok){ R.disable(); toast("Drive 파일을 지우고 연구 참여를 껐어요"); } else toast("지우지 못했어요. Drive 에서 직접 지울 수 있어요"); renderResearch(); });
+    R.deleteRemote().then(function(r){ toast(r.ok ? "Drive 파일을 지우고 연구 참여를 껐어요" : "지우지 못했어요. 연구 참여는 꺼 두었어요. Drive 에서 직접 지울 수 있어요"); renderResearch(); });   // deleteRemote 가 먼저 참여를 끈다 — 실패해도 꺼진 채
   };
   function renderNotif(){ $("n_on").checked = !!st.notif.on; $("n_am").value = st.notif.am; $("n_pm").value = st.notif.pm; $("n_q1").value = st.notif.q1; $("n_q2").value = st.notif.q2; }
   $("n_on").onchange = function(){

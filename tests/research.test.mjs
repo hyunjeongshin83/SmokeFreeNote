@@ -113,13 +113,15 @@ test("연구용 번호는 P- 와 16진수 8자리", () => { assert.match(R.newPi
 
 // ── 동의 철회 · 지우기 · 문구 버전 (Codex 지적 3건) ───────────────────────────────────────────
 const KEY = "smokefree.research.v1";
-function fresh({ tokenDelay = 15, listDelay = 0, uploadDelay = 0 } = {}) {
+function fresh({ tokenDelay = 15, listDelay = 0, uploadDelay = 0, deleteDelay = 0, deleteStatus = 200 } = {}) {
   delete require.cache[require.resolve("../research.js")];
   const store = {}, calls = [], revoked = [], rec = { aborted: 0, completed: 0 }, listeners = {};
   globalThis.addEventListener = (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); };
   globalThis.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
+  const hooks = {};
   globalThis.fetch = async (url, opts = {}) => {
     calls.push((opts.method || "GET") + " " + String(url).split("?")[0]);
+    if ((opts.method || "") === "DELETE") { if (deleteDelay) await new Promise(r => setTimeout(r, deleteDelay)); return { ok: deleteStatus === 200, status: deleteStatus, json: async () => ({}) }; }
     const isUp = String(url).includes("/upload/");
     const delay = isUp ? uploadDelay : listDelay;
     if (delay) await new Promise((res, rej) => {
@@ -134,8 +136,8 @@ function fresh({ tokenDelay = 15, listDelay = 0, uploadDelay = 0 } = {}) {
     initTokenClient: o => ({ requestAccessToken() { setTimeout(() => o.callback({ access_token: "T", expires_in: 3600 }), tokenDelay); } }),
     revoke(t) { revoked.push(t); } } } };
   globalThis.SF_RESEARCH_CONFIG = { enabled: true, clientId: "x".repeat(30), consentText: "문구", consentVersion: "v1" };
-  const R2 = require("../research.js"); R2.init({ getState: () => state() });
-  return { R: R2, store, calls, revoked, rec, listeners };
+  const R2 = require("../research.js"); R2.init({ getState: () => { if (hooks.onBuild) hooks.onBuild(store); return state(); } });
+  return { R: R2, store, calls, revoked, rec, listeners, hooks };
 }
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const posts = calls => calls.filter(c => c.startsWith("POST") || c.startsWith("PATCH"));
@@ -212,4 +214,46 @@ test("다른 키의 storage 이벤트나 동의가 유지되는 변경에는 전
   const p = Rr.enable(); await wait(30);
   listeners.storage.forEach(f => f({ key: "smokefree.v1" })); listeners.storage.forEach(f => f({ key: KEY }));   // 동의는 그대로
   const r = await p; assert.equal(rec.aborted, 0); assert.equal(rec.completed, 1); assert.equal(r.ok, true);
+});
+
+// ── 관문(전송 직전 단일 확인) · 지우기 순서 (Codex 3차 지적 2건) ───────────────────────────────
+const writes = calls => calls.filter(c => c.startsWith("POST") || c.startsWith("PATCH"));
+
+test("P1: 엑셀을 만드는 동안 다른 탭이 동의를 철회하면 그 직후 업로드를 시작하지 않는다 (관문)", async () => {
+  const { R: Rr, calls, hooks } = fresh({ tokenDelay: 3 });
+  const r0 = await Rr.enable(); assert.equal(r0.ok, true);
+  const n = writes(calls).length;
+  // 엑셀 직렬화(동기) 도중에 다른 탭이 저장소의 동의를 지웠다고 흉내 낸다 — 이 탭의 storage 콜백은 그 동안 실행될 수 없다
+  hooks.onBuild = store => { store[KEY] = JSON.stringify({ on: false, consentVersion: "v1", pid: "P-x", fileId: "F1" }); };
+  const r = await Rr.sync(false);
+  assert.equal(r.ok, false); assert.equal(writes(calls).length, n, "철회된 뒤에는 업로드 요청이 만들어지면 안 됨");
+});
+
+test("P1: 지우기는 참여를 먼저 끈다 — 삭제 응답을 기다리는 동안 자동 저장이 새 파일을 만들 수 없다", async () => {
+  const { R: Rr, calls, rec } = fresh({ tokenDelay: 3, uploadDelay: 100, deleteDelay: 80 });
+  const r0 = await Rr.enable(); assert.equal(r0.ok, true);
+  const slow = Rr.sync(false); await wait(15);          // 느린 저장(PATCH)이 진행 중
+  const del = Rr.deleteRemote();
+  assert.equal(Rr.state().on, false, "삭제 응답 전에 이미 꺼져 있어야 함"); assert.equal(Rr.consented(), false);
+  const n = writes(calls).length; Rr.touch(); await wait(20);
+  assert.equal(writes(calls).length, n, "삭제 중에는 새 저장(POST·PATCH) 예약·전송이 없음");
+  const r = await del; await slow; await wait(120);
+  assert.equal(r.ok, true); assert.equal(rec.aborted, 1, "진행 중이던 저장은 중단");
+  assert.equal(calls.filter(c => c.startsWith("POST")).length, 1, "새 파일을 만들지 않음(처음 만든 1건뿐)");
+  assert.ok(calls.some(c => c.startsWith("DELETE")));
+  assert.equal(Rr.state().fileId, null); assert.equal(Rr.state().on, false);
+});
+
+test("P1: 지우기가 실패해도 참여는 꺼진 채이고 파일 id 는 남아 다시 지울 수 있다", async () => {
+  const { R: Rr } = fresh({ tokenDelay: 3, deleteStatus: 500 });
+  await Rr.enable();
+  const r = await Rr.deleteRemote();
+  assert.equal(r.ok, false); assert.equal(Rr.state().on, false, "실패해도 켜진 채 남으면 안 됨"); assert.equal(Rr.consented(), false);
+  assert.equal(Rr.state().fileId, "F1", "다시 지울 수 있게 남김");
+});
+
+test("지우려는 파일이 이미 없으면(404) 지운 것으로 본다", async () => {
+  const { R: Rr } = fresh({ tokenDelay: 3, deleteStatus: 404 });
+  await Rr.enable(); const r = await Rr.deleteRemote();
+  assert.equal(r.ok, true); assert.equal(Rr.state().fileId, null);
 });
