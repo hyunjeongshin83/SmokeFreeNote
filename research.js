@@ -259,6 +259,15 @@
 
   // ── Google 로그인(토큰) · Drive 업로드 ─────────────────────────────────────────────────
   var token = null, tokenExp = 0, tc = null, gsiLoading = null;
+  // 세대(epoch): 끄기·지우기를 하면 올라가고, 그 전에 시작한 로그인·조회·업로드는 이 값이 달라져 모두 멈춥니다.
+  var epoch = 0;
+  function stopErr() { var e = new Error("stopped"); e.stopped = true; return e; }
+  // 지금 보내도 되는 상태인가: 설정이 준비됐고, 참여자가 켜 두었고, **지금 설정의 동의 문구 버전**에 동의한 경우만.
+  function consented() {
+    var c = config(), s = readState();
+    return c.ready && s.on === true && s.consentVersion === c.consentVersion;
+  }
+  function revokeToken(t) { try { if (t && root.google && root.google.accounts && root.google.accounts.oauth2) root.google.accounts.oauth2.revoke(t, function () {}); } catch (e) {} }
   function loadGsi() {
     if (root.google && root.google.accounts && root.google.accounts.oauth2) return Promise.resolve();
     if (gsiLoading) return gsiLoading;
@@ -273,11 +282,13 @@
   function getToken(interactive) {
     var c = config();
     if (token && Date.now() < tokenExp) return Promise.resolve(token);
+    var my = epoch;
     return loadGsi().then(function () {
+      if (my !== epoch) throw stopErr();
       return new Promise(function (res, rej) {
         tc = root.google.accounts.oauth2.initTokenClient({
           client_id: c.clientId, scope: SCOPE,
-          callback: function (r) { if (r && r.access_token) { token = r.access_token; tokenExp = Date.now() + Math.max(60, (r.expires_in || 3600) - 120) * 1000; res(token); } else rej(new Error((r && r.error) || "no_token")); },
+          callback: function (r) { if (my !== epoch) { if (r && r.access_token) revokeToken(r.access_token); rej(stopErr()); return; } if (r && r.access_token) { token = r.access_token; tokenExp = Date.now() + Math.max(60, (r.expires_in || 3600) - 120) * 1000; res(token); } else rej(new Error((r && r.error) || "no_token")); },
           error_callback: function (e) { rej(new Error((e && e.type) || "auth_error")); }
         });
         tc.requestAccessToken({ prompt: interactive ? "consent" : "" });
@@ -310,25 +321,34 @@
   var getSt = function () { return {}; }, onChange = function () {}, timer = null, busy = false, lastRun = 0;
 
   function sync(interactive) {
-    var c = config(), s = readState();
-    if (!c.ready || !s.on) return Promise.resolve({ ok: false, why: "off" });
+    if (!consented()) return Promise.resolve({ ok: false, why: "off" });
     if (busy) return Promise.resolve({ ok: false, why: "busy" });
     busy = true;
-    var bytes = toXlsx(buildSheets(getSt(), s.pid, Date.now()));
+    var my = epoch, alive = function () { return my === epoch && consented(); };
+    var done = function () { if (my === epoch) busy = false; };
     return getToken(!!interactive).then(function (tk) {
+      if (!alive()) throw stopErr();
+      var s = readState();
       return (s.fileId ? Promise.resolve(s.fileId) : findFile(tk)).then(function (id) {
-        return upload(tk, bytes, id).catch(function (e) { if (id && e.status === 404) return upload(tk, bytes, null); throw e; });   // 참여자가 Drive 에서 파일을 지웠으면 새로 만든다
+        if (!alive()) throw stopErr();   // 로그인·조회를 기다리는 사이 꺼졌거나 동의 문구가 바뀌었으면 보내지 않는다
+        var bytes = toXlsx(buildSheets(getSt(), s.pid, Date.now()));   // 보내기 직전에 만든다
+        return upload(tk, bytes, id).catch(function (e) {
+          if (id && e.status === 404) { if (!alive()) throw stopErr(); return upload(tk, bytes, null); }   // 참여자가 Drive 에서 파일을 지웠으면 새로 만든다
+          throw e;
+        });
       });
     }).then(function (id) {
+      if (my !== epoch) return { ok: false, why: "off" };   // 올리는 도중에 지우기·끄기를 했다면 상태를 되살리지 않는다
       var n = readState(); n.fileId = id; n.lastSync = Date.now(); n.lastError = null; n.needAuth = false; writeState(n); busy = false; lastRun = Date.now(); onChange(); return { ok: true };
     }).catch(function (e) {
+      if (e && e.stopped) { done(); return { ok: false, why: "off" }; }
+      if (my !== epoch) return { ok: false, why: "off" };
       var n = readState(); n.lastError = String(e && e.message || e).slice(0, 40); n.needAuth = !interactive; writeState(n); busy = false; onChange(); return { ok: false, why: n.lastError };
     });
   }
   // 기록이 바뀔 때마다 부르면 됩니다. 8초 모았다가 보내고, 마지막 전송 뒤 60초 안에는 다시 보내지 않습니다.
   function touch() {
-    var c = config(), s = readState();
-    if (!c.ready || !s.on) return;
+    if (!consented()) return;
     if (timer) clearTimeout(timer);
     var wait = Math.max(8000, 60000 - (Date.now() - lastRun));
     timer = setTimeout(function () { timer = null; sync(false); }, wait);
@@ -339,9 +359,15 @@
     return sync(true);   // 켠 직후 한 번 — 사용자가 누른 직후라 로그인 창이 열릴 수 있다
   }
   function disable() {
+    epoch++; busy = false;   // 진행 중인 로그인·조회·업로드를 모두 무효로 한다
     var s = readState(); s.on = false; writeState(s); if (timer) { clearTimeout(timer); timer = null; }
-    try { if (token && root.google && root.google.accounts && root.google.accounts.oauth2) root.google.accounts.oauth2.revoke(token, function () {}); } catch (e) {}
-    token = null; tokenExp = 0; onChange();
+    revokeToken(token); token = null; tokenExp = 0; onChange();
+  }
+  // 「모든 기록 지우기」용: 끄고, 동의 시각·문구 버전·연구 번호·Drive 파일 id 까지 이 기기에서 모두 지운다 (다시 켜려면 처음부터 동의)
+  function reset() {
+    disable();
+    try { root.localStorage.removeItem(STORE_KEY); } catch (e) {}
+    onChange();
   }
   function deleteRemote() {
     var s = readState(); if (!s.fileId) return Promise.resolve({ ok: true });
@@ -351,7 +377,7 @@
   }
   function init(opts) { getSt = opts.getState || getSt; onChange = opts.onChange || onChange; }
 
-  return { config: config, state: readState, init: init, touch: touch, sync: sync, enable: enable, disable: disable, deleteRemote: deleteRemote,
+  return { config: config, state: readState, consented: consented, init: init, touch: touch, sync: sync, enable: enable, disable: disable, reset: reset, deleteRemote: deleteRemote,
     buildSheets: buildSheets, buildRecords: buildRecords, buildMeasures: buildMeasures, buildDaily: buildDaily, buildCodebook: buildCodebook, toXlsx: toXlsx, newPid: newPid,
     CODEBOOK_VERSION: CODEBOOK_VERSION, _crc32: crc32 };
 });

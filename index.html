@@ -1382,7 +1382,7 @@ html.big body{zoom:1.18;}
   $("p_wipe").onclick = function(){
     if(!confirm("모든 기록과 설정을 지울까요? 되돌릴 수 없어요.")) return;
     if(!confirm("정말 지울까요? 먼저 내보내기를 해 두는 것이 좋아요.")) return;
-    var done = function(){ try{ localStorage.removeItem(KEY); localStorage.removeItem(KEY+".corrupt"); }catch(e){} location.reload(); };
+    var done = function(){ try{ localStorage.removeItem(KEY); localStorage.removeItem(KEY+".corrupt"); }catch(e){} try{ if(window.Research) window.Research.reset(); else localStorage.removeItem("smokefree.research.v1"); }catch(e){} location.reload(); };   // 연구 참여 동의·번호도 함께 지운다 — 다시 켜려면 처음부터 동의
     mTx("readwrite", function(x){ return x.clear(); }).then(done, function(){ toast("사진을 지우지 못해 기록을 그대로 두었어요. 다시 시도해 주세요"); });   // 사진 보관소(IndexedDB)가 비워진 뒤에만 기록을 지운다 — 안 그러면 앱에서 못 지우는 사진이 남는다   // 보존해 둔 깨진 원문도 함께 (VN-116-3 Codex)
   };
 
@@ -1423,14 +1423,16 @@ html.big body{zoom:1.18;}
     var s = R.state(), c = R.config();
     card.style.display = "";
     $("rs_consent").textContent = c.consentText;
-    $("rs_on").checked = !!s.on;
+    var agreed = R.consented();   // 지금 문구의 버전에 동의한 경우만 켜진 것으로 본다
+    $("rs_on").checked = agreed;
     var msg = "꺼져 있어요. 기록은 이 기기에만 있어요.";
-    if(s.on){
+    if(s.on && !agreed) msg = "동의 문구가 새로 바뀌어서 저장을 멈췄어요. 위 내용을 읽고 다시 동의해 주세요.";
+    else if(s.on){
       msg = s.lastSync ? "마지막 저장 " + rsWhen(s.lastSync) : "아직 저장하기 전이에요";
       if(s.lastError) msg += " · 저장하지 못했어요. 「지금 저장」을 눌러 Google 연결을 다시 해 주세요";
     }
     $("rs_status").textContent = msg;
-    $("rs_now").disabled = !s.on; $("rs_del").disabled = !s.fileId;
+    $("rs_now").disabled = !agreed; $("rs_del").disabled = !s.fileId;
   }
   if(window.Research) window.Research.init({getState:function(){ return st; }, onChange:renderResearch});
   $("rs_on").onchange = function(){

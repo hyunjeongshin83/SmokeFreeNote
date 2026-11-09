@@ -110,3 +110,74 @@ test("준비 안 된 상태에서는 enable() 이 아무 데도 접속하지 않
 });
 
 test("연구용 번호는 P- 와 16진수 8자리", () => { assert.match(R.newPid(), /^P-[0-9a-f]{8}$/); });
+
+// ── 동의 철회 · 지우기 · 문구 버전 (Codex 지적 3건) ───────────────────────────────────────────
+const KEY = "smokefree.research.v1";
+function fresh({ tokenDelay = 15, listDelay = 0 } = {}) {
+  delete require.cache[require.resolve("../research.js")];
+  const store = {}, calls = [], revoked = [];
+  globalThis.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
+  globalThis.fetch = async (url, opts = {}) => {
+    calls.push((opts.method || "GET") + " " + String(url).split("?")[0]);
+    if (listDelay && !String(url).includes("/upload/")) await new Promise(r => setTimeout(r, listDelay));
+    const body = String(url).includes("/upload/") ? { id: "F1" } : { files: [] };
+    return { ok: true, status: 200, json: async () => body };
+  };
+  globalThis.google = { accounts: { oauth2: {
+    initTokenClient: o => ({ requestAccessToken() { setTimeout(() => o.callback({ access_token: "T", expires_in: 3600 }), tokenDelay); } }),
+    revoke(t) { revoked.push(t); } } } };
+  globalThis.SF_RESEARCH_CONFIG = { enabled: true, clientId: "x".repeat(30), consentText: "문구", consentVersion: "v1" };
+  const R2 = require("../research.js"); R2.init({ getState: () => state() });
+  return { R: R2, store, calls, revoked };
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const posts = calls => calls.filter(c => c.startsWith("POST") || c.startsWith("PATCH"));
+
+test("P1: 로그인을 요청하기 전에 끄면 토큰을 요청하지도 않고, 업로드도 없다", async () => {
+  const { R: Rr, calls, revoked } = fresh({ tokenDelay: 30 });
+  const p = Rr.enable(); Rr.disable();
+  const r = await p; await wait(50);
+  assert.equal(calls.length, 0); assert.equal(r.ok, false); assert.equal(revoked.length, 0, "받은 토큰이 없으니 취소할 것도 없음");
+  assert.equal(Rr.state().on, false);
+});
+
+test("P1: 로그인 창이 열려 있는 사이 끄면 업로드하지 않고, 늦게 온 토큰은 바로 취소한다", async () => {
+  const { R: Rr, calls, revoked } = fresh({ tokenDelay: 30 });
+  const p = Rr.enable(); await wait(8);                  // 로그인 요청은 나간 상태
+  Rr.disable(); const r = await p; await wait(50);
+  assert.equal(calls.length, 0, "조회도 업로드도 없음"); assert.equal(r.ok, false);
+  assert.ok(revoked.includes("T"), "늦게 온 토큰은 바로 취소"); assert.equal(Rr.state().on, false);
+});
+
+test("P1: 파일 조회를 기다리는 사이 끄면 업로드하지 않는다", async () => {
+  const { R: Rr, calls } = fresh({ tokenDelay: 5, listDelay: 60 });
+  const p = Rr.enable(); await wait(25);                 // 토큰은 왔고 조회가 진행 중
+  Rr.disable(); await p; await wait(80);
+  assert.equal(posts(calls).length, 0, "조회 뒤 업로드가 일어나면 안 됨: " + calls.join(" | "));
+});
+
+test("P1: 「모든 기록 지우기」(reset)는 동의·번호·파일 id 를 모두 지우고 다시 켜기 전에는 보내지 않는다", async () => {
+  const { R: Rr, calls, store } = fresh();
+  const r = await Rr.enable(); assert.equal(r.ok, true); assert.ok(store[KEY]);
+  Rr.reset();
+  assert.equal(store[KEY], undefined, "연구 저장 키가 남지 않음"); assert.equal(Rr.state().on, undefined); assert.equal(Rr.state().pid, undefined);
+  const n = calls.length; Rr.touch(); await wait(30); assert.equal(calls.length, n, "지운 뒤에는 예약도 전송도 없음");
+  assert.equal((await Rr.sync(false)).ok, false);
+});
+
+test("P2: 동의 문구 버전이 바뀌면 다시 동의하기 전까지 보내지 않는다", async () => {
+  const { R: Rr, calls, store } = fresh();
+  store[KEY] = JSON.stringify({ on: true, consentVersion: "v0", pid: "P-old00001", fileId: "OLD" });   // 이전 문구(v0)에 동의한 참여자
+  assert.equal(Rr.consented(), false);
+  assert.equal((await Rr.sync(false)).ok, false); Rr.touch(); await wait(30);
+  assert.equal(calls.length, 0, "재동의 전에는 어떤 요청도 없음");
+  const r = await Rr.enable();                                   // 새 문구를 읽고 직접 켬
+  assert.equal(r.ok, true); assert.equal(Rr.consented(), true); assert.equal(Rr.state().consentVersion, "v1"); assert.equal(Rr.state().pid, "P-old00001");
+  assert.ok(posts(calls).length + calls.filter(c => c.startsWith("PATCH")).length >= 1);
+});
+
+test("끈 뒤 기록이 바뀌어도 예약·전송이 없다", async () => {
+  const { R: Rr, calls } = fresh();
+  await Rr.enable(); Rr.disable(); const n = calls.length; Rr.touch(); await wait(30);
+  assert.equal(calls.length, n);
+});
