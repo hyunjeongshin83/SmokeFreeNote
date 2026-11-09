@@ -15,7 +15,9 @@ docs/experiments/ecig-sensing/  전자담배 센서 자동 수집 시뮬레이�
 docs/PUFF-LINK.md    퍼프 연동 뼈대 (labs/puff-link/ · 가짜 기기만 · 앱 본체에 연결 안 됨)
 ```
 
-안드로이드 셸은 `android/` 입니다. 앱 화면은 `index.html` 그대로이고 `assets/` 는 git 에 없습니다 —
+화면은 둘입니다 (MediNote 와 같은 구조): **`SmokeFree_app.html`** 이 앱 본체(웹앱 · 모바일 · 안드로이드 앱이 모두 이것)이고, `index.html` 은 휴대폰에서는 앱으로 바로 넘기고
+컴퓨터에서는 「웹앱 | 모바일 앱」을 나란히 보여 주는 안내 화면입니다. 화면을 고칠 곳은 `SmokeFree_app.html` 한 곳입니다.
+안드로이드 셸은 `android/` 입니다. 앱 화면은 `SmokeFree_app.html` 그대로이고 `assets/` 는 git 에 없습니다 —
 빌드 직전에 `python3 tools/build-packaged-app.py` 가 복사합니다. APK 는 Actions → 「안드로이드 APK」 → Artifacts.
 이 작업 환경에서는 Gradle 을 못 돌립니다. 코틀린을 고쳤으면 PR 의 Actions 결과를 보고 빨간 것을 고치세요.
 

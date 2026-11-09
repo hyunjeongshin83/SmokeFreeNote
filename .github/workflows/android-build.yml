@@ -1,7 +1,7 @@
 # 금연노트 안드로이드 APK — MediNote 의 android-build.yml 과 같은 방식
 #
 # assets/ 는 저장소에 없습니다. 빌드 직전에 tools/build-packaged-app.py 가
-# 웹앱 원본(index.html)을 복사해 넣으므로 앱 화면이 웹앱과 갈라질 수 없습니다.
+# 웹앱 원본(SmokeFree_app.html)을 복사해 넣으므로 앱 화면이 웹앱과 갈라질 수 없습니다.
 #
 # 이 작업 환경에서는 Gradle 을 돌릴 수 없어(Android SDK · dl.google.com 없음)
 # 첫 실행이 곧 확인입니다. MediNote 는 같은 판본으로 2026-09-20 에 성공했습니다.
@@ -14,6 +14,7 @@ on:
     branches: [main]
     paths:
       - 'android/**'
+      - 'SmokeFree_app.html'
       - 'index.html'
       - 'manifest.webmanifest'
       - 'sw.js'
@@ -22,6 +23,7 @@ on:
   pull_request:
     paths:
       - 'android/**'
+      - 'SmokeFree_app.html'
       - 'index.html'
       - 'manifest.webmanifest'
       - 'sw.js'
