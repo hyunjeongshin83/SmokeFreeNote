@@ -1,5 +1,5 @@
 /* 금연노트 서비스워커 — 오프라인에서도 열리도록 캐시 */
-const CACHE="smokefree-v24";
+const CACHE="smokefree-v25";
 const ASSETS=["index.html","manifest.webmanifest","icon-192.png","icon-512.png","icon-512-maskable.png","apple-touch-icon.png","favicon-32.png","vendor/qrcodejs-1.0.0.min.js","research-config.js","research.js"];
 
 const own=(req)=>caches.open(CACHE).then(c=>c.match(req));   // 같은 주소의 다른 앱 캐시는 읽지 않는다
@@ -15,10 +15,16 @@ self.addEventListener("fetch",e=>{
     e.respondWith(fetch(req).then(r=>{const c=r.clone();caches.open(CACHE).then(x=>x.put(req,c)).catch(()=>{});return r;}).catch(()=>own(req).then(h=>h||own("index.html"))));
     return;
   }
-  // 연구 저장 코드·설정(research.js · research-config.js): **네트워크 우선 + 매번 서버에 최신 여부 확인**, 오프라인일 때만 캐시.
-  // 설정은 사실상 비상 차단 스위치(enabled:false)라 캐시 때문에 늦게 퍼지면 안 되고, 코드는 index.html 과 짝이 어긋나면 안 된다 (캐시 우선이면 옛 코드가 새 화면과 섞임).
-  if(/\/research(-config)?\.js$/.test(u.pathname)){
+  // 연구 저장 코드(research.js): **네트워크 우선 + 매번 서버에 최신 여부 확인**, 오프라인일 때만 캐시 (캐시 우선이면 옛 코드가 새 화면과 섞임).
+  if(/\/research\.js$/.test(u.pathname)){
     e.respondWith(fetch(req,{cache:"no-cache"}).then(r=>{const c=r.clone();caches.open(CACHE).then(x=>x.put(req,c)).catch(()=>{});return r;}).catch(()=>own(req)));
+    return;
+  }
+  // 연구 설정(research-config.js)은 비상 차단 스위치(enabled:false)라 **캐시를 절대 대신 쓰지 않습니다.**
+  // 서버에서 못 받거나(오프라인 · 오류 응답) 하면 꺼진 설정을 돌려줘, 옛 enabled:true 로 업로드가 나가지 않게 합니다 (Codex 5차 P1).
+  if(/\/research-config\.js$/.test(u.pathname)){
+    const off=()=>new Response('window.SF_RESEARCH_CONFIG={enabled:false,clientId:"",consentVersion:"",consentText:"",irb:""};',{status:200,headers:{"Content-Type":"text/javascript; charset=utf-8","Cache-Control":"no-store"}});
+    e.respondWith(fetch(req,{cache:"no-store"}).then(r=>r&&r.ok?r:off()).catch(off));
     return;
   }
   // 그 외 정적 자산: 캐시 우선

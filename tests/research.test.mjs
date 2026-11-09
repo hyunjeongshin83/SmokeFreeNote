@@ -265,7 +265,7 @@ function loadSw({ cached = {}, netFail = false } = {}) {
   const self_ = { location: { origin: "https://app.test" }, addEventListener: (t, f) => { handlers[t] = f; }, skipWaiting() {}, clients: { claim() {} } };
   const caches_ = { open: async () => ({ match: async req => (cached[typeof req === "string" ? req : new URL(req.url).pathname] ? { from: "cache" } : undefined), put: async () => {}, addAll: async () => {}, add: async () => {} }),
     keys: async () => [], delete: async () => true };
-  const fetch_ = async (req, init) => { fetched.push({ url: typeof req === "string" ? req : req.url, init }); if (netFail) throw new Error("offline"); return { from: "network", clone() { return this; } }; };
+  const fetch_ = async (req, init) => { fetched.push({ url: typeof req === "string" ? req : req.url, init }); if (netFail) throw new Error("offline"); return { from: "network", ok: true, clone() { return this; } }; };
   new Function("self", "caches", "fetch", "clients", readFileSync(new URL("../sw.js", import.meta.url), "utf8"))(self_, caches_, fetch_, self_.clients);
   const run = async (path, extra = {}) => { let p; handlers.fetch({ request: { method: "GET", url: "https://app.test" + path, mode: "no-cors", ...extra }, respondWith: x => { p = x; } }); return { res: p ? await p : null, handled: !!p }; };
   return { run, fetched, src: readFileSync(new URL("../sw.js", import.meta.url), "utf8") };
@@ -277,16 +277,30 @@ test("서비스워커: research.js · research-config.js 는 캐시에 옛것이
     const { res } = await sw.run(f);
     assert.equal(res.from, "network", f + " 은 캐시가 아니라 네트워크 응답이어야 함");
   }
-  assert.ok(sw.fetched.every(x => x.init && x.init.cache === "no-cache"), "매번 서버에 최신 여부를 확인(no-cache)");
+  assert.ok(sw.fetched.every(x => x.init && /^no-(cache|store)$/.test(x.init.cache)), "매번 서버에 최신 여부를 확인(no-cache · no-store)");
 });
 
-test("서비스워커: 오프라인이면 연구 파일도 캐시로 열린다 (앱이 깨지지 않게)", async () => {
+test("서비스워커: 오프라인이면 research.js 는 캐시로, 설정은 캐시 대신 「꺼짐」을 돌려준다 (옛 enabled:true 방지)", async () => {
   const sw = loadSw({ cached: { "/research.js": 1, "/research-config.js": 1 }, netFail: true });
-  assert.equal((await sw.run("/research-config.js")).res.from, "cache");
+  assert.equal((await sw.run("/research.js")).res.from, "cache");
+  const txt = await (await sw.run("/research-config.js")).res.text();
+  assert.match(txt, /enabled:false/); assert.doesNotMatch(txt, /enabled:true/);
 });
 
-test("서비스워커: 다른 정적 자산은 그대로 캐시 우선이고, 캐시 이름이 v24 로 올랐다", async () => {
+test("서비스워커: 설정 요청이 오류 응답(5xx)이어도 꺼진 설정으로 대체한다", async () => {
+  const sw = loadSw({ cached: { "/research-config.js": 1 } });
+  const orig = globalThis.fetch;
+  // loadSw 의 fetch 는 항상 성공 응답이라, 오류 응답은 별도 SW 인스턴스로
+  const handlers = {}; const self_ = { location: { origin: "https://app.test" }, addEventListener: (t, f) => { handlers[t] = f; }, skipWaiting() {}, clients: { claim() {} } };
+  const caches_ = { open: async () => ({ match: async () => ({ from: "cache" }), put: async () => {}, addAll: async () => {}, add: async () => {} }), keys: async () => [], delete: async () => true };
+  new Function("self", "caches", "fetch", "clients", readFileSync(new URL("../sw.js", import.meta.url), "utf8"))(self_, caches_, async () => ({ ok: false, status: 503, clone() { return this; } }), self_.clients);
+  let p; handlers.fetch({ request: { method: "GET", url: "https://app.test/research-config.js", mode: "no-cors" }, respondWith: x => { p = x; } });
+  assert.match(await (await p).text(), /enabled:false/);
+  void orig; void sw;
+});
+
+test("서비스워커: 다른 정적 자산은 그대로 캐시 우선이고, 캐시 이름이 v25 로 올랐다", async () => {
   const sw = loadSw({ cached: { "/vendor/qrcodejs-1.0.0.min.js": 1 } });
   const { res } = await sw.run("/vendor/qrcodejs-1.0.0.min.js"); assert.equal(res.from, "cache"); assert.equal(sw.fetched.length, 0, "캐시에 있으면 네트워크를 부르지 않음");
-  assert.match(sw.src, /const CACHE="smokefree-v24"/);
+  assert.match(sw.src, /const CACHE="smokefree-v25"/);
 });
