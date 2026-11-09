@@ -13,7 +13,7 @@ CO 측정기는 제조사 앱에서만 읽힙니다. 삼성 헬스·애플 건�
 
 | 기기 | 앱 | 재는 것 | 밖으로 내주나 |
 |---|---|---|---|
-| IQOS ILUMA i (PMI) | IQOS 앱 · 블루투스 | 주간 퍼프 수, 사용 통계, FlexPuff(흡입 패턴 감지) | 앱 화면뿐. 공개 API 없음 |
+| IQOS ILUMA i (PMI) | IQOS 앱 · 블루투스 또는 USB (iPhone 은 웹 블루투스 브라우저 · 일본 안내) | 주간 퍼프 수, 사용 통계, FlexPuff(흡입 패턴 감지), 남은 사용 시간·횟수(기기 화면) | 앱 화면뿐. 공개 API 없음. 한국 공식 앱 제공 여부 미확인(kr.iqos.com 원문 미대조) |
 | 릴 에이블 프리미엄 · 에이블 2.0 (KT&G) | My lil 앱 · 블루투스 · 성인 인증 | 기기 설정·정보, 남은 퍼프 수(기기 화면), 최근 연결 위치(기기 안에서만) | 사용 통계 내보내기 확인 못 함. 공개 API 없음 |
 | JUUL2 | JUUL 앱 · 블루투스 · 팟 칩 | 일·주·월 퍼프 수 | 퍼프 데이터는 기기 안에 둠(기본). 공개 API 없음 |
 | PAX Era Pro | PAX 앱 | 세션별 퍼프 | 공개 API 없음 |
@@ -23,6 +23,8 @@ CO 측정기는 제조사 앱에서만 읽힙니다. 삼성 헬스·애플 건�
 - 대안: 제조사 앱이 보여 주는 **주간 퍼프·스틱 수를 기록 탭에 옮겨 적기.** (앱 「측정값」칸)
 
 출처: IQOS 앱 안내 https://www.iqos.com/gb/en/get-support/iqos-app.html · IQOS Google Play 설명 · My lil Google Play 설명 · JUUL2 https://www.juullabsscience.com/juul2/ · Tobacco-Free Kids 의 FDA 서한(2020-07-16, 블루투스 담배 기기) https://assets.tobaccofreekids.org/content/what_we_do/federal_issues/fda/regulatory/2020_07_16-Letter-to-FDA-re-Bluetooth-Technology-in-Tobacco-Products.pdf
+
+IQOS 보충(2026-11-09 · 검색 요약 · 원문 미대조 · VaccineNote-Park #212): 일루마 i 기기 화면(daum 2025-02-05) · IQOS AE FAQ(웹앱 용도) · 일본 블로그 yosk8.com · relazo.net(USB·블루투스 연결, iPhone 은 Bluefy) · 국내 2017~18 사용기(클리앙 — 한국 블루투스 앱 출시 소식 없음, 「오늘몇개」 는 2.4·3 만).
 
 ## 3. 스마트워치 — 연구용은 되지만 시계 앱이 필요
 
