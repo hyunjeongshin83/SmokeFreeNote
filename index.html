@@ -85,12 +85,13 @@ html{scroll-padding-top:calc(var(--header-h) + 8px);scroll-padding-bottom:calc(v
 
 /* 흡연 욕구 기록 */
 .chips{display:flex;flex-wrap:wrap;gap:7px;}
-.chip{font-family:inherit;font-size:0.9062rem;font-weight:700;padding:9px 13px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:20px;cursor:pointer;border:1.5px solid var(--line);background:#fff;color:var(--d3);}
+.chip{font-family:inherit;font-size:0.9062rem;font-weight:700;padding:9px 13px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:22px;cursor:pointer;border:1.5px solid var(--g1);background:var(--g0);color:var(--d3);}
 .chip.on{background:var(--g6);color:#fff;border-color:var(--g6);}
+.chip.on:before{content:"✓";margin-right:5px;font-weight:900;}
 .log{list-style:none;}
 .log li{display:flex;gap:10px;align-items:flex-start;padding:12px 2px;border-bottom:1px solid var(--line);}
 .log li:last-child{border-bottom:none;}
-.log .lv{min-width:38px;text-align:center;font-weight:900;font-size:0.8125rem;border-radius:10px;padding:4px 0;background:var(--g0);color:var(--g6);}
+.log .lv{min-width:38px;text-align:center;font-weight:900;font-size:0.8125rem;border-radius:12px;padding:4px 0;background:var(--g0);color:var(--g6);}
 .log .lv.hi{background:var(--danger-bg);color:var(--ink);}
 .log .body{flex:1;font-size:0.9375rem;color:var(--ink);line-height:1.4;}
 .log .meta{font-size:0.7812rem;color:var(--d3);margin-top:2px;}
