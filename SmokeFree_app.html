@@ -1446,7 +1446,7 @@ html.big body{zoom:1.18;}
       save();
       var msg = k==="am" ? "오늘도 한 걸음. 담배가 당기면 기록해 두세요." : "오늘 하루 어땠나요? 당겼던 순간이 있었다면 적어 주세요.";
       try{
-        if(navigator.serviceWorker && navigator.serviceWorker.ready){ navigator.serviceWorker.ready.then(function(r){ r.showNotification("금연노트", {body:msg, icon:"icon-192.png", tag:"smokefree-"+k, data:{url:"./index.html?tab=log&nf="+k}, actions:[{action:"log", title:"기록하기"},{action:"ok", title:"괜찮아요"}]}); }); }
+        if(navigator.serviceWorker && navigator.serviceWorker.ready){ navigator.serviceWorker.ready.then(function(r){ r.showNotification("금연노트", {body:msg, icon:"icon-192.png", tag:"smokefree-"+k, data:{url:"./SmokeFree_app.html?tab=log&nf="+k}, actions:[{action:"log", title:"기록하기"},{action:"ok", title:"괜찮아요"}]}); }); }
         else new Notification("금연노트", {body:msg, icon:"icon-192.png"});
       }catch(e){}
     });
