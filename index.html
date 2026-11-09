@@ -328,6 +328,7 @@ html.big body{zoom:1.18;}
     <div class="card">
       <div class="title">흡연 욕구 기록</div>
       <p class="sub">언제, 왜 담배가 당겼는지 적어 두면 나만의 위험 상황을 알 수 있어요.</p>
+      <p class="sub" id="l_hnb" hidden>기기 화면의 사용 횟수를 보고 적어 주세요.</p>
       <div style="margin-top:14px">
         <div class="fld"><label id="l_lv_lb">얼마나 당겼나요?</label><div class="chips" id="l_lv" role="group" aria-labelledby="l_lv_lb"></div></div>
         <div class="fld"><label id="l_mood_lb">그때 기분은요?</label><div class="chips" id="l_mood" role="group" aria-labelledby="l_mood_lb"></div></div>
@@ -732,15 +733,25 @@ html.big body{zoom:1.18;}
     $("tabs").style.display = v==="setup" ? "none" : "";
     document.querySelector('#tabs button[data-v="start"]').hidden = !!st.start;
     if(v==="start") $("st_go").textContent = st.start ? "메인으로" : "시작하기";
+    noStartCard(v);
     if(v==="health") renderTimeline();
-    if(v==="log"){ renderLogs(); renderMedia(); tDateSync(); }
+    if(v==="log"){ renderLogs(); renderMedia(); tDateSync(); $("l_hnb").hidden = st.kind !== "hnb"; }
     if(v==="help"){ renderProfile(); renderNotif(); renderDevices(); }
     if(v==="stats") renderStats();
     if(v==="home"){ greetNow(); renderMain(); }
     if(v==="pro") renderPro();
     if(!keep) window.scrollTo(0,0);
   }
-  document.querySelectorAll("#tabs button").forEach(function(b){ b.onclick=function(){ if(b.dataset.v!=="start" && b.dataset.v!=="help" && !st.start) return openSetup(); show(b.dataset.v); }; });
+  // 시작일을 정하기 전에도 탭은 열고, 맨 위에 안내 카드를 둔다 — 전에는 설정 화면으로만 넘어가고 탭 줄이 사라져 기능이 없는 것처럼 보였다 (VN-212-3)
+  function noStartCard(v){
+    var old = $("nostart"); if(old) old.remove();
+    if(st.start || ["home","log","stats","health"].indexOf(v) < 0) return;
+    var c = document.createElement("div"); c.className = "card"; c.id = "nostart";
+    c.innerHTML = '<p class="sub" style="margin-top:0">시작일을 정하면 기록이 쌓여요.</p><button class="btn" type="button" style="margin-top:6px">시작하기</button>';
+    c.querySelector("button").onclick = function(){ openSetup(); };
+    var view = $("v-"+v); view.insertBefore(c, view.firstChild);
+  }
+  document.querySelectorAll("#tabs button").forEach(function(b){ b.onclick=function(){ show(b.dataset.v); }; });
   $("s_back").onclick = function(){ show(st.start ? "help" : "start"); };
   $("st_go").onclick = function(){ if(st.start) show("home"); else openSetup(); };
 
@@ -1394,7 +1405,6 @@ html.big body{zoom:1.18;}
   function rerender(){   // 다른 탭의 변경을 합친 뒤, 열려 있는 화면을 새로 그린다
     document.documentElement.classList.toggle("big", !!st.big);   // 다른 탭에서 바꾼 큰 글씨 설정도 바로 적용
     var on = document.querySelector(".view.on"); if(!on) return; var v = on.id.slice(2);
-    if(!st.start && v !== "start" && v !== "setup"){ show("start"); return; }   // 다른 탭에서 시작 설정이 지워졌으면 이 탭도 시작 화면으로
     if(v === "setup"){ if(JSON.stringify([st.start, st.kind, st.perDay, st.price, st.reason]) !== setupSig){ openSetup(); toast("다른 탭에서 설정이 바뀌어 새로 불러왔어요"); } return; }   // 낡은 입력칸이 새 설정을 덮어쓰지 않게
     if(v === "home" || v === "log" || v === "stats" || v === "health" || v === "pro") show(v, true);
     else if(v === "help"){ var ae = document.activeElement; if(!(ae && $("v-help").contains(ae) && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName))){ renderProfile(); renderNotif(); renderDevices(); } }   // 도움 화면은 입력 중이 아닐 때만 새로 채운다
