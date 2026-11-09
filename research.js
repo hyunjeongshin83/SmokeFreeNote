@@ -15,6 +15,7 @@
 
   var CODEBOOK_VERSION = "1";
   var DAY = 86400000;
+  var MAX_DAILY_DAYS = 5000;   // 일별 시트의 최대 날수(약 13년). 넘으면 오래된 날부터 빠지고 codebook 에 적는다 — 기록(records) 시트는 줄이지 않는다
   var STORE_KEY = "smokefree.research.v1";
   var SCOPE = "https://www.googleapis.com/auth/drive.file";
   var XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -116,14 +117,16 @@
     var rows = [["participant_id", "date", "day_index", "n_cravings", "n_slips", "n_held", "craving_level_mean", "med_taken", "n_sticker_use"]];
     var times = logs.map(function (r) { return r.t; }).concat(uses.map(function (m) { return m.t; }));
     if (isNum(st.start)) times.push(st.start);
+    (st.attempts || []).forEach(function (a) { if (a && isNum(a.start)) times.push(a.start); });   // 기록 없이 끝난 앞 시도의 날들도 일별에 남긴다
     if (!times.length) return rows;
     var first = Math.min.apply(null, times), last = Math.max(Math.max.apply(null, times), now || Date.now());
+    if (calDays(first, last) > MAX_DAILY_DAYS - 1) first = new Date(dkey(last) + "T12:00:00").getTime() - (MAX_DAILY_DAYS - 1) * DAY;   // 오래된 쪽을 자른다 (최근·오늘은 항상 남김)
     var by = {}, bu = {};
     logs.forEach(function (r) { var k = dkey(r.t); (by[k] = by[k] || []).push(r); });
     uses.forEach(function (m) { var k = dkey(m.t); bu[k] = (bu[k] || 0) + 1; });
     var startKey = isNum(st.start) ? dkey(st.start) : null, idx = 0;
     var t = new Date(dkey(first) + "T12:00:00").getTime(), guard = 0;
-    while (dkey(t) <= dkey(last) && guard++ < 800) {
+    while (dkey(t) <= dkey(last) && guard++ < MAX_DAILY_DAYS + 2) {
       var k = dkey(t), L = by[k] || [], lv = L.map(function (r) { return LV.indexOf(r.lv) + 1; }).filter(function (x) { return x > 0; });
       var slips = L.filter(function (r) { return r.slip; }).length;
       rows.push([pid, k, startKey && k >= startKey ? calDays(st.start, new Date(k + "T12:00:00").getTime()) : "",
@@ -163,6 +166,7 @@
     s("measures", "measure_type", "측정값 종류", "1 날숨 CO(ppm) · 2 주간 퍼프·스틱 · 3 자가 키트 · 4 코티닌 수치 · 5 의료기관 CO(ppm) · 6 스티커로 적은 사용 1회 · 7 걸음 · 8 평균 심박 · 9 수면(분)");
     s("measures", "value", "값", "키트: 0 음성 · 1 희미한 줄 · 2 양성. 나머지는 수치");
     s("daily", "day_index", "금연 시작일 기준 며칠째", "0 이 시작일. 시작 전은 빈칸");
+    s("daily", "(범위)", "일별 시트는 가장 이른 기록·시작일·앞 시도 시작일부터 오늘까지. " + MAX_DAILY_DAYS + "일을 넘으면 가장 최근 " + MAX_DAILY_DAYS + "일만 담는다 (records 시트는 줄이지 않음)", "");
     s("daily", "n_cravings · n_slips · n_held", "그날 기록 수 · 피운 기록 수 · 넘긴 기록 수", "숫자");
     s("daily", "craving_level_mean", "그날 갈망 세기 평균 (1~3)", "숫자 · 기록 없으면 빈칸");
     s("daily", "med_taken", "그날 약 복용 표시", "1 · 0");
@@ -307,15 +311,17 @@
     var ac = typeof AbortController !== "undefined" ? new AbortController() : null;
     if (ac) { opts.signal = ac.signal; inflight.push(ac); }
     var rm = function () { var i = inflight.indexOf(ac); if (i >= 0) inflight.splice(i, 1); };
-    return (root.fetch)(url, opts).then(function (r) { rm(); if (!r.ok) { var e = new Error("drive_" + r.status); e.status = r.status; throw e; } return r; }, function (e) { rm(); throw e; });
+    return (root.fetch)(url, opts).then(function (r) { rm(); if (!r.ok) { if (r.status === 401) { token = null; tokenExp = 0; }   // 구글이 거절한 토큰은 버린다 — 다음 「지금 저장」이 새로 로그인하게
+      var e = new Error("drive_" + r.status); e.status = r.status; throw e; } return r; }, function (e) { rm(); throw e; });
   }
   function cancelAll() {
-    epoch++; busy = false;   // 진행 중인 로그인·조회·업로드를 모두 무효로 하고
+    epoch++; busy = false; dirty = false;   // 진행 중인 로그인·조회·업로드를 모두 무효로 하고
     inflight.splice(0).forEach(function (ac) { try { ac.abort(); } catch (e) {} });   // 이미 나간 요청도 중단한다
     if (timer) { clearTimeout(timer); timer = null; }
   }
-  function findFile(tk, my) {
-    var q = "appProperties has { key='sfResearch' and value='1' } and trashed=false";
+  // 같은 구글 계정으로 다른 기기·브라우저에서 켜면 연구 번호(pid)가 새로 만들어진다 — 번호까지 맞는 파일만 찾아, 서로 덮어쓰지 않게 한다 (파일은 번호마다 하나)
+  function findFile(tk, my, pid) {
+    var q = "appProperties has { key='sfResearch' and value='1' } and appProperties has { key='sfPid' and value='" + String(pid || "").replace(/[^A-Za-z0-9-]/g, "") + "' } and trashed=false";
     return api("https://www.googleapis.com/drive/v3/files?spaces=drive&fields=files(id)&q=" + encodeURIComponent(q), {}, tk, { epoch: my }).then(function (r) { return r.json(); }).then(function (j) { return j.files && j.files[0] ? j.files[0].id : null; });
   }
   function multipart(meta, bytes) {
@@ -325,36 +331,59 @@
     out.set(head, 0); out.set(bytes, head.length); out.set(tail, head.length + bytes.length);
     return { body: out, type: "multipart/related; boundary=" + b };
   }
-  function upload(tk, bytes, fileId, my) {
-    var meta = fileId ? { appProperties: { sfResearch: "1" } } : { name: "금연노트_연구자료.xlsx", mimeType: XLSX_MIME, appProperties: { sfResearch: "1" } };
+  function upload(tk, bytes, fileId, my, pid) {
+    var props = { sfResearch: "1", sfPid: pid };
+    var meta = fileId ? { appProperties: props } : { name: "금연노트_연구자료.xlsx", mimeType: XLSX_MIME, appProperties: props };
     var m = multipart(meta, bytes);
     var url = fileId ? "https://www.googleapis.com/upload/drive/v3/files/" + fileId + "?uploadType=multipart&fields=id" : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id";
     return api(url, { method: fileId ? "PATCH" : "POST", headers: { "Content-Type": m.type }, body: m.body }, tk, { epoch: my, consent: true }).then(function (r) { return r.json(); }).then(function (j) { return j.id; });   // 건강 정보를 싣는 요청 — 관문이 동의까지 확인
   }
 
   // ── 동기화 · 켜기/끄기 ─────────────────────────────────────────────────────────────────
-  var getSt = function () { return {}; }, onChange = function () {}, busy = false, lastRun = 0;
+  var getSt = function () { return {}; }, onChange = function () {}, busy = false, lastRun = 0, dirty = false;   // dirty: 올리는 중에 기록이 또 바뀜 — 끝난 뒤 한 번 더 올린다
 
+  // 내보낸 내용이 바뀌었는지 가려내는 표지 — 엑셀에 들어가는 표(참여자 · 기록 · 일별)의 내용 전체를 해시한다. 요약값(기록 수 · 가장 늦은 시각 등)만 보면
+  // 오래된 기록을 지우고 다른 기록을 가져와도 같게 나와 따라잡기가 빠졌다 (Codex P2). 시각(exported_at)은 빼서 같은 내용이면 같은 값이 나온다.
+  function fnv(str) { var h = 0x811c9dc5, i; for (i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16); }
+  function sigOf(st) {
+    var part = buildParticipant(st || {}, "x", 0); part[1][part[0].indexOf("exported_at_utc")] = "";
+    return fnv(JSON.stringify([part, buildRecords(st || {}, "x"), buildMeasures(st || {}, "x"), buildDaily(st || {}, "x", Date.now())]));
+  }
+  // 탭 사이 직렬화: 파일을 찾고·만들고·덮어쓰는 구간은 한 번에 한 탭만 (Web Locks). 기다리던 탭은 앞 탭이 남긴 파일 id 를 읽고 이어서 하므로,
+  // 참여자가 Drive 에서 파일을 지운 뒤 두 탭이 동시에 404 를 받아 파일을 둘 만드는 일이 없다. Web Locks 가 없는 브라우저는 그대로 진행한다.
+  function withLock(fn) {
+    var nav = root.navigator;
+    if (nav && nav.locks && typeof nav.locks.request === "function") return nav.locks.request("smokefree-research-sync", fn);
+    return fn();
+  }
   function sync(interactive) {
     if (!consented()) return Promise.resolve({ ok: false, why: "off" });
-    if (busy) return Promise.resolve({ ok: false, why: "busy" });
+    if (busy) { dirty = true; return Promise.resolve({ ok: false, why: "busy" }); }   // 올리는 중이면 이 변경이 빠지지 않게 표시만 해 둔다
     busy = true;
-    var my = epoch, alive = function () { return my === epoch && consented(); };
+    var my = epoch, sig = "", alive = function () { return my === epoch && consented(); };
     var done = function () { if (my === epoch) busy = false; };
     return getToken(!!interactive).then(function (tk) {
+      return withLock(function () {
       if (!alive()) throw stopErr();
-      var s = readState();
-      return (s.fileId ? Promise.resolve(s.fileId) : findFile(tk, my)).then(function (id) {
+      var s = readState();   // 잠금을 얻은 뒤에 읽는다 — 다른 탭이 방금 남긴 파일 id 를 본다
+      return (s.fileId ? Promise.resolve(s.fileId) : findFile(tk, my, s.pid)).then(function (id) {
         if (!alive()) throw stopErr();   // 로그인·조회를 기다리는 사이 꺼졌거나 동의 문구가 바뀌었으면 보내지 않는다
-        var bytes = toXlsx(buildSheets(getSt(), s.pid, Date.now()));   // 보내기 직전에 만든다
-        return upload(tk, bytes, id, my).catch(function (e) {
-          if (id && e.status === 404) return upload(tk, bytes, null, my);   // 참여자가 Drive 에서 파일을 지웠으면 새로 만든다
+        var snap = getSt(); sig = sigOf(snap);
+        var bytes = toXlsx(buildSheets(snap, s.pid, Date.now()));   // 보내기 직전에 만든다
+        return upload(tk, bytes, id, my, s.pid).catch(function (e) {
+          if (id && e.status === 404) return upload(tk, bytes, null, my, s.pid);   // 참여자가 Drive 에서 파일을 지웠으면 새로 만든다
           throw e;
         });
+      }).then(function (id) {
+        if (my === epoch) { var n0 = readState(); n0.fileId = id; writeState(n0); }   // 잠금을 놓기 전에 파일 id 를 남긴다 (기다리는 탭이 이어서 쓰게)
+        return id;
+      });
       });
     }).then(function (id) {
       if (my !== epoch) return { ok: false, why: "off" };   // 올리는 도중에 지우기·끄기를 했다면 상태를 되살리지 않는다
-      var n = readState(); n.fileId = id; n.lastSync = Date.now(); n.lastError = null; n.needAuth = false; writeState(n); busy = false; lastRun = Date.now(); onChange(); return { ok: true };
+      var n = readState(); n.fileId = id; n.sig = sig; n.lastSync = Date.now(); n.lastError = null; n.needAuth = false; writeState(n); busy = false; lastRun = Date.now(); onChange();
+      if (sig !== sigOf(getSt())) dirty = true;   // 올리는 동안 이 탭의 기록이 달라졌다(다른 탭의 변경을 합쳤거나 방금 적음) — 올린 것은 낡은 것이니 한 번 더
+      if (dirty) { dirty = false; touch(); } return { ok: true };
     }).catch(function (e) {
       if (e && e.stopped) { done(); return { ok: false, why: "off" }; }
       if (my !== epoch) return { ok: false, why: "off" };
@@ -364,6 +393,7 @@
   // 기록이 바뀔 때마다 부르면 됩니다. 8초 모았다가 보내고, 마지막 전송 뒤 60초 안에는 다시 보내지 않습니다.
   function touch() {
     if (!consented()) return;
+    if (busy) dirty = true;
     if (timer) clearTimeout(timer);
     var wait = Math.max(8000, 60000 - (Date.now() - lastRun));
     timer = setTimeout(function () { timer = null; sync(false); }, wait);
@@ -404,9 +434,13 @@
     if (e && e.key !== null && e.key !== STORE_KEY) return;
     if (!consented()) { cancelAll(); revokeToken(token); token = null; tokenExp = 0; onChange(); }
   });
-  function init(opts) { getSt = opts.getState || getSt; onChange = opts.onChange || onChange; }
+  // 시작할 때: 동의한 상태에서 마지막으로 올린 뒤 기록이 바뀌었다면(앱을 닫아 예약이 사라졌거나 연결이 없던 때의 기록) 한 번 따라잡는다
+  function init(opts) {
+    getSt = opts.getState || getSt; onChange = opts.onChange || onChange;
+    try { if (consented() && readState().sig !== sigOf(getSt())) touch(); } catch (e) {}
+  }
 
   return { config: config, state: readState, consented: consented, init: init, touch: touch, sync: sync, enable: enable, disable: disable, reset: reset, deleteRemote: deleteRemote,
     buildSheets: buildSheets, buildRecords: buildRecords, buildMeasures: buildMeasures, buildDaily: buildDaily, buildCodebook: buildCodebook, toXlsx: toXlsx, newPid: newPid,
-    CODEBOOK_VERSION: CODEBOOK_VERSION, _crc32: crc32 };
+    CODEBOOK_VERSION: CODEBOOK_VERSION, _crc32: crc32, _sigOf: sigOf };
 });
