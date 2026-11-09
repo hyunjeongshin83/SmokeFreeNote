@@ -36,7 +36,13 @@ docs/PUFF-LINK.md    퍼프 연동 뼈대 (labs/puff-link/ · 가짜 기기만 �
 ## 3. 데이터
 
 모든 기록은 이 기기의 `localStorage` (`smokefree.v1`) 에만 있습니다. 위치를 수집하지 않습니다.
+
 저장 키 이름을 바꾸거나 옛 기록이 못 읽히게 하지 마세요 — 형식은 `docs/DESIGN.md` 2절.
+
+**예외 — 연구용 Drive 저장 (`research.js` · `research-config.js`).** 코드는 있지만 `enabled:false` 가 기본값이라 설정이 채워지기 전에는
+기록이 기기 밖으로 나가지 않고 화면에도 보이지 않습니다. 켜려면 IRB 동의 문구 · OAuth 클라이언트 ID · 교수님 확인이 먼저입니다 — `docs/RESEARCH-EXPORT.md`.
+켜져도 참여자가 동의 화면에서 직접 켜야 하고, 기록은 **참여자 본인의 Google Drive** 한 곳에만 올라갑니다 (연구실 서버로 가지 않음).
+
 
 ## 4. 확인
 
