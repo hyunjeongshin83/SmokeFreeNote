@@ -67,7 +67,8 @@ html{scroll-padding-top:calc(var(--header-h) + 8px);scroll-padding-bottom:calc(v
 .hero .days small{font-size:1.5rem;font-weight:800;margin-left:4px;}
 .hero .hms{font-size:0.9375rem;opacity:.9;font-variant-numeric:tabular-nums;}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:13px;}
-.stat{background:#fff;border:1px solid var(--line);border-radius:22px;padding:12px 6px 14px;text-align:center;}
+.stat{background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px 8px;text-align:center;}
+#v-home .stat{border-radius:22px;padding:12px 6px 14px;}
 .stat .ic{width:36px;height:36px;border-radius:12px;background:var(--brand-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;}
 .stat .ic svg{width:20px;height:20px;}
 .stat b{display:block;font-size:1.1875rem;color:var(--ink);font-weight:900;font-variant-numeric:tabular-nums;word-break:keep-all;}
@@ -90,9 +91,11 @@ html{scroll-padding-top:calc(var(--header-h) + 8px);scroll-padding-bottom:calc(v
 
 /* 흡연 욕구 기록 */
 .chips{display:flex;flex-wrap:wrap;gap:7px;}
-.chip{font-family:inherit;font-size:0.9062rem;font-weight:700;padding:9px 13px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:22px;cursor:pointer;border:1.5px solid var(--g1);background:var(--g0);color:var(--d3);}
+.chip{font-family:inherit;font-size:0.9062rem;font-weight:700;padding:9px 13px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:20px;cursor:pointer;border:1.5px solid var(--line);background:#fff;color:var(--d3);}
 .chip.on{background:var(--g6);color:#fff;border-color:var(--g6);}
-.chip.on:before{content:"✓";margin-right:5px;font-weight:900;}
+#v-log .chip{border-radius:22px;border-color:var(--g1);background:var(--g0);}
+#v-log .chip.on{background:var(--g6);border-color:var(--g6);}
+#v-log .chip.on:before{content:"✓";margin-right:5px;font-weight:900;}
 .log{list-style:none;}
 .log li{display:flex;gap:10px;align-items:flex-start;padding:12px 2px;border-bottom:1px solid var(--line);}
 .log li:last-child{border-bottom:none;}
@@ -742,7 +745,7 @@ html.big body{zoom:1.18;}
   // 설정
   var kindPick = st.kind;
   function kindChips(){
-    $("s_kind").innerHTML = KIND.map(function(k){ return '<button type="button" class="chip'+(k[0]===kindPick?" on":"")+'">'+k[1]+'</button>'; }).join("");
+    $("s_kind").innerHTML = KIND.map(function(k){ return '<button type="button" class="chip'+(k[0]===kindPick?" on":"")+'" aria-pressed="'+(k[0]===kindPick?"true":"false")+'">'+k[1]+'</button>'; }).join("");
     $("s_kind").querySelectorAll(".chip").forEach(function(b,i){ b.onclick=function(){ kindPick=KIND[i][0]; kindChips(); }; });
     $("s_perday_l").textContent = KINDL[kindPick][0]; $("s_price_l").textContent = KINDL[kindPick][1];
     if(kindPick==="liquid" && +$("s_perday").value===15) $("s_perday").value = 200;
@@ -821,16 +824,16 @@ html.big body{zoom:1.18;}
   // 욕구 기록
   var pick = {lv:null, mood:null, trig:[], cope:[]};
   function chips(el, list, multi, key){
-    $(el).innerHTML = list.map(function(x){ return '<button type="button" class="chip">'+x+'</button>'; }).join("");
+    $(el).innerHTML = list.map(function(x){ return '<button type="button" class="chip" aria-pressed="false">'+x+'</button>'; }).join("");
     $(el).querySelectorAll(".chip").forEach(function(b, i){
       b.onclick = function(){
         if(multi){
           var a = pick[key], k = a.indexOf(list[i]);
           if(k<0) a.push(list[i]); else a.splice(k,1);
-          b.classList.toggle("on", k<0);
+          b.classList.toggle("on", k<0); b.setAttribute("aria-pressed", k<0 ? "true" : "false");
         }else{
           pick[key] = list[i];
-          $(el).querySelectorAll(".chip").forEach(function(c,j){ c.classList.toggle("on", j===i); });
+          $(el).querySelectorAll(".chip").forEach(function(c,j){ c.classList.toggle("on", j===i); c.setAttribute("aria-pressed", j===i ? "true" : "false"); });
         }
       };
     });
