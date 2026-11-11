@@ -535,6 +535,12 @@ html.big body{zoom:1.18;}
       <a href="#health" data-go="health"><span class="ic"><svg aria-hidden="true" focusable="false"><use href="#i-health"/></svg></span><div><b>검사 받는 방법</b><span>보건소·의료기관·자가 키트를 제품별로 알아봐요</span></div><span class="go" aria-hidden="true">›</span></a>
       <a href="#health" data-go="health"><span class="ic"><svg aria-hidden="true" focusable="false"><use href="#i-health"/></svg></span><div><b>내 제품 알아보기</b><span>나라가 검사하는 항목과 제도 변화를 제품별로 봐요</span></div><span class="go" aria-hidden="true">›</span></a>
     </div>
+    <div class="card" id="hs_coach">
+      <div class="sect">코칭 이력</div>
+      <p class="sub" style="margin-top:4px">메인에 떴던 안내를 날짜별로 모아 뒀어요. 이 기기 안에만 있어요.</p>
+      <ul class="rank" id="hs_list"></ul>
+      <button class="btn ghost" id="hs_clear" type="button" style="margin-top:10px">이력 지우기</button>
+    </div>
     <div class="card">
       <div class="sect">내 설정</div>
       <div class="sub" id="p_info"></div>
@@ -818,7 +824,7 @@ html.big body{zoom:1.18;}
     noStartCard(v);
     if(v==="health") renderTimeline();
     if(v==="log"){ renderLogs(); renderMedia(); tDateSync(); $("l_hnb").hidden = st.kind !== "hnb"; }
-    if(v==="help"){ renderProfile(); renderNotif(); renderDevices(); renderResearch(); }
+    if(v==="help"){ renderProfile(); renderNotif(); renderDevices(); renderResearch(); renderCoachHistory(); }
     if(v==="stats") renderStats();
     if(v==="home"){ greetNow(); renderMain(); tick(); }
     if(v==="pro") renderPro();
@@ -1123,6 +1129,25 @@ html.big body{zoom:1.18;}
 
   // ── 메인(홈) 화면 — 오늘 할 일 · 바로가기 · 최근 기록 (대표님 요청 2026-10-15)
   function mainText(l){ return (l.slip ? "피웠어요" : "참았어요") + (l.lv ? " · " + l.lv : ""); }
+  // 코칭 이력 — 메인에 보여 준 안내를 날짜별로 이 기기 안(새 키 smokefree.coach.v1)에 남긴다. 기록 키(smokefree.v1)는 건드리지 않고, 서버로 보내지도 연구 파일에 넣지도 않는다.
+  var CKEY = "smokefree.coach.v1";
+  function coachLoad(){ try{ var o = JSON.parse(localStorage.getItem(CKEY)); return window.Coach ? window.Coach.cleanHistory(o && o.items) : []; }catch(e){ return []; } }
+  function coachRemember(card){
+    try{
+      if(!window.Coach || typeof window.Coach.addHistory !== "function") return;
+      var r = window.Coach.addHistory(coachLoad(), card, Date.now());
+      if(r.changed) localStorage.setItem(CKEY, JSON.stringify({v:1, items:r.items}));
+    }catch(e){}
+  }
+  function renderCoachHistory(){
+    var ul = $("hs_list"), items = coachLoad();
+    if(!ul) return;
+    ul.innerHTML = items.length ? items.map(function(x){
+      var d = x.d.split("-");
+      return '<li style="align-items:flex-start"><span class="c" style="min-width:44px;text-align:left;padding-top:2px">'+(+d[1])+'/'+(+d[2])+'</span><div style="flex:1;min-width:0"><b style="display:block;font-size:0.9688rem">'+esc(x.title)+'</b><span style="display:block;font-size:0.875rem;color:var(--d3);line-height:1.45;margin-top:2px">'+esc(x.body)+'</span></div></li>';
+    }).join("") : '<li style="color:var(--d3)">아직 받은 안내가 없어요</li>';
+    $("hs_clear").style.display = items.length ? "" : "none";
+  }
   function refreshHome(){ if($("v-home").classList.contains("on")) renderMain(); }   // 메인이 열려 있는 채로 기록이 바뀌면 그 자리에서 다시 그린다
   function renderMain(){
     renderMed();   // 다른 탭·자정·가져오기 뒤에도 오늘의 약 칸이 지금 기록을 보이게 (#79 리뷰)
@@ -1131,6 +1156,7 @@ html.big body{zoom:1.18;}
     // 메인 코칭 카드 — 기록만으로 고른 안내 한 장(없으면 숨김). 규칙은 coach.js
     var cc = $("mn_coach"), pk = null;
     try{ if(window.Coach && typeof window.Coach.pick === "function") pk = window.Coach.pick(logs, st.start, Date.now()); }catch(e){ pk = null; }
+    if(pk) coachRemember(pk);
     if(cc){
       cc.style.display = pk ? "" : "none";
       if(pk){
@@ -1153,6 +1179,7 @@ html.big body{zoom:1.18;}
     });
   }
   $("td_go").onclick = function(){ show("log"); };
+  $("hs_clear").onclick = function(){ if(!confirm("코칭 이력을 지울까요? 기록은 그대로예요.")) return; try{ localStorage.removeItem(CKEY); }catch(x){} renderCoachHistory(); toast("코칭 이력을 지웠어요"); };
   ["mc_go","mc_go2"].forEach(function(id){ $(id).onclick = function(){ var t = this.dataset.go; if(t){ var on = document.querySelector(".view.on"); proFrom = on ? on.id.slice(2) : null; show(t); } }; });
   Array.prototype.forEach.call(document.querySelectorAll("[data-q]"), function(b){ b.onclick = function(){ var on = document.querySelector(".view.on"); proFrom = on ? on.id.slice(2) : null; show(b.dataset.q); }; });   // 「함께 보기」의 뒤로 단추가 메인으로 돌아오게
   // ── 사진·바코드 기록 — 이 기기 안에서만. 사진은 다시 그려 EXIF(위치 포함)를 지운 작은 그림만 IndexedDB 에 둔다
@@ -1569,7 +1596,7 @@ html.big body{zoom:1.18;}
   $("p_wipe").onclick = function(){
     if(!confirm("모든 기록과 설정을 지울까요? 되돌릴 수 없어요.")) return;
     if(!confirm("정말 지울까요? 먼저 내보내기를 해 두는 것이 좋아요.")) return;
-    var done = function(){ try{ localStorage.removeItem(KEY); localStorage.removeItem(KEY+".corrupt"); }catch(e){} try{ if(window.Research) window.Research.reset(); else localStorage.removeItem("smokefree.research.v1"); }catch(e){} location.reload(); };   // 연구 참여 동의·번호도 함께 지운다 — 다시 켜려면 처음부터 동의
+    var done = function(){ try{ localStorage.removeItem(KEY); localStorage.removeItem(KEY+".corrupt"); localStorage.removeItem("smokefree.coach.v1"); }catch(e){} try{ if(window.Research) window.Research.reset(); else localStorage.removeItem("smokefree.research.v1"); }catch(e){} location.reload(); };   // 연구 참여 동의·번호도 함께 지운다 — 다시 켜려면 처음부터 동의
     mTx("readwrite", function(x){ return x.clear(); }).then(done, function(){ toast("사진을 지우지 못해 기록을 그대로 두었어요. 다시 시도해 주세요"); });   // 사진 보관소(IndexedDB)가 비워진 뒤에만 기록을 지운다 — 안 그러면 앱에서 못 지우는 사진이 남는다   // 보존해 둔 깨진 원문도 함께 (VN-116-3 Codex)
   };
 
