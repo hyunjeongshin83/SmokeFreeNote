@@ -34,3 +34,17 @@ test("weekly: 피움 · from 제외 · 시작 전/깨진 기록 무시", () => {
 });
 test("weekly: 시작 시각 없음 · 미래 시작은 빈 배열", () => { assert.deepEqual(C.weekly([], null, NOW), []); assert.deepEqual(C.weekly([], NOW + 1, NOW), []); });
 test("weekly: 시작한 날 하루뿐이면 구간 하나(1일)", () => { const w = C.weekly([], NOW - 1000, NOW, 4); assert.equal(w.length, 1); assert.equal(w[0].days, 1); });
+
+test("앱의 주 라벨은 달력 날짜 뺄셈 — 여름시간 전환 구간에서도 weekly 의 구간과 같다 (Codex #80 P2)", () => {
+  // 앱 코드와 같은 방식(setDate)으로 구간 끝·처음을 만들어, 그 구간 안의 날짜가 weekly() 의 같은 구간에 세어지는지 본다
+  const now = new Date(2026, 2, 10, 15).getTime(), start = new Date(2026, 0, 1).getTime();
+  const day0 = new Date(now); day0.setHours(0, 0, 0, 0);
+  for (const ago of [0, 1, 2]) {
+    const endD = new Date(day0); endD.setDate(endD.getDate() - 7 * ago);
+    const fromD = new Date(endD); fromD.setDate(fromD.getDate() - 6);
+    for (const d of [fromD, endD]) {
+      const t = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12).getTime();
+      const w = C.weekly([{ t }], start, now, 4).find(x => x.ago === ago); assert.equal(w.crave, 1, `ago ${ago} ${d.toDateString()}`);
+    }
+  }
+});

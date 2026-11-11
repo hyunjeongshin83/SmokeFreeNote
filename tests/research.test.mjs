@@ -300,10 +300,18 @@ test("서비스워커: 설정 요청이 오류 응답(5xx)이어도 꺼진 설�
   void orig; void sw;
 });
 
-test("서비스워커: 다른 정적 자산은 그대로 캐시 우선이고, 캐시 이름이 v26 로 올랐다", async () => {
+test("서비스워커: coach.js · iqos-ble.js 도 네트워크 우선 — 옛 캐시가 새 화면과 섞이지 않는다 (Codex #80 P1)", async () => {
+  const sw = loadSw({ cached: { "/coach.js": 1, "/iqos-ble.js": 1 } });
+  for (const f of ["/coach.js", "/iqos-ble.js"]) { const { res } = await sw.run(f); assert.equal(res.from, "network", f); }
+  assert.ok(sw.fetched.every(x => x.init && x.init.cache === "no-cache"));
+  const off = loadSw({ cached: { "/coach.js": 1 }, netFail: true });
+  assert.equal((await off.run("/coach.js")).res.from, "cache");           // 오프라인이면 캐시로 열린다
+});
+
+test("서비스워커: 다른 정적 자산은 그대로 캐시 우선이고, 캐시 이름이 v27 로 올랐다", async () => {
   const sw = loadSw({ cached: { "/vendor/qrcodejs-1.0.0.min.js": 1 } });
   const { res } = await sw.run("/vendor/qrcodejs-1.0.0.min.js"); assert.equal(res.from, "cache"); assert.equal(sw.fetched.length, 0, "캐시에 있으면 네트워크를 부르지 않음");
-  assert.match(sw.src, /const CACHE="smokefree-v26"/);
+  assert.match(sw.src, /const CACHE="smokefree-v27"/);
 });
 
 // ── 금주노트 연구 저장(#22)에서 Codex 가 지적해 고친 것들을 같은 코드인 이쪽에도 ───────────────────────────
