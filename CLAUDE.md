@@ -43,7 +43,9 @@ docs/PUFF-LINK.md    퍼프 연동 뼈대 (labs/puff-link/ · 가짜 기기만 �
 
 **예외 — 연구용 Drive 저장 (`research.js` · `research-config.js`).** 코드는 있지만 `enabled:false` 가 기본값이라 설정이 채워지기 전에는
 기록이 기기 밖으로 나가지 않고 화면에도 보이지 않습니다. 켜려면 IRB 동의 문구 · OAuth 클라이언트 ID · 교수님 확인이 먼저입니다 — `docs/RESEARCH-EXPORT.md`.
-켜져도 참여자가 동의 화면에서 직접 켜야 하고, 기록은 **참여자 본인의 Google Drive** 한 곳에만 올라갑니다 (연구실 서버로 가지 않음).
+켜져도 참여자가 동의 화면에서 직접 켜야 하고, 기본은 **참여자 본인의 Google Drive** 한 곳에만 올라갑니다.
+**예외 — 연구실 수신 (`labUrl` · 대표님 결정 2026-11-11 · `docs/RESEARCH-LAB.md`):** `research-config.js` 에 연구실 Apps Script 주소(`labUrl`)가 있으면 Drive 대신 **연구실 Google 시트**로 보냅니다(참여자 Google 로그인 없음). `labUrl` 이 비어 있는 지금은 이 길도 닫혀 있습니다.
+「서버로 가지 않는다」고 쓰지 마세요 — `labUrl` 을 채우면 사실이 아닙니다.
 
 
 ## 4. 확인

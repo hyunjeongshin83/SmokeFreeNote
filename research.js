@@ -253,10 +253,13 @@
   }
 
   // ── 설정 · 동의 상태 ──────────────────────────────────────────────────────────────────
+  // 연구실 수신 주소 — Google Apps Script 웹앱(/macros/s/…/exec) 하나만 받는다. 다른 주소는 없는 것으로 본다 (docs/RESEARCH-LAB.md)
+  function labOk(u) { return typeof u === "string" && /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(u); }
   function config() {
     var c = root.SF_RESEARCH_CONFIG || {};
-    var ready = c.enabled === true && typeof c.clientId === "string" && c.clientId.length > 10 && typeof c.consentText === "string" && c.consentText.trim().length > 0 && typeof c.consentVersion === "string" && c.consentVersion.length > 0;
-    return { enabled: c.enabled === true, ready: ready, clientId: c.clientId || "", consentText: c.consentText || "", consentVersion: c.consentVersion || "", irb: c.irb || "" };
+    var lab = labOk(c.labUrl);
+    var ready = c.enabled === true && (lab || (typeof c.clientId === "string" && c.clientId.length > 10)) && typeof c.consentText === "string" && c.consentText.trim().length > 0 && typeof c.consentVersion === "string" && c.consentVersion.length > 0;
+    return { enabled: c.enabled === true, ready: ready, clientId: c.clientId || "", consentText: c.consentText || "", consentVersion: c.consentVersion || "", irb: c.irb || "", lab: lab, labUrl: lab ? c.labUrl : "" };
   }
   function readState() { try { return JSON.parse(root.localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; } }
   function writeState(s) { try { root.localStorage.setItem(STORE_KEY, JSON.stringify(s)); return true; } catch (e) { return false; } }
@@ -314,6 +317,23 @@
     return (root.fetch)(url, opts).then(function (r) { rm(); if (!r.ok) { if (r.status === 401) { token = null; tokenExp = 0; }   // 구글이 거절한 토큰은 버린다 — 다음 「지금 저장」이 새로 로그인하게
       var e = new Error("drive_" + r.status); e.status = r.status; throw e; } return r; }, function (e) { rm(); throw e; });
   }
+  // ── 연구실로 보내기 (labUrl 이 있을 때만) — 참여자 Google 로그인 없이 연구실 수신 주소로 표를 보낸다. 세대 · 동의 관문은 api() 와 같다 ──
+  // needConsent=false 는 「지우기 요청」용 — 동의를 거두는 쪽이므로 동의가 꺼져 있어도 보낼 수 있다(세대만 확인).
+  function labPost(body, my, needConsent) {
+    var c = config();
+    if (!c.lab) return Promise.reject(new Error("no_lab"));
+    if (my !== epoch || (needConsent && !consented())) return Promise.reject(stopErr());
+    var ac = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var opts = { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(body), credentials: "omit", referrerPolicy: "no-referrer", redirect: "follow" };
+    if (ac) { opts.signal = ac.signal; inflight.push(ac); }
+    var rm = function () { var i = inflight.indexOf(ac); if (i >= 0) inflight.splice(i, 1); };
+    return (root.fetch)(c.labUrl, opts).then(function (r) { rm(); if (!r.ok) throw new Error("lab_" + r.status); return r.json(); }, function (e) { rm(); throw e; })
+      .then(function (j) { if (!j || j.ok !== true) throw new Error("lab_" + String(j && j.error || "bad").slice(0, 20)); return j; });
+  }
+  function labPut(sheets, pid, my) {
+    var o = {}; sheets.forEach(function (sh) { o[sh.name] = sh.rows; });
+    return labPost({ action: "put", pid: pid, consentVersion: config().consentVersion, codebookVersion: CODEBOOK_VERSION, sheets: o }, my, true).then(function () { return "lab"; });
+  }
   function cancelAll() {
     epoch++; busy = false; dirty = false;   // 진행 중인 로그인·조회·업로드를 모두 무효로 하고
     inflight.splice(0).forEach(function (ac) { try { ac.abort(); } catch (e) {} });   // 이미 나간 요청도 중단한다
@@ -362,13 +382,14 @@
     busy = true;
     var my = epoch, sig = "", alive = function () { return my === epoch && consented(); };
     var done = function () { if (my === epoch) busy = false; };
-    return getToken(!!interactive).then(function (tk) {
+    return (config().lab ? Promise.resolve(null) : getToken(!!interactive)).then(function (tk) {
       return withLock(function () {
       if (!alive()) throw stopErr();
       var s = readState();   // 잠금을 얻은 뒤에 읽는다 — 다른 탭이 방금 남긴 파일 id 를 본다
-      return (s.fileId ? Promise.resolve(s.fileId) : findFile(tk, my, s.pid)).then(function (id) {
+      return (config().lab || s.fileId ? Promise.resolve(s.fileId) : findFile(tk, my, s.pid)).then(function (id) {
         if (!alive()) throw stopErr();   // 로그인·조회를 기다리는 사이 꺼졌거나 동의 문구가 바뀌었으면 보내지 않는다
         var snap = getSt(); sig = sigOf(snap);
+        if (config().lab) return labPut(buildSheets(snap, s.pid, Date.now()), s.pid, my);   // 연구실로 — 로그인 없음, 보내기 직전에 만든다
         var bytes = toXlsx(buildSheets(snap, s.pid, Date.now()));   // 보내기 직전에 만든다
         return upload(tk, bytes, id, my, s.pid).catch(function (e) {
           if (id && e.status === 404) return upload(tk, bytes, null, my, s.pid);   // 참여자가 Drive 에서 파일을 지웠으면 새로 만든다
@@ -421,6 +442,12 @@
   // 이미 가진 토큰은 지우기에만 쓰고 끝나면 취소한다.
   function deleteRemote() {
     var id = readState().fileId; if (!id) return Promise.resolve({ ok: true });
+    if (config().lab) {   // 연구실로 보낸 자료 지우기: 먼저 참여를 끄고, 이 연구 번호의 줄을 지워 달라고 요청한다
+      var pid0 = readState().pid; turnOff(true); var my0 = epoch;
+      return labPost({ action: "delete", pid: pid0 }, my0, false)
+        .then(function () { var n = readState(); n.fileId = null; n.lastSync = null; writeState(n); onChange(); return { ok: true }; },
+          function (e) { onChange(); return { ok: false, why: String(e && e.message || e).slice(0, 40) }; });
+    }
     var held = token && Date.now() < tokenExp ? token : null;
     turnOff(true);
     var my = epoch, done = function () { revokeToken(token); token = null; tokenExp = 0; };

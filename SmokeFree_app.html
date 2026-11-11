@@ -558,10 +558,10 @@ html.big body{zoom:1.18;}
     </div>
     <div class="card" id="rs_card" style="display:none">
       <div class="sect">연구 참여 (선택)</div>
-      <p class="sub" style="margin-top:0">참여하면 내 기록이 숫자로 바뀌어 <b>내 Google Drive</b> 의 엑셀 파일 하나에 자동으로 저장돼요. 이름·연락처·내가 적은 글·사진은 들어가지 않아요. 파일은 내 Drive 에 있어서 언제든 끄고 지울 수 있어요.</p>
+      <p class="sub" id="rs_intro" style="margin-top:0">참여하면 내 기록이 숫자로 바뀌어 <b>내 Google Drive</b> 의 엑셀 파일 하나에 자동으로 저장돼요. 이름·연락처·내가 적은 글·사진은 들어가지 않아요. 파일은 내 Drive 에 있어서 언제든 끄고 지울 수 있어요.</p>
       <div class="tipcard on" style="margin-top:10px"><div class="t">연구 동의 문구</div><div class="d" id="rs_consent" style="white-space:pre-wrap"></div></div>
       <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:800;color:var(--g6);min-height:44px;display:flex;align-items:center">저장되는 항목 보기</summary><p class="sub" style="margin-top:0">기록(당긴 정도·기분·상황·넘긴 방법·피움 여부)과 측정값·일별 요약이 모두 숫자로 들어가요. 숫자의 뜻은 파일 안 「codebook」 시트에 있어요.</p></details>
-      <label class="chk"><input type="checkbox" id="rs_on"> 위 내용을 읽고 동의하며, 내 Drive 에 자동으로 저장해요</label>
+      <label class="chk"><input type="checkbox" id="rs_on"> <span id="rs_on_t">위 내용을 읽고 동의하며, 내 Drive 에 자동으로 저장해요</span></label>
       <p class="disc" id="rs_status" role="status" style="text-align:left"></p>
       <div class="row2">
         <button class="btn ghost" id="rs_now">지금 저장</button>
@@ -1487,13 +1487,17 @@ html.big body{zoom:1.18;}
     var s = R.state(), c = R.config();
     card.style.display = "";
     $("rs_consent").textContent = c.consentText;
+    // 연구실로 보내는 설정이면 안내 문구도 그에 맞춘다 (보내는 곳이 사실과 다르게 적히지 않게)
+    $("rs_on_t").textContent = c.lab ? "위 내용을 읽고 동의하며, 연구실로 자동으로 보내요" : "위 내용을 읽고 동의하며, 내 Drive 에 자동으로 저장해요";
+    $("rs_del").textContent = c.lab ? "보낸 자료 지우기" : "Drive 파일 지우기";
+    if(c.lab) $("rs_intro").textContent = "참여하면 내 기록이 숫자로 바뀌어 연구실의 자료 표로 자동으로 보내져요. 이름·연락처·내가 적은 글·사진은 들어가지 않아요. 언제든 끄고, 보낸 자료를 지워 달라고 요청할 수 있어요.";
     var agreed = R.consented();   // 지금 문구의 버전에 동의한 경우만 켜진 것으로 본다
     $("rs_on").checked = agreed;
     var msg = "꺼져 있어요. 기록은 이 기기에만 있어요.";
     if(s.on && !agreed) msg = "동의 문구가 새로 바뀌어서 저장을 멈췄어요. 위 내용을 읽고 다시 동의해 주세요.";
     else if(s.on){
       msg = s.lastSync ? "마지막 저장 " + rsWhen(s.lastSync) : "아직 저장하기 전이에요";
-      if(s.lastError) msg += " · 저장하지 못했어요. 「지금 저장」을 눌러 Google 연결을 다시 해 주세요";
+      if(s.lastError) msg += c.lab ? " · 보내지 못했어요. 인터넷 연결을 확인하고 「지금 저장」을 다시 눌러 주세요" : " · 저장하지 못했어요. 「지금 저장」을 눌러 Google 연결을 다시 해 주세요";
     }
     $("rs_status").textContent = msg;
     $("rs_now").disabled = !agreed; $("rs_del").disabled = !s.fileId;
@@ -1501,19 +1505,19 @@ html.big body{zoom:1.18;}
   if(window.Research) window.Research.init({getState:function(){ return st; }, onChange:renderResearch});
   $("rs_on").onchange = function(){
     var box = this, R = window.Research; if(!R) return;
-    if(!box.checked){ R.disable(); toast("연구 참여를 껐어요. Drive 의 파일은 그대로예요"); return renderResearch(); }
+    if(!box.checked){ R.disable(); toast(R.config().lab ? "연구 참여를 껐어요. 이미 보낸 자료는 「보낸 자료 지우기」로 지울 수 있어요" : "연구 참여를 껐어요. Drive 의 파일은 그대로예요"); return renderResearch(); }
     box.disabled = true;
     R.enable().then(function(r){
       box.disabled = false;
-      if(!r.ok){ R.disable(); toast("Google 연결이 안 돼서 연구 참여를 켜지 않았어요"); }
-      else toast("내 Drive 에 저장했어요");
+      if(!r.ok){ R.disable(); toast(R.config().lab ? "연구실로 보내지 못해서 연구 참여를 켜지 않았어요" : "Google 연결이 안 돼서 연구 참여를 켜지 않았어요"); }
+      else toast(R.config().lab ? "연구실로 보냈어요" : "내 Drive 에 저장했어요");
       renderResearch();
     });
   };
-  $("rs_now").onclick = function(){ var R = window.Research; if(!R) return; R.sync(true).then(function(r){ toast(r.ok ? "내 Drive 에 저장했어요" : "저장하지 못했어요. 잠시 뒤 다시 눌러 주세요"); renderResearch(); }); };
+  $("rs_now").onclick = function(){ var R = window.Research; if(!R) return; R.sync(true).then(function(r){ toast(r.ok ? (R.config().lab ? "연구실로 보냈어요" : "내 Drive 에 저장했어요") : "저장하지 못했어요. 잠시 뒤 다시 눌러 주세요"); renderResearch(); }); };
   $("rs_del").onclick = function(){
-    var R = window.Research; if(!R || !confirm("내 Drive 의 연구 파일을 지울까요? 이 기기의 기록은 그대로예요. 연구 참여도 꺼져요.")) return;
-    R.deleteRemote().then(function(r){ R.disable(); toast(r.ok ? "Drive 파일을 지우고 연구 참여를 껐어요" : "지우지 못했어요. 연구 참여는 꺼 두었어요. Drive 에서 직접 지울 수 있어요"); renderResearch(); });   // deleteRemote 가 먼저 참여를 끈다 — 실패해도 꺼진 채. 끝난 뒤 한 번 더 끄는 것은 안전장치(옛 research.js 가 캐시에 남아 섞여도 꺼지게)
+    var R = window.Research; if(!R || !confirm(R.config().lab ? "연구실로 보낸 내 자료를 지워 달라고 요청할까요? 이 기기의 기록은 그대로예요. 연구 참여도 꺼져요." : "내 Drive 의 연구 파일을 지울까요? 이 기기의 기록은 그대로예요. 연구 참여도 꺼져요.")) return;
+    R.deleteRemote().then(function(r){ R.disable(); toast(r.ok ? (R.config().lab ? "보낸 자료를 지우고 연구 참여를 껐어요" : "Drive 파일을 지우고 연구 참여를 껐어요") : "지우지 못했어요. 연구 참여는 꺼 두었어요. " + (R.config().lab ? "연구실에 직접 지워 달라고 요청할 수 있어요" : "Drive 에서 직접 지울 수 있어요")); renderResearch(); });   // deleteRemote 가 먼저 참여를 끈다 — 실패해도 꺼진 채. 끝난 뒤 한 번 더 끄는 것은 안전장치(옛 research.js 가 캐시에 남아 섞여도 꺼지게)
   };
   function renderNotif(){ $("n_on").checked = !!st.notif.on; $("n_am").value = st.notif.am; $("n_pm").value = st.notif.pm; $("n_q1").value = st.notif.q1; $("n_q2").value = st.notif.q2; }
   $("n_on").onchange = function(){
