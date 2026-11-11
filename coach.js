@@ -22,7 +22,7 @@
   function pick(logs, start, now) {
     if (!isNum(start) || !isNum(now) || now < start) return null;
     var days = calDays(start, now);
-    var ts = (Array.isArray(logs) ? logs : []).map(function (l) { return l && l.t; }).filter(isNum).filter(function (t) { return t >= start && t <= now; });
+    var ts = (Array.isArray(logs) ? logs : []).filter(function (l) { return l && !l.from; }).map(function (l) { return l.t; }).filter(isNum).filter(function (t) { return t >= start && t <= now; });
     // ① 기록이 며칠 없다 — 실패로 세지 않는다고 알리고 한 번만 남기게
     if (days >= RULES.GAP_DAYS) {
       var recentAny = ts.some(function (t) { return calDays(t, now) < RULES.GAP_DAYS; });
@@ -39,5 +39,21 @@
     }
     return null;
   }
-  return { RULES: RULES, pick: pick, calDays: calDays };
+
+  /* 주별 흐름 — 오늘로 끝나는 7일 구간 n개(가장 오래된 것부터). 시작 전 날은 세지 않고, 기록하지 않은 날은 0 이 아니라 「기록 없음」입니다(여기서는 세지 않음).
+   * 5분 버티기 완료 기록(from)은 새 당김이 아니라 세지 않습니다 — 통계 · 상담자 요약과 같은 기준 (VN-150-1). */
+  function weekly(logs, start, now, n) {
+    n = n || 4;
+    if (!isNum(start) || !isNum(now) || now < start) return [];
+    var days = calDays(start, now) + 1;                       // 시작한 날부터 오늘까지의 날수
+    var out = [], i;
+    for (i = n - 1; i >= 0; i--) out.push({ ago: i, days: Math.max(0, Math.min(7, days - 7 * i)), crave: 0, slip: 0 });
+    (Array.isArray(logs) ? logs : []).forEach(function (l) {
+      if (!l || l.from || !isNum(l.t) || l.t < start || l.t > now) return;
+      var ago = Math.floor(calDays(l.t, now) / 7);
+      for (var k = 0; k < out.length; k++) if (out[k].ago === ago) { out[k].crave++; if (l.slip) out[k].slip++; }
+    });
+    return out.filter(function (w) { return w.days > 0; });
+  }
+  return { RULES: RULES, pick: pick, weekly: weekly, calDays: calDays };
 });
