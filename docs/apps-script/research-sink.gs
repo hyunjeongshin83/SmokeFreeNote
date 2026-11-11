@@ -10,7 +10,7 @@
  *       의심스러운 요청은 버립니다. 필요하면 시트의 「_log」 탭으로 확인하세요. 주소가 새면 새로 배포해 주소를 바꾸세요.
  */
 var ALLOWED = ['participant', 'records', 'measures', 'daily', 'meds'];   // meds: 코드북 v2 (2026-11-11)   // codebook 은 시트에 넣지 않습니다(틀 파일에 있음)
-var MAX_ROWS = 20000, MAX_COLS = 60, PID_RE = /^P-[0-9a-f]{8}$/;
+var MAX_ROWS = 20000, MAX_COLS = 60, PID_RE = /^P-[0-9a-f]{8}$/, HEAD_RE = /^[a-z][a-z0-9_]{0,39}$/;
 
 function doPost(e) {
   var out = function (o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); };
@@ -22,14 +22,22 @@ function doPost(e) {
     var ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('SHEET_ID'));
     if (b.action === 'delete') { ALLOWED.forEach(function (n) { dropPid(ss, n, b.pid); }); log(ss, 'delete', b.pid); return out({ ok: true }); }
     if (b.action !== 'put' || !b.sheets || typeof b.sheets !== 'object') return out({ ok: false, error: 'bad_action' });
-    var done = [];
+    var done = [], todo = [];
+    // 1) 먼저 모든 탭을 검사만 한다 — 하나라도 어긋나면 아무 것도 바꾸지 않는다 (탭마다 다른 때의 자료가 섞이지 않게 · #88 Sourcery)
     ALLOWED.forEach(function (n) {
       var rows = b.sheets[n]; if (!rows) return;
-      if (!Array.isArray(rows) || rows.length < 1 || rows.length > MAX_ROWS + 1 || rows[0].length > MAX_COLS) throw new Error('bad_shape_' + n);
-      var sh = ss.getSheetByName(n) || ss.insertSheet(n);
+      if (!Array.isArray(rows) || rows.length < 1 || rows.length > MAX_ROWS + 1 || !Array.isArray(rows[0]) || rows[0].length > MAX_COLS) throw new Error('bad_shape_' + n);
       var head = rows[0].map(String);
+      if (!head.every(function (h) { return HEAD_RE.test(h); })) throw new Error('bad_header_' + n);   // 머리글은 영문 소문자·숫자·밑줄만 — 수식(=IMPORTRANGE 등)이 새 탭 머리글로 들어가지 않게 (#88 Sourcery)
+      var sh = ss.getSheetByName(n);
+      if (sh && sh.getLastRow() > 0 && sh.getRange(1, 1, 1, head.length).getValues()[0].join('|') !== head.join('|')) throw new Error('header_changed_' + n);   // 열이 바뀌면(코드북 버전) 사람이 먼저 맞춘다
+      todo.push({ n: n, rows: rows, head: head });
+    });
+    // 2) 그다음에 쓴다
+    todo.forEach(function (t) {
+      var n = t.n, rows = t.rows, head = t.head;
+      var sh = ss.getSheetByName(n) || ss.insertSheet(n);
       if (sh.getLastRow() === 0) sh.getRange(1, 1, 1, head.length).setValues([head]);
-      else if (sh.getRange(1, 1, 1, head.length).getValues()[0].join('|') !== head.join('|')) throw new Error('header_changed_' + n);   // 열이 바뀌면(코드북 버전) 사람이 먼저 맞춘다
       dropPid(ss, n, b.pid);
       var data = rows.slice(1).filter(function (r) { return Array.isArray(r) && String(r[0]) === b.pid && r.length === head.length; });   // 자기 번호의 줄만
       if (data.length) sh.getRange(sh.getLastRow() + 1, 1, data.length, head.length).setValues(data.map(function (r) { return r.map(cell); }));

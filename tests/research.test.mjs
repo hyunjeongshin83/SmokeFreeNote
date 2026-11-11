@@ -427,3 +427,9 @@ test("participant: 흡연 기간·이전 시도 (선택 · 범위 밖은 빈칸)
   ["participant:smoking_years", "participant:prior_quit_attempts", "meds:med_type"].forEach(k => assert.ok(cb.includes(k), k));
   assert.ok(R.buildSheets({}, "P-00000001", 0).some(s => s.name === "meds"));
 });
+
+test("participant · meds: 소수 이력값과 Date 범위 밖 시각은 넣지 않는다 (#88 Sourcery)", () => {
+  const p = R.buildParticipant({ smokeYears: 2.5, priorTries: 1.5 }, "P-00000001", 0);
+  assert.equal(p[1][p[0].indexOf("smoking_years")], ""); assert.equal(p[1][p[0].indexOf("prior_quit_attempts")], "");
+  assert.equal(R.buildMeds({ medlog: [{ id: "x", t: 9e15, type: "patch" }] }, "P-00000001").length, 1);
+});

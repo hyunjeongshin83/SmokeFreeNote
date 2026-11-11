@@ -113,7 +113,7 @@
     var att = (Array.isArray(d.attempts) ? d.attempts : []).filter(function(a){ return a && validT(a.start) && validT(a.end); });
     var MEDL = {patch:"니코틴 패치", gum:"니코틴 껌", lozenge:"니코틴 사탕·트로키", varen:"바레니클린", bupro:"부프로피온", other:"그 밖의 약"};   // 앱의 약 종류 (SmokeFree_app.html MEDT 와 같게)
     var medlog = (Array.isArray(d.medlog) ? d.medlog : []).map(function(x){ return x && validT(x.t) && typeof x.type === "string" && Object.prototype.hasOwnProperty.call(MEDL, x.type) ? {t:x.t, name:MEDL[x.type], mg: num(x.mg) > 0 && x.mg < 10000 ? num(x.mg) : null, n: num(x.n) >= 1 && x.n < 1000 && Math.floor(x.n) === x.n ? x.n : null} : null; }).filter(Boolean).slice(0, 5000).sort(function(a,b){ return a.t - b.t; });
-    var yrs = num(d.smokeYears) != null && d.smokeYears >= 0 && d.smokeYears <= 90 ? d.smokeYears : null, tries = num(d.priorTries) != null && d.priorTries >= 0 && d.priorTries <= 99 ? d.priorTries : null;
+    var intIn = function(v, hi){ return num(v) != null && v >= 0 && v <= hi && Math.floor(v) === v; }, yrs = intIn(d.smokeYears, 90) ? d.smokeYears : null, tries = intIn(d.priorTries, 99) ? d.priorTries : null;   // 앱 설정과 같게 정수만
     return { app:app, smokeYears:yrs, priorTries:tries, start:validT(d.start) ? d.start : null, kind:str(d.kind,10), goal:str(d.goal,10), perday:num(d.perday), logs:logs, meas:meas, meds:meds, medlog:medlog, attempts:att, exported:str(o.exported,40) };
   }
 

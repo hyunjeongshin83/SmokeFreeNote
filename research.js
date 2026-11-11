@@ -139,7 +139,8 @@
   }
 
   function buildParticipant(st, pid, now) {
-    var yr = isNum(st.smokeYears) && st.smokeYears >= 0 && st.smokeYears <= 90 ? st.smokeYears : "", pq = isNum(st.priorTries) && st.priorTries >= 0 && st.priorTries <= 99 ? st.priorTries : "";
+    var intIn = function (v, hi) { return isNum(v) && v >= 0 && v <= hi && Math.floor(v) === v; };   // 설정 화면과 같은 규칙 — 0 이상 정수 (#88 Sourcery)
+    var yr = intIn(st.smokeYears, 90) ? st.smokeYears : "", pq = intIn(st.priorTries, 99) ? st.priorTries : "";
     return [["participant_id", "product_kind", "baseline_per_day", "pack_price_won", "quit_start_date", "n_attempts", "smoking_years", "prior_quit_attempts", "exported_at_utc", "codebook_version"],
       [pid, KIND[st.kind] || 1, isNum(st.perDay) ? st.perDay : "", isNum(st.price) ? st.price : "", isNum(st.start) ? dkey(st.start) : "",
         (st.attempts || []).length + (isNum(st.start) ? 1 : 0), yr, pq, new Date(now || Date.now()).toISOString(), CODEBOOK_VERSION]];
@@ -148,7 +149,7 @@
   // 약 기록 (앱 medlog) — 한 줄이 한 번 적은 것. 종류는 코드로, 용량·개수는 수만 (글자는 넣지 않는다)
   function buildMeds(st, pid) {
     var rows = [["participant_id", "date", "hour", "med_type", "dose_mg", "count"]], seen = {};
-    (Array.isArray(st.medlog) ? st.medlog : []).filter(function (m) { return m && typeof m.id === "string" && isNum(m.t) && typeof m.type === "string" && Object.prototype.hasOwnProperty.call(MED, m.type); })
+    (Array.isArray(st.medlog) ? st.medlog : []).filter(function (m) { return m && typeof m.id === "string" && isNum(m.t) && !isNaN(new Date(m.t).getTime()) && typeof m.type === "string" && Object.prototype.hasOwnProperty.call(MED, m.type); })
       .filter(function (m) { if (seen[m.id]) return false; seen[m.id] = 1; return true; })
       .slice(0, 5000).sort(function (a, b) { return a.t - b.t; })
       .forEach(function (m) {
