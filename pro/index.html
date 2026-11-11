@@ -34,7 +34,8 @@
   .disc{ font-size:0.875rem; color:var(--d3); margin-top:18px; line-height:1.6; word-break:keep-all; }
   .bar{ display:inline-block; height:10px; border-radius:6px; background:var(--g4); vertical-align:middle; }
   .bar.s{ background:var(--coral); }
-  .chart{ display:block; width:100%; height:auto; margin-top:4px; }
+  .chart{ display:block; width:100%; min-width:560px; height:auto; margin-top:4px; }   /* 좁은 화면에서 글자가 작아지지 않게 — 넘치면 옆으로 밀어 봄 */
+  .scroll{ overflow-x:auto; }
   .legend{ display:flex; flex-wrap:wrap; gap:14px; font-size:0.875rem; color:var(--d3); margin-top:6px; }
   .legend i{ display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-1px; margin-right:4px; background:var(--g4); }
   .legend i.s{ background:var(--coral); outline:1px solid var(--ink); }
@@ -59,8 +60,8 @@
 
   <div id="out" hidden>
     <section class="card" aria-labelledby="sum_h"><h2 id="sum_h">요약</h2><div class="kv" id="kv"></div><div id="notes"></div></section>
-    <section class="card" id="el_card" aria-labelledby="el_h"><h2 id="el_h">시작부터 지난 날</h2><div id="el"></div></section>
-    <section class="card" aria-labelledby="wk_h"><h2 id="wk_h">주별 기록</h2><div id="wkc"></div><div style="overflow-x:auto"><table id="wk"><thead></thead><tbody></tbody></table></div></section>
+    <section class="card" id="el_card" aria-labelledby="el_h"><h2 id="el_h">시작부터 지난 날</h2><div id="el" class="scroll"></div></section>
+    <section class="card" aria-labelledby="wk_h"><h2 id="wk_h">주별 기록</h2><div id="wkc" class="scroll"></div><div style="overflow-x:auto"><table id="wk"><thead></thead><tbody></tbody></table></div></section>
     <section class="card" aria-labelledby="pt_h"><h2 id="pt_h">당김이 많았던 때</h2><div class="kv" id="pt" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"></div></section>
     <section class="card" id="md_card" aria-labelledby="md_h"><h2 id="md_h">약 종류별 쓴 날 수</h2><div id="mdd"></div></section>
     <section class="card" id="ms_card" aria-labelledby="ms_h"><h2 id="ms_h">측정값 (환자가 옮겨 적은 값)</h2><div id="ms"></div></section>
@@ -144,14 +145,14 @@
     var step = (W - left - 4) / show.length, bw = Math.max(2, Math.min(14, step / 2 - 2));
     var g = sv("svg", {viewBox:"0 0 " + W + " " + H, "class":"chart", role:"img", "aria-label":"주별 " + (smoke ? "넘김·피움" : "넘김·마심") + " 막대 그래프. 같은 값이 아래 표에 있어요."});
     g.appendChild(sv("line", {x1:left, y1:H-bot, x2:W-4, y2:H-bot, stroke:"#5A716D", "stroke-width":1}));
-    g.appendChild(sv("text", {x:left-4, y:top+4, "text-anchor":"end", "font-size":11, fill:"#5A716D"}, String(max)));
-    g.appendChild(sv("text", {x:left-4, y:H-bot, "text-anchor":"end", "font-size":11, fill:"#5A716D"}, "0"));
+    g.appendChild(sv("text", {x:left-4, y:top+4, "text-anchor":"end", "font-size":13, fill:"#5A716D"}, String(max)));
+    g.appendChild(sv("text", {x:left-4, y:H-bot, "text-anchor":"end", "font-size":13, fill:"#5A716D"}, "0"));
     var ph = H - top - bot;
     show.forEach(function(w, i){
       var x = left + i * step + step / 2, o = weeks[w] || {u:0, s:0}, hu = o.u / max * ph, hs = o.s / max * ph;
       if(o.u) g.appendChild(sv("rect", {x:x - bw - 1, y:H - bot - hu, width:bw, height:hu, rx:2, fill:"#0E6B48"}));
       if(o.s) g.appendChild(sv("rect", {x:x + 1, y:H - bot - hs, width:bw, height:hs, rx:2, fill:"#F6796B", stroke:"#122423", "stroke-width":1}));
-      if(show.length <= 13 || i % 2 === 0) g.appendChild(sv("text", {x:x, y:H - 8, "text-anchor":"middle", "font-size":11, fill:"#5A716D"}, md(w)));
+      if(show.length <= 13 || i % 2 === 0) g.appendChild(sv("text", {x:x, y:H - 8, "text-anchor":"middle", "font-size":13, fill:"#5A716D"}, md(w)));
     });
     box.appendChild(g);
     var lg = el("div", null, "legend"); var a = el("span"); a.appendChild(el("i")); a.appendChild(document.createTextNode("넘김")); var b = el("span"); b.appendChild(el("i", null, "s")); b.appendChild(document.createTextNode(smoke ? "피움" : "마심")); lg.appendChild(a); lg.appendChild(b);
@@ -163,13 +164,14 @@
   function elapsed(start, smoke){
     var box = $("el"); box.textContent = ""; var now = Date.now(), days = Math.max(0, Math.floor((now - start) / DAY));
     var s0 = new Date(start), m6 = s0.getMonth() + 6, d6 = new Date(s0.getFullYear(), m6, Math.min(s0.getDate(), new Date(s0.getFullYear(), m6 + 1, 0).getDate()), s0.getHours(), s0.getMinutes());   // 6개월 뒤 같은 날이 없으면(8/31 → 2월) 그달 마지막 날로 — setMonth 는 다음 달로 넘어간다 (#83 Codex)
-    var marks = [["4주", start + 28 * DAY], ["12주", start + 84 * DAY], ["6개월", d6.getTime()]];
+    function plusDays(n){ return new Date(s0.getFullYear(), s0.getMonth(), s0.getDate() + n, s0.getHours(), s0.getMinutes()).getTime(); }   // 달력 날짜로 더한다 — 서머타임이 있는 곳에서도 하루가 밀리지 않게
+    var marks = [["4주", plusDays(28)], ["12주", plusDays(84)], ["6개월", d6.getTime()]];
     var endT = Math.max(now, marks[2][1]), W = 640, H = 62, L0 = 8, R0 = W - 8, span = endT - start || 1;
     function X(t){ return L0 + (t - start) / span * (R0 - L0); }
     var g = sv("svg", {viewBox:"0 0 " + W + " " + H, "class":"chart", role:"img", "aria-label":"시작 " + dkey(start) + " 부터 오늘까지 " + days + "일. 4주 · 12주 · 6개월 시점 표시."});
     g.appendChild(sv("rect", {x:L0, y:26, width:R0 - L0, height:8, rx:4, fill:"#D7F0E3", stroke:"#5A716D", "stroke-width":1}));
     g.appendChild(sv("rect", {x:L0, y:26, width:Math.max(0, X(Math.min(now, endT)) - L0), height:8, rx:4, fill:"#0E6B48"}));
-    marks.forEach(function(mk){ var x = X(mk[1]); g.appendChild(sv("line", {x1:x, y1:18, x2:x, y2:42, stroke:"#122423", "stroke-width":1.5})); g.appendChild(sv("text", {x:x, y:14, "text-anchor":x > W - 40 ? "end" : "middle", "font-size":12, fill:"#122423"}, mk[0])); g.appendChild(sv("text", {x:x, y:56, "text-anchor":x > W - 40 ? "end" : "middle", "font-size":11, fill:"#5A716D"}, md(mk[1]))); });
+    marks.forEach(function(mk){ var x = X(mk[1]); g.appendChild(sv("line", {x1:x, y1:18, x2:x, y2:42, stroke:"#122423", "stroke-width":1.5})); g.appendChild(sv("text", {x:x, y:14, "text-anchor":x > W - 40 ? "end" : "middle", "font-size":14, fill:"#122423"}, mk[0])); g.appendChild(sv("text", {x:x, y:56, "text-anchor":x > W - 40 ? "end" : "middle", "font-size":13, fill:"#5A716D"}, md(mk[1]))); });
     box.appendChild(g);
     var p = el("p", "시작 " + dkey(start) + " · 오늘 " + days + "일째. " + marks.map(function(mk){ var r = Math.ceil((mk[1] - now) / DAY); return mk[0] + " 시점 " + dkey(mk[1]) + (r > 0 ? " (" + r + "일 남음)" : " (지남)"); }).join(" · "), "sub");
     box.appendChild(p);
