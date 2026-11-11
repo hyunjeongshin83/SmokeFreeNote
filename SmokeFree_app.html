@@ -353,6 +353,16 @@ html.big body{zoom:1.18;}
       <div id="h_reason" style="font-size:1.0625rem;color:var(--ink);font-weight:700;line-height:1.45"></div>
     </div>
     <label class="chk" style="margin:2px 0 10px"><input type="checkbox" id="h_med"> 오늘 약 먹었어요 (니코틴 껌·패치 · 처방약)</label>
+    <div class="card" id="h_medbox" hidden>
+      <div class="sect">무엇을 쓰셨나요? <span style="font-weight:500">(선택)</span></div>
+      <div class="chips" id="h_medt" role="group" aria-label="약 종류"></div>
+      <div class="row2">
+        <div class="fld"><label for="h_medmg">용량 mg (선택)</label><input type="number" id="h_medmg" min="0" step="0.5" inputmode="decimal"></div>
+        <div class="fld"><label for="h_medn">개수 (선택)</label><input type="number" id="h_medn" min="1" step="1" inputmode="numeric"></div>
+      </div>
+      <button class="btn ghost" type="button" id="h_medsave">남기기</button>
+      <ul class="log" id="h_medlist" style="margin-top:8px"></ul>
+    </div>
     <p class="disc">* 되찾은 시간은 개비당 약 11분으로 계산한 참고 수치예요.</p>
   </section>
 
@@ -676,7 +686,7 @@ html.big body{zoom:1.18;}
     try{ raw = localStorage.getItem(KEY); bootRaw = raw; return JSON.parse(raw) || {}; }
     catch(e){ loadOk = false; try{ if(raw && localStorage.getItem(KEY+".corrupt")==null) localStorage.setItem(KEY+".corrupt", raw); }catch(e2){} return {}; }   // 깨진 원본은 덮어쓰기 전에 한 번 보존 (VN-116-3)
   }
-  var st = load(); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {}; st.devices = st.devices || [];
+  var st = load(); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {}; st.medlog = Array.isArray(st.medlog) ? st.medlog : []; st.devices = st.devices || [];
   function dkey(t){ var d=new Date(t||Date.now()); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
   if(st.big) document.documentElement.classList.add("big");
   st.notif = st.notif || {}; var NDEF = {on:false, am:"08:30", pm:"21:00", q1:"21:30", q2:"08:00", sent:{}};
@@ -754,7 +764,7 @@ html.big body{zoom:1.18;}
     var old = {}; Object.keys(st).forEach(function(k){ old[k] = st[k]; });
     var merged = relink(old, merge3(base, st, theirs));
     var lost = concurrent && !jeq(merged, theirs);   // 저장된 것에 내 변경이 빠져 있다 = 동시에 써서 내 쪽이 덮였다
-    adopt(merged); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {}; st.devices = st.devices || []; st.notif = st.notif || {}; Object.keys(NDEF).forEach(function(k){ if(st.notif[k] == null) st.notif[k] = NDEF[k]; }); st.media = st.media || [];   // 합친 결과에도 기본값을 채워 둔다
+    adopt(merged); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {}; st.medlog = Array.isArray(st.medlog) ? st.medlog : []; st.devices = st.devices || []; st.notif = st.notif || {}; Object.keys(NDEF).forEach(function(k){ if(st.notif[k] == null) st.notif[k] = NDEF[k]; }); st.media = st.media || [];   // 합친 결과에도 기본값을 채워 둔다
     lastRaw = raw; lastRev = rev; lastObj = JSON.parse(JSON.stringify(theirs)); remember(rev, theirs);
     if(lost && !inSave) setTimeout(function(){ save(); }, 0);   // 합친 결과를 다시 저장해 두 탭이 같은 기록으로 모이게 한다
     return true;
@@ -906,8 +916,33 @@ html.big body{zoom:1.18;}
   var homeDay = null;
   setInterval(function(){ greetNow(); tick(); var d = new Date().toDateString(); if(homeDay !== null && homeDay !== d) refreshHome(); homeDay = d; }, 1000);   // 자정을 넘기면 메인의 오늘 할 일·최근 기록도 새로 그린다
   // 약 복용 — 하루 한 칸 (docs/DESIGN.md 1절 · 약사 축)
-  function renderMed(){ $("h_med").checked = !!st.meds[dkey()]; }
-  $("h_med").onchange = function(){ if($("h_med").checked) st.meds[dkey()]=true; else delete st.meds[dkey()]; save(); toast($("h_med").checked?"오늘 복용을 남겼어요":"복용 표시를 지웠어요"); };
+  // 약 종류·용량 (대표님 요청 2026-11-11) — 「오늘 약 먹었어요」 칸은 그대로 두고, 무엇을 얼마나 썼는지를 medlog 에 따로 쌓는다.
+  // 하루 칸(meds)은 통계·연구 자료가 쓰므로 자세히 남기면 그날 칸도 켠다. 옛 기록(meds 만 있음)은 그대로 읽힌다.
+  var MEDT = [["patch","니코틴 패치"],["gum","니코틴 껌"],["lozenge","니코틴 사탕·트로키"],["varen","바레니클린"],["bupro","부프로피온"],["other","그 밖의 약"]];
+  var MEDL = {}; MEDT.forEach(function(m){ MEDL[m[0]] = m[1]; });
+  var medPick = "";
+  function medLabel(m){ return (MEDL[m.type] || "약") + (m.mg ? " " + m.mg + "mg" : "") + (m.n ? " · " + m.n + "개" : ""); }
+  function medChips(){
+    $("h_medt").innerHTML = MEDT.map(function(m){ return '<button type="button" class="chip'+(m[0]===medPick?" on":"")+'" aria-pressed="'+(m[0]===medPick)+'">'+m[1]+'</button>'; }).join("");
+    $("h_medt").querySelectorAll(".chip").forEach(function(b,i){ b.onclick = function(){ medPick = medPick === MEDT[i][0] ? "" : MEDT[i][0]; medChips(); }; });
+  }
+  function renderMed(){
+    var on = !!st.meds[dkey()]; $("h_med").checked = on; $("h_medbox").hidden = !on;
+    if(!on) return;
+    medChips();
+    var today = dkey(), list = st.medlog.filter(function(m){ return m && dkey(m.t) === today; });
+    $("h_medlist").innerHTML = list.map(function(m){ return '<li><div class="body">'+esc(medLabel(m))+'<div class="meta">'+new Date(m.t).toTimeString().slice(0,5)+'</div></div><button type="button" class="del" style="min-width:44px;min-height:44px" data-mid="'+esc(m.id)+'" aria-label="'+esc(medLabel(m))+' 지우기">×</button></li>'; }).join("");
+    $("h_medlist").querySelectorAll("[data-mid]").forEach(function(b){ b.onclick = function(){ var id = b.getAttribute("data-mid"); st.medlog = st.medlog.filter(function(m){ return m.id !== id; }); save(); renderMed(); toast("지웠어요"); }; });
+  }
+  $("h_medsave").onclick = function(){
+    if(!medPick) return toast("약 종류를 골라 주세요");
+    var mg = +$("h_medmg").value, n = +$("h_medn").value, t = Date.now();
+    st.medlog.unshift({ id: "md" + t.toString(36) + Math.random().toString(36).slice(2, 6), t: t, type: medPick, mg: mg > 0 ? mg : null, n: n > 0 ? Math.round(n) : null });
+    st.meds[dkey()] = true; save();
+    $("h_medmg").value = ""; $("h_medn").value = ""; medPick = "";
+    renderMed(); toast("남겼어요");
+  };
+  $("h_med").onchange = function(){ if($("h_med").checked) st.meds[dkey()]=true; else delete st.meds[dkey()]; save(); renderMed(); toast($("h_med").checked?"오늘 복용을 남겼어요":"복용 표시를 지웠어요"); };
   renderMed();
 
   // 건강 타임라인
@@ -1375,6 +1410,7 @@ html.big body{zoom:1.18;}
   function csvCell(v){ var t = String(v == null ? "" : v).replace(/\r?\n/g, " "); if(/^[\s\x00-\x1f]*[=+\-@]/.test(t)) t = "'"+t;  return '"'+t.replace(/"/g,'""')+'"'; }
   $("p_csv").onclick = function(){
     var r = proSummary().rows(), out = ["날짜,시간대,구분,세기,기분,상황,대처"];
+    st.medlog.forEach(function(m){ if(m && typeof m.t === "number") r.push({ t: m.t, kind: "약", lv: "", mood: "", trig: [medLabel(m)], cope: [] }); });   // 약 종류·용량 (상황 칸에 「니코틴 패치 21mg」처럼)
     r.sort(function(a,b){ return a.t - b.t; }).forEach(function(x){ var d = new Date(x.t);
       out.push([d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2), d.getHours()+"시대", x.kind, x.lv || "", x.mood || "", x.trig.join(" / "), x.cope.join(" / ")].map(csvCell).join(",")); });
     var blob = new Blob(["\ufeff"+out.join("\r\n")], {type:"text/csv;charset=utf-8"});
@@ -1465,6 +1501,7 @@ html.big body{zoom:1.18;}
         var added = 0; d.logs.forEach(function(r){ if(r && r.t && !seen[r.t]){ st.logs.push(r); added++; } });
         st.logs.sort(function(a,b){ return b.t-a.t; });
         Object.keys(d.meds||{}).forEach(function(k){ st.meds[k]=true; });
+        (Array.isArray(d.medlog) ? d.medlog : []).forEach(function(m){ if(m && m.id && typeof m.t === "number" && !st.medlog.some(function(x){ return x.id === m.id; })) st.medlog.push(m); }); st.medlog.sort(function(a,b){ return b.t - a.t; });
         cleanMedia(d.media).forEach(function(m){ if(!st.media.some(function(x){ return x.id === m.id; })) st.media.push(m); }); st.media.sort(function(a,b){ return b.t - a.t; }); var gone = st.media.slice(200); st.media = st.media.slice(0, 200);   // 사진은 기기 안에만 있어 가져온 기록에는 그림 없이 시각·바코드·메모만 들어온다
         (d.measures||[]).forEach(function(m){ if(!st.measures.some(function(x){ return sameMeasure(x, m); })) st.measures.push(m); });
         st.measures.sort(function(a,b){ return b.t-a.t; });

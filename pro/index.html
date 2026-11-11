@@ -102,7 +102,9 @@
     var meas = (Array.isArray(d.measures) ? d.measures : []).map(function(m){ return m && validT(m.t) && (m.kind === "co" || m.kind === "puffs") && num(m.v) != null ? {t:m.t, kind:m.kind, v:m.v} : null; }).filter(Boolean).sort(function(a,b){ return a.t - b.t; });
     var meds = Object.keys(d.meds && typeof d.meds === "object" ? d.meds : {}).filter(function(k){ return /^\d{4}-\d{2}-\d{2}$/.test(k) && d.meds[k]; });
     var att = (Array.isArray(d.attempts) ? d.attempts : []).filter(function(a){ return a && validT(a.start) && validT(a.end); });
-    return { app:app, start:validT(d.start) ? d.start : null, kind:str(d.kind,10), goal:str(d.goal,10), perday:num(d.perday), logs:logs, meas:meas, meds:meds, attempts:att, exported:str(o.exported,40) };
+    var MEDL = {patch:"니코틴 패치", gum:"니코틴 껌", lozenge:"니코틴 사탕·트로키", varen:"바레니클린", bupro:"부프로피온", other:"그 밖의 약"};   // 앱의 약 종류 (SmokeFree_app.html MEDT 와 같게)
+    var medlog = (Array.isArray(d.medlog) ? d.medlog : []).map(function(x){ return x && validT(x.t) && MEDL[x.type] ? {t:x.t, name:MEDL[x.type], mg: num(x.mg) > 0 ? num(x.mg) : null, n: num(x.n) > 0 ? Math.round(num(x.n)) : null} : null; }).filter(Boolean).sort(function(a,b){ return a.t - b.t; });
+    return { app:app, start:validT(d.start) ? d.start : null, kind:str(d.kind,10), goal:str(d.goal,10), perday:num(d.perday), logs:logs, meas:meas, meds:meds, medlog:medlog, attempts:att, exported:str(o.exported,40) };
   }
 
   function flat(logs, k){ var out = []; logs.forEach(function(l){ l[k].forEach(function(x){ out.push(x); }); }); return out; }
@@ -135,6 +137,7 @@
     if(!smoke) kv.appendChild(card("마신 잔 수 합계", String(m.logs.reduce(function(a,l){ return a + l.cups; }, 0))));
     kv.appendChild(card("5분 버티기 사용", String(m.logs.filter(function(l){ return l.sos; }).length)));
     if(smoke) kv.appendChild(card("약 복용을 표시한 날", String(m.meds.length)));
+    if(smoke && m.medlog.length){ var byName = {}; m.medlog.forEach(function(x){ byName[x.name] = (byName[x.name] || 0) + 1; }); kv.appendChild(card("적은 약 (횟수)", Object.keys(byName).map(function(k){ return k + " " + byName[k]; }).join(" · "))); }
     if(m.logs.length) kv.appendChild(card("기록 기간", md(first) + " ~ " + md(last)));
     var notes = $("notes"); notes.textContent = "";
     if(smoke && (m.kind === "hnb" || m.kind === "liquid")){
@@ -188,6 +191,7 @@
     rows.push([]); rows.push(["측정값","시각","종류","값"]);
     m.meas.forEach(function(x){ rows.push(["측정값", new Date(x.t).toISOString(), x.kind, x.v]); });
     m.meds.forEach(function(k){ rows.push(["복용", k, "복용함", ""]); });
+    m.medlog.forEach(function(x){ rows.push(["약", new Date(x.t).toISOString(), x.name, x.mg != null ? x.mg + "mg" : "", x.n != null ? x.n + "개" : ""]); });
     return "﻿" + rows.map(function(r){ return r.map(cell).join(","); }).join("\r\n");
   }
 
