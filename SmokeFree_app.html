@@ -375,6 +375,10 @@ html.big body{zoom:1.18;}
         <div class="fld"><label for="m_co">CO (ppm)</label><input type="number" id="m_co" min="0" max="99" inputmode="numeric" placeholder="예: 4"></div>
         <div class="fld"><label for="m_puff" id="m_puff_l">이번 주 퍼프·스틱</label><input type="number" id="m_puff" min="0" inputmode="numeric" placeholder="예: 120"></div>
       </div>
+      <div id="iq_box" style="display:none;margin-top:12px">
+        <button class="btn ghost" id="iq_conn" type="button">아이코스에서 퍼프 수 읽기 (실험)</button>
+        <p class="sub" id="iq_msg" role="status" aria-live="polite" style="margin-top:8px">아이코스 일루마를 켜 두고 누르면, 연결해 있는 동안 늘어난 퍼프 수를 위 「퍼프·스틱」 칸에 채워요. 저장은 아래 단추를 눌러야 돼요.</p>
+      </div>
       <button class="btn ghost" id="m_save">측정값 저장</button>
       <p class="disc" style="text-align:left">CO 6 ppm 이하는 비흡연 수준으로 봐요 (Smart-T 시험 기준). 앱이 기기에서 직접 읽지는 못해요 — 도움 탭 「기기 연결」에 이유가 있어요.</p>
     </div>
@@ -619,6 +623,7 @@ html.big body{zoom:1.18;}
 <!-- 연구용 Drive 저장 — 기본값 꺼짐. research-config.js 가 비어 있으면 아무 데도 접속하지 않고 화면에도 보이지 않음 (docs/RESEARCH-EXPORT.md) -->
 <script src="research-config.js"></script>
 <script src="research.js"></script>
+<script src="iqos-ble.js"></script>
 <script>
 (function(){
   var KEY = "smokefree.v1";
@@ -1194,7 +1199,28 @@ html.big body{zoom:1.18;}
     if(co!=="" && +co>=0){ st.measures.unshift({t:Date.now(), kind:"co", v:+co}); n++; }
     if(pf!=="" && +pf>=0){ st.measures.unshift({t:Date.now(), kind:"puffs", v:+pf}); n++; }
     if(!n) return toast("값을 하나는 적어 주세요");
-    save(); $("m_co").value=""; $("m_puff").value=""; toast("측정값을 저장했어요");
+    save(); $("m_co").value=""; $("m_puff").value=""; iqSum=0; toast("측정값을 저장했어요");
+  };
+
+  // 아이코스 퍼프 수 읽기 (iqos-ble.js · 실험) — 연결해 있는 동안 늘어난 수를 「퍼프·스틱」 칸에 채울 뿐, 저장은 사용자가 측정값 저장을 눌러야 함.
+  // 안드로이드 앱 셸(WebView)·iOS 에는 Web Bluetooth 가 없어 이 칸은 보이지 않는다.
+  var iqSum = 0, iq = null;
+  if(window.IqosBle && ("bluetooth" in navigator) && !window.Native){ $("iq_box").style.display = ""; }
+  $("iq_conn").onclick = function(){
+    if(iq && iq.isConnected()){ iq.disconnect(); return; }
+    var msg = $("iq_msg");
+    iq = IqosBle.create({
+      onLink: function(c){ $("iq_conn").textContent = c ? "읽기 끝내기" : "아이코스에서 퍼프 수 읽기 (실험)"; if(!c) msg.textContent = "연결이 끝났어요. 칸에 채운 값은 저장을 눌러야 기록돼요."; },
+      onCount: function(cur, d){
+        if(d){ iqSum += d; $("m_puff").value = iqSum; }
+        msg.textContent = "연결됨 · 지금까지 읽은 퍼프 " + iqSum + "회 (기기 누적 " + cur + "). 끝내려면 위 단추를 누르고, 저장은 아래 「측정값 저장」이에요.";
+      },
+      onError: function(){ msg.textContent = "기기와 주고받지 못했어요. 다시 연결해 보세요."; }
+    });
+    msg.textContent = "기기를 고르는 창이 떠요. 아이코스를 켜 두세요.";
+    iq.connect().catch(function(e){
+      msg.textContent = (e && e.name === "NotFoundError") ? "기기를 고르지 않았어요." : "연결하지 못했어요. 이 기기와 맞지 않을 수 있어요. 아래처럼 손으로 옮겨 적으면 돼요.";
+    });
   };
 
   // 검사 결과 — 앱이 잰 값이 아니라 적은 값. measures 에 kind:"test" 로 더하고 해석 문구는 붙이지 않는다
