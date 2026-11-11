@@ -335,6 +335,12 @@ html.big body{zoom:1.18;}
       <div class="sect">오늘 할 일</div>
       <div class="todo" id="td_row"><span class="ck" id="td_ck" aria-hidden="true">○</span><div style="flex:1;min-width:0"><b id="td_t">오늘 기록 남기기</b><div class="sub" id="td_d" style="margin-top:2px">15초면 돼요</div></div><button type="button" class="btn ghost sm" id="td_go">기록하기</button></div>
     </div>
+    <div class="card" id="mn_coach" style="display:none">
+      <div class="sect" id="mc_t"></div>
+      <p class="sub" id="mc_d" style="margin-top:6px"></p>
+      <div class="row2" id="mc_row" style="margin-top:10px"><button class="btn" id="mc_go" type="button"></button><button class="btn ghost" id="mc_go2" type="button" style="display:none"></button></div>
+      <p class="disc" style="text-align:left">기록만 보고 이 기기 안에서 고른 안내예요. 진단이나 판정이 아니에요.</p>
+    </div>
     <div class="quick" role="group" aria-label="바로가기">
       <button type="button" data-q="log"><svg aria-hidden="true" focusable="false"><use href="#i-record"/></svg>기록하기</button>
       <button type="button" data-q="stats"><svg aria-hidden="true" focusable="false"><use href="#i-chart"/></svg>통계 보기</button>
@@ -638,6 +644,7 @@ html.big body{zoom:1.18;}
 <script src="research-config.js"></script>
 <script src="research.js"></script>
 <script src="iqos-ble.js"></script>
+<script src="coach.js"></script>
 <script>
 (function(){
   var KEY = "smokefree.v1";
@@ -1056,6 +1063,17 @@ html.big body{zoom:1.18;}
   function renderMain(){
     var logs = Array.isArray(st.logs) ? st.logs : [], today = dkey(Date.now());
     var done = logs.some(function(l){ return dkey(l.t) === today; });
+    // 메인 코칭 카드 — 기록만으로 고른 안내 한 장(없으면 숨김). 규칙은 coach.js
+    var cc = $("mn_coach"), pk = null;
+    try{ if(window.Coach) pk = window.Coach.pick(logs, st.start, Date.now()); }catch(e){ pk = null; }
+    if(cc){
+      cc.style.display = pk ? "" : "none";
+      if(pk){
+        $("mc_t").textContent = pk.title; $("mc_d").textContent = pk.body;
+        $("mc_go").textContent = pk.goText; $("mc_go").dataset.go = pk.go;
+        var g2 = $("mc_go2"); g2.style.display = pk.go2 ? "" : "none"; $("mc_row").style.gridTemplateColumns = pk.go2 ? "" : "1fr"; if(pk.go2){ g2.textContent = pk.go2Text; g2.dataset.go = pk.go2; }
+      }
+    }
     $("td_row").classList.toggle("done", done); $("td_ck").textContent = done ? "✓" : "○";
     $("td_t").textContent = done ? "오늘 기록을 남겼어요" : "오늘 기록 남기기";
     $("td_d").textContent = done ? "더 있으면 한 번 더 남겨도 돼요" : "15초면 돼요";
@@ -1070,6 +1088,7 @@ html.big body{zoom:1.18;}
     });
   }
   $("td_go").onclick = function(){ show("log"); };
+  ["mc_go","mc_go2"].forEach(function(id){ $(id).onclick = function(){ var t = this.dataset.go; if(t){ var on = document.querySelector(".view.on"); proFrom = on ? on.id.slice(2) : null; show(t); } }; });
   Array.prototype.forEach.call(document.querySelectorAll("[data-q]"), function(b){ b.onclick = function(){ var on = document.querySelector(".view.on"); proFrom = on ? on.id.slice(2) : null; show(b.dataset.q); }; });   // 「함께 보기」의 뒤로 단추가 메인으로 돌아오게
   // ── 사진·바코드 기록 — 이 기기 안에서만. 사진은 다시 그려 EXIF(위치 포함)를 지운 작은 그림만 IndexedDB 에 둔다
   function cleanMedia(a){ return (Array.isArray(a) ? a : []).filter(function(m){ return m && typeof m.t === "number" && isFinite(m.t) && typeof m.id === "string" && /^[a-z0-9]{6,24}$/.test(m.id); }).slice(0, 200)
