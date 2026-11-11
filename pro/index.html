@@ -34,8 +34,15 @@
   .disc{ font-size:0.875rem; color:var(--d3); margin-top:18px; line-height:1.6; word-break:keep-all; }
   .bar{ display:inline-block; height:10px; border-radius:6px; background:var(--g4); vertical-align:middle; }
   .bar.s{ background:var(--coral); }
+  .chart{ display:block; width:100%; min-width:560px; height:auto; margin-top:4px; }   /* 좁은 화면에서 글자가 작아지지 않게 — 넘치면 옆으로 밀어 봄 */
+  .scroll{ overflow-x:auto; }
+  .legend{ display:flex; flex-wrap:wrap; gap:14px; font-size:0.875rem; color:var(--d3); margin-top:6px; }
+  .legend i{ display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-1px; margin-right:4px; background:var(--g4); }
+  .legend i.s{ background:var(--coral); outline:1px solid var(--ink); }
   [hidden]{ display:none !important; }
-  @media print{ body{ background:#fff; } .noprint{ display:none !important; } .card{ break-inside:avoid; box-shadow:none; } main{ padding:0; } }
+  @media print{ body{ background:#fff; } .noprint{ display:none !important; } .card{ break-inside:auto; box-shadow:none; } .chart, .kv div, tr, h2{ break-inside:avoid; } h2{ break-after:avoid; } main{ padding:0; } .card{ margin-top:8px; padding:10px 12px; } h1{ font-size:1.25rem; } .chart{ max-height:150px; }
+    body{ font-size:0.8125rem; } th,td{ padding:2px 6px; } .kv{ gap:6px; } .kv div{ padding:6px 8px; } .kv b{ font-size:1rem; } #pt{ grid-template-columns:repeat(4,1fr) !important; } .disc{ margin-top:8px; }
+    @page{ margin:12mm; } }   /* 인쇄는 한두 장에 들어가게 촘촘히 (VN-218-1) */
   @media (prefers-reduced-motion:reduce){ *{ transition-duration:.01ms !important; animation-duration:.01ms !important; } }
 </style>
 </head>
@@ -53,8 +60,10 @@
 
   <div id="out" hidden>
     <section class="card" aria-labelledby="sum_h"><h2 id="sum_h">요약</h2><div class="kv" id="kv"></div><div id="notes"></div></section>
-    <section class="card" aria-labelledby="wk_h"><h2 id="wk_h">주별 기록</h2><div style="overflow-x:auto"><table id="wk"><thead></thead><tbody></tbody></table></div></section>
+    <section class="card" id="el_card" aria-labelledby="el_h"><h2 id="el_h">시작부터 지난 날</h2><div id="el" class="scroll"></div></section>
+    <section class="card" aria-labelledby="wk_h"><h2 id="wk_h">주별 기록</h2><div id="wkc" class="scroll"></div><div style="overflow-x:auto"><table id="wk"><thead></thead><tbody></tbody></table></div></section>
     <section class="card" aria-labelledby="pt_h"><h2 id="pt_h">당김이 많았던 때</h2><div class="kv" id="pt" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"></div></section>
+    <section class="card" id="md_card" aria-labelledby="md_h"><h2 id="md_h">약 종류별 쓴 날 수</h2><div id="mdd"></div></section>
     <section class="card" id="ms_card" aria-labelledby="ms_h"><h2 id="ms_h">측정값 (환자가 옮겨 적은 값)</h2><div id="ms"></div></section>
     <div class="row noprint">
       <button class="btn" id="print">인쇄 · PDF로 저장</button>
@@ -123,6 +132,63 @@
     return box;
   }
 
+  // 그래프는 SVG 를 DOM 으로 만든다 (파일 값은 숫자만 들어감). 색은 기존 토큰 — 피움 막대(coral, 흰 바탕 2.67:1)는 --ink 테두리를 둘러 3:1 을 넘긴다
+  var NS = "http://www.w3.org/2000/svg";
+  function sv(tag, at, text){ var e = document.createElementNS(NS, tag); Object.keys(at).forEach(function(k){ e.setAttribute(k, at[k]); }); if(text != null) e.textContent = text; return e; }
+  function weekChart(ws, weeks, smoke){
+    var box = $("wkc"); box.textContent = ""; if(!ws.length) return;
+    // 달력 주 칸으로 — 기록이 없는 주도 빈 칸으로 남겨 간격이 줄지 않게, 「최근 26주」는 달력 26주 (#83 Codex)
+    var show = [], lastW = ws[ws.length - 1], e = new Date(lastW);
+    for(var k = 0; k < 26; k++){ var wk = new Date(e.getFullYear(), e.getMonth(), e.getDate() - 7 * k).getTime(); if(wk < ws[0]) break; show.unshift(wk); }
+    var gaps = show.some(function(w){ return !weeks[w]; }), cut = ws[0] < show[0], W = 640, H = 170, top = 14, bot = 26, left = 28, max = 1;
+    show.forEach(function(w){ if(weeks[w]) max = Math.max(max, weeks[w].u, weeks[w].s); });
+    var step = (W - left - 4) / show.length, bw = Math.max(2, Math.min(14, step / 2 - 2));
+    var g = sv("svg", {viewBox:"0 0 " + W + " " + H, "class":"chart", role:"img", "aria-label":"주별 " + (smoke ? "넘김·피움" : "넘김·마심") + " 막대 그래프. 같은 값이 아래 표에 있어요."});
+    g.appendChild(sv("line", {x1:left, y1:H-bot, x2:W-4, y2:H-bot, stroke:"#5A716D", "stroke-width":1}));
+    g.appendChild(sv("text", {x:left-4, y:top+4, "text-anchor":"end", "font-size":13, fill:"#5A716D"}, String(max)));
+    g.appendChild(sv("text", {x:left-4, y:H-bot, "text-anchor":"end", "font-size":13, fill:"#5A716D"}, "0"));
+    var ph = H - top - bot;
+    show.forEach(function(w, i){
+      var x = left + i * step + step / 2, o = weeks[w] || {u:0, s:0}, hu = o.u / max * ph, hs = o.s / max * ph;
+      if(o.u) g.appendChild(sv("rect", {x:x - bw - 1, y:H - bot - hu, width:bw, height:hu, rx:2, fill:"#0E6B48"}));
+      if(o.s) g.appendChild(sv("rect", {x:x + 1, y:H - bot - hs, width:bw, height:hs, rx:2, fill:"#F6796B", stroke:"#122423", "stroke-width":1}));
+      if(show.length <= 13 || i % 2 === 0) g.appendChild(sv("text", {x:x, y:H - 8, "text-anchor":"middle", "font-size":13, fill:"#5A716D"}, md(w)));
+    });
+    box.appendChild(g);
+    var lg = el("div", null, "legend"); var a = el("span"); a.appendChild(el("i")); a.appendChild(document.createTextNode("넘김")); var b = el("span"); b.appendChild(el("i", null, "s")); b.appendChild(document.createTextNode(smoke ? "피움" : "마심")); lg.appendChild(a); lg.appendChild(b);
+    if(gaps) lg.appendChild(el("span", "빈 칸 = 기록이 없는 주"));
+    if(cut) lg.appendChild(el("span", "최근 26주만 그림 · 전체는 표"));
+    box.appendChild(lg);
+  }
+  // 시작일부터 4주 · 12주 · 6개월 — 표시선만 둔다. 성공·실패 판정은 하지 않는다 (판정은 전문가가 피움 기록·CO 로)
+  function elapsed(start, smoke){
+    var box = $("el"); box.textContent = ""; var now = Date.now(), days = Math.max(0, Math.floor((now - start) / DAY));
+    var s0 = new Date(start), m6 = s0.getMonth() + 6, d6 = new Date(s0.getFullYear(), m6, Math.min(s0.getDate(), new Date(s0.getFullYear(), m6 + 1, 0).getDate()), s0.getHours(), s0.getMinutes());   // 6개월 뒤 같은 날이 없으면(8/31 → 2월) 그달 마지막 날로 — setMonth 는 다음 달로 넘어간다 (#83 Codex)
+    function plusDays(n){ return new Date(s0.getFullYear(), s0.getMonth(), s0.getDate() + n, s0.getHours(), s0.getMinutes()).getTime(); }   // 달력 날짜로 더한다 — 서머타임이 있는 곳에서도 하루가 밀리지 않게
+    var marks = [["4주", plusDays(28)], ["12주", plusDays(84)], ["6개월", d6.getTime()]];
+    var endT = Math.max(now, marks[2][1]), W = 640, H = 62, L0 = 8, R0 = W - 8, span = endT - start || 1;
+    function X(t){ return L0 + (t - start) / span * (R0 - L0); }
+    var g = sv("svg", {viewBox:"0 0 " + W + " " + H, "class":"chart", role:"img", "aria-label":"시작 " + dkey(start) + " 부터 오늘까지 " + days + "일. 4주 · 12주 · 6개월 시점 표시."});
+    g.appendChild(sv("rect", {x:L0, y:26, width:R0 - L0, height:8, rx:4, fill:"#D7F0E3", stroke:"#5A716D", "stroke-width":1}));
+    g.appendChild(sv("rect", {x:L0, y:26, width:Math.max(0, X(Math.min(now, endT)) - L0), height:8, rx:4, fill:"#0E6B48"}));
+    marks.forEach(function(mk){ var x = X(mk[1]); g.appendChild(sv("line", {x1:x, y1:18, x2:x, y2:42, stroke:"#122423", "stroke-width":1.5})); g.appendChild(sv("text", {x:x, y:14, "text-anchor":x > W - 40 ? "end" : "middle", "font-size":14, fill:"#122423"}, mk[0])); g.appendChild(sv("text", {x:x, y:56, "text-anchor":x > W - 40 ? "end" : "middle", "font-size":13, fill:"#5A716D"}, md(mk[1]))); });
+    box.appendChild(g);
+    var p = el("p", "시작 " + dkey(start) + " · 오늘 " + days + "일째. " + marks.map(function(mk){ var r = Math.ceil((mk[1] - now) / DAY); return mk[0] + " 시점 " + dkey(mk[1]) + (r > 0 ? " (" + r + "일 남음)" : " (지남)"); }).join(" · "), "sub");
+    box.appendChild(p);
+    if(smoke) box.appendChild(el("p", "보건소·건강보험은 4주·6개월, 연구 기준은 6·12개월 지속 금연을 봐요. 이 화면은 날짜만 보여 주고 성공 여부는 판단하지 않아요.", "sub"));
+  }
+  function medDays(m){
+    var box = $("mdd"); box.textContent = ""; var by = {};
+    m.medlog.forEach(function(x){ (by[x.name] = by[x.name] || {})[dkey(x.t)] = 1; });
+    var names = Object.keys(by);
+    var t = el("table"), th = el("thead"), hr = el("tr"); ["약","쓴 날 수","처음","마지막"].forEach(function(h, i){ hr.appendChild(el("th", h, i === 1 ? "n" : null)); }); th.appendChild(hr); t.appendChild(th);
+    var tb = el("tbody");
+    names.forEach(function(k){ var ds = Object.keys(by[k]).sort(), r = el("tr"); r.appendChild(el("td", k)); r.appendChild(el("td", String(ds.length), "n")); r.appendChild(el("td", ds[0])); r.appendChild(el("td", ds[ds.length - 1])); tb.appendChild(r); });
+    var r2 = el("tr"); r2.appendChild(el("td", "「약 먹었어요」 표시한 날 (종류 무관)")); r2.appendChild(el("td", String(m.meds.length), "n")); r2.appendChild(el("td", m.meds.length ? m.meds.slice().sort()[0] : "—")); r2.appendChild(el("td", m.meds.length ? m.meds.slice().sort()[m.meds.length - 1] : "—")); tb.appendChild(r2);
+    t.appendChild(tb); box.appendChild(t);
+    box.appendChild(el("p", "건강보험 금연치료 이수는 투약 일수로 봐요(부프로피온 56일 · 바레니클린·니코틴 보조제 84일 이상, 검색 요약 · 원문 확인 필요). 환자가 적은 날만 셌어요.", "sub"));
+  }
+
   function render(m){
     var smoke = m.app === "smokefree", now = Date.now();
     var first = m.logs.length ? m.logs[0].t : m.start, last = m.logs.length ? m.logs[m.logs.length-1].t : m.start;
@@ -150,6 +216,9 @@
     var medW = {}; m.meds.forEach(function(k){ var p = k.split("-"); var w = weekStart(new Date(+p[0], +p[1]-1, +p[2]).getTime()); medW[w] = (medW[w]||0) + 1; });
     Object.keys(medW).forEach(function(w){ weeks[w] = weeks[w] || {u:0,s:0,cups:0}; });
     var ws = Object.keys(weeks).map(Number).sort(function(a,b){ return a-b; });
+    weekChart(ws, weeks, smoke);
+    $("el_card").hidden = m.start == null; if(m.start != null) elapsed(m.start, smoke);
+    $("md_card").hidden = !(smoke && (m.medlog.length || m.meds.length)); if(!$("md_card").hidden) medDays(m);
     var th = $("wk").tHead; th.textContent = ""; var hr = el("tr");
     (smoke ? ["주(월요일)","넘김","피움","약 복용일"] : ["주(월요일)","넘김","마심","마신 잔 수"]).forEach(function(h,i){ var c = el("th", h); if(i) c.className = "n"; hr.appendChild(c); });
     th.appendChild(hr);
@@ -178,6 +247,7 @@
         var t = el("table"), tb2 = el("tbody");
         a.slice(-10).forEach(function(x){ var r = el("tr"); r.appendChild(el("td", dkey(x.t))); r.appendChild(el("td", String(x.v), "n")); tb2.appendChild(r); });
         t.appendChild(tb2); ms.appendChild(t);
+        if(k === "co") ms.appendChild(el("p", "측정기 기종은 기록되지 않았어요. 기종에 따라 값이 다를 수 있어요(같은 사람에서 평균 3.8 ppm 차이 보고 · PMID 31570931).", "sub"));
       });
     }
     $("out").hidden = false;
