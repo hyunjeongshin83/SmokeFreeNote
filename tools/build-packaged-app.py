@@ -20,7 +20,8 @@ FILES = [("SmokeFree_app.html", "index.html"), ("SmokeFree_app.html", "SmokeFree
          ("manifest.webmanifest", "manifest.webmanifest"), ("sw.js", "sw.js"),
          ("icon-192.png", "icon-192.png"), ("icon-512.png", "icon-512.png"), ("icon-512-maskable.png", "icon-512-maskable.png"),
          ("apple-touch-icon.png", "apple-touch-icon.png"), ("favicon-32.png", "favicon-32.png"),
-         ("vendor/qrcodejs-1.0.0.min.js", "vendor/qrcodejs-1.0.0.min.js")]
+         ("vendor/qrcodejs-1.0.0.min.js", "vendor/qrcodejs-1.0.0.min.js"),
+         ("iqos-ble.js", "iqos-ble.js")]
 DEST = ROOT / "android" / "app" / "src" / "main" / "assets"
 
 
