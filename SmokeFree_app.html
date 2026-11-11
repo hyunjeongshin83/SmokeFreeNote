@@ -440,6 +440,12 @@ html.big body{zoom:1.18;}
         <div><b id="st_med">0일</b><span>7일 약 복용</span></div>
       </div>
     </div>
+    <div class="card" id="st_wk_card">
+      <div class="sect">주별 흐름</div>
+      <p class="sub" style="margin-top:4px">7일씩 끊어 남긴 기록 횟수예요.</p>
+      <ul class="rank" id="st_wk"></ul>
+      <p class="disc" style="text-align:left" id="st_wk_note"></p>
+    </div>
     <div class="card">
       <div class="sect">언제 많이 당기나</div>
       <div class="bars" id="st_hours" style="height:90px"></div>
@@ -1065,7 +1071,7 @@ html.big body{zoom:1.18;}
     var done = logs.some(function(l){ return dkey(l.t) === today; });
     // 메인 코칭 카드 — 기록만으로 고른 안내 한 장(없으면 숨김). 규칙은 coach.js
     var cc = $("mn_coach"), pk = null;
-    try{ if(window.Coach) pk = window.Coach.pick(logs, st.start, Date.now()); }catch(e){ pk = null; }
+    try{ if(window.Coach && typeof window.Coach.pick === "function") pk = window.Coach.pick(logs, st.start, Date.now()); }catch(e){ pk = null; }
     if(cc){
       cc.style.display = pk ? "" : "none";
       if(pk){
@@ -1324,6 +1330,22 @@ html.big body{zoom:1.18;}
       var ks = Object.keys(obj).sort(function(a,b){ return obj[b]-obj[a]; }).slice(0,5), m = ks.length ? obj[ks[0]] : 1;
       $(el).innerHTML = ks.length ? ks.map(function(k,i){ return '<li><span class="n">'+(i+1)+'</span><span style="min-width:96px">'+esc(k)+'</span><div class="bar"><i style="width:'+(obj[k]/m*100)+'%"></i></div><span class="c">'+obj[k]+'번</span></li>'; }).join("") : '<li style="color:var(--d3)">'+empty+'</li>';
     }
+    // 주별 흐름 (coach.js 의 weekly) — 7일 구간별 당김·피움 기록 횟수. 기록 없는 날은 세지 않고, 늘고 줆을 좋고 나쁨으로 말하지 않는다
+    (function(){
+      var wk = [], ul = $("st_wk"), note = $("st_wk_note");
+      try{ if(window.Coach && typeof window.Coach.weekly === "function") wk = window.Coach.weekly(st.logs, st.start, now, 4); }catch(e){ wk = []; }   // 옛 coach.js 가 섞여도 통계 전체가 멈추지 않게
+      function md(t){ var d = new Date(t); return (d.getMonth()+1)+"/"+d.getDate(); }
+      if(wk.length < 2){ ul.innerHTML = '<li style="color:var(--d3)">기록이 쌓이면 주별로 보여 드려요</li>'; note.textContent = ""; return; }
+      var mx = Math.max.apply(null, wk.map(function(w){ return w.crave; })), mxv = Math.max(1, mx);
+      ul.innerHTML = wk.slice().reverse().map(function(w){
+        // 달력 날짜 뺄셈(setDate) — 24시간씩 빼면 여름시간 전환 때 라벨이 구간 계산(달력 날짜)과 하루 어긋남 (Codex #80 P2)
+        var endD = new Date(day0); endD.setDate(endD.getDate() - 7*w.ago);
+        var fromD = new Date(endD); fromD.setDate(fromD.getDate() - 6); if(fromD.getTime() < st.start){ fromD = new Date(st.start); }
+        var lb = (w.ago === 0 ? "최근 " : "") + md(fromD.getTime()) + "~" + md(endD.getTime()) + (w.days < 7 ? " ("+w.days+"일)" : "");
+        return '<li><span style="min-width:104px;font-size:0.875rem">'+lb+'</span><div class="bar"><i style="width:'+(w.crave/mxv*100)+'%"></i></div><span class="c" style="min-width:64px">'+w.crave+'번'+(w.slip ? ' · 피움 '+w.slip : '')+'</span></li>';
+      }).join("");
+      note.textContent = "남긴 기록만 센 횟수예요. 기록하지 않은 날은 들어 있지 않고, 많고 적음이 곧 금연이 잘 되고 있다는 뜻은 아니에요.";
+    })();
     rank("st_trig", trig, "아직 상황 기록이 없어요"); rank("st_mood", mood, "기분 기록은 새 기록부터 쌓여요");
     var co = st.measures.filter(function(m){ return m.kind==="co"; }), pf = st.measures.filter(function(m){ return m.kind==="puffs"; });
     var he = st.measures.filter(function(m){ return m.kind==="health"; });

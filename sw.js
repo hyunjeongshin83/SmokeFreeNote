@@ -1,5 +1,5 @@
 /* 금연노트 서비스워커 — 오프라인에서도 열리도록 캐시 */
-const CACHE="smokefree-v26";
+const CACHE="smokefree-v27";   // v27: coach.js 에 weekly() 가 생겨, 옛 coach.js 캐시가 새 화면과 섞이지 않게 올림
 const ASSETS=["index.html","SmokeFree_app.html","manifest.webmanifest","icon-192.png","icon-512.png","icon-512-maskable.png","apple-touch-icon.png","favicon-32.png","vendor/qrcodejs-1.0.0.min.js","research-config.js","research.js","iqos-ble.js","coach.js"];
 
 const own=(req)=>caches.open(CACHE).then(c=>c.match(req));   // 같은 주소의 다른 앱 캐시는 읽지 않는다
@@ -15,8 +15,9 @@ self.addEventListener("fetch",e=>{
     e.respondWith(fetch(req).then(r=>{const c=r.clone();caches.open(CACHE).then(x=>x.put(req,c)).catch(()=>{});return r;}).catch(()=>own(req).then(h=>h||own("SmokeFree_app.html"))));
     return;
   }
-  // 연구 저장 코드(research.js): **네트워크 우선 + 매번 서버에 최신 여부 확인**, 오프라인일 때만 캐시 (캐시 우선이면 옛 코드가 새 화면과 섞임).
-  if(/\/research\.js$/.test(u.pathname)){
+  // 화면이 부르는 코드(research.js · coach.js · iqos-ble.js): **네트워크 우선 + 매번 서버에 최신 여부 확인**, 오프라인일 때만 캐시 (캐시 우선이면 옛 코드가 새 화면과 섞임 —
+  // 새 화면이 옛 coach.js 의 없는 함수를 불러 통계가 통째로 안 그려진 적이 있음, Codex #80 P1).
+  if(/\/(research|coach|iqos-ble)\.js$/.test(u.pathname)){
     e.respondWith(fetch(req,{cache:"no-cache"}).then(r=>{const c=r.clone();caches.open(CACHE).then(x=>x.put(req,c)).catch(()=>{});return r;}).catch(()=>own(req)));
     return;
   }
