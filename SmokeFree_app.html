@@ -90,7 +90,7 @@ html{scroll-padding-top:calc(var(--header-h) + 8px);scroll-padding-bottom:calc(v
 .hero .days{font-size:4rem;font-weight:900;line-height:1.05;margin:6px 0 2px;letter-spacing:-.03em;}
 .hero .days small{font-size:1.5rem;font-weight:800;margin-left:4px;}
 .hero .hms{font-size:0.9375rem;opacity:.9;font-variant-numeric:tabular-nums;}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:13px;}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,5.5rem),1fr));gap:8px;margin-bottom:13px;}   /* 글자 200%·좁은 폭(320px)에서 3칸이 넘치지 않고 한 줄에 하나로 내려간다 (QA #85). 보통 글자 320px 이상은 지금처럼 3칸 */
 .stat{background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px 8px;text-align:center;}
 #v-home .stat{border-radius:22px;padding:12px 6px 14px;}
 .stat .ic{width:36px;height:36px;border-radius:12px;background:var(--brand-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;}
@@ -127,7 +127,7 @@ html{scroll-padding-top:calc(var(--header-h) + 8px);scroll-padding-bottom:calc(v
 .log .lv.hi{background:var(--danger-bg);color:var(--ink);}
 .log .body{flex:1;font-size:0.9375rem;color:var(--ink);line-height:1.4;}
 .log .meta{font-size:0.7812rem;color:var(--d3);margin-top:2px;}
-.log .del{color:var(--d3);cursor:pointer;font-weight:800;background:none;border:none;font-size:1.125rem;}
+.log .del{color:var(--d3);cursor:pointer;font-weight:800;background:none;border:none;font-size:1.125rem;min-width:44px;min-height:44px;margin:-8px -6px -8px 0;}   /* 터치 목표 44px (QA #84) — 줄 높이가 늘지 않게 위아래·오른쪽 여백을 당겨 겹친다 */
 .empty{text-align:center;padding:24px;color:var(--d3);font-size:0.9375rem;background:var(--g0);border-radius:14px;border:1.5px dashed var(--line);}
 #rs_card .btn:disabled{opacity:.5;cursor:default;}   /* 연구 참여가 꺼져 있을 때 「지금 저장」 등을 흐리게 */
 .chk{display:flex;align-items:center;gap:10px;font-size:0.9688rem;font-weight:700;color:var(--ink);padding:10px 0;min-height:44px;cursor:pointer;}
