@@ -9,7 +9,7 @@
  * 주의: 이 주소를 아는 사람은 누구나 보낼 수 있습니다(앱이 공개 코드라 숨길 수 없음). 그래서 아래에서 모양·크기·연구 번호 형식을 검사하고,
  *       의심스러운 요청은 버립니다. 필요하면 시트의 「_log」 탭으로 확인하세요. 주소가 새면 새로 배포해 주소를 바꾸세요.
  */
-var ALLOWED = ['participant', 'records', 'measures', 'daily'];   // codebook 은 시트에 넣지 않습니다(틀 파일에 있음)
+var ALLOWED = ['participant', 'records', 'measures', 'daily', 'meds'];   // meds: 코드북 v2 (2026-11-11)   // codebook 은 시트에 넣지 않습니다(틀 파일에 있음)
 var MAX_ROWS = 20000, MAX_COLS = 60, PID_RE = /^P-[0-9a-f]{8}$/;
 
 function doPost(e) {
