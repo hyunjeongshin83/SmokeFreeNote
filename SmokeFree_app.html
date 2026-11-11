@@ -37,6 +37,7 @@ body{font-family:'Pretendard','Inter',-apple-system,sans-serif;color:var(--d2);l
 #splash:before{width:340px;height:340px;top:-130px;right:-110px;opacity:.12;}
 #splash:after{width:240px;height:240px;bottom:-90px;left:-80px;opacity:.09;}
 #splash .mark,#splash .tag{position:relative;}
+#splash .uni{position:absolute;top:max(16px,env(safe-area-inset-top));right:16px;width:92px;height:92px;pointer-events:none;}   /* 오른쪽 위 유니콘 그림 — 장식(글자 없음) · 색은 앱 토큰(--g1 · --g2 · --g7)과 흰색뿐 */
 #splash .mark{display:flex;align-items:center;gap:12px;font-family:'Gaegu','Pretendard',cursive;font-weight:700;font-size:3.25rem;line-height:1;}
 #splash .mark svg{width:46px;height:46px;flex:none;}
 #splash .tag{font-size:1.125rem;font-weight:700;letter-spacing:.2px;}
@@ -257,7 +258,7 @@ html.big body{zoom:1.18;}
 </head>
 <body>
 <script>try{ if(!/[?&](tab|sos|use|nf)=/.test(location.search)) document.documentElement.classList.add("splash-on"); }catch(e){}</script>
-<div id="splash" aria-hidden="true"><div class="mark"><svg aria-hidden="true" focusable="false"><use href="#i-nosmoke"/></svg><span>금연노트</span></div><div class="tag">오늘도 한 걸음</div></div>
+<div id="splash" aria-hidden="true"><svg class="uni" viewBox="0 0 120 120" aria-hidden="true" focusable="false"><path d="M96 110 L98 66 C98 44 84 28 66 28 C56 28 48 33 44 40 L28 62 C24 68 28 76 36 78 C40 82 44 84 50 82 C58 88 56 98 52 110 Z" fill="#fff"/><path d="M44 40 L34 6 L55 33 Z" fill="var(--g2)"/><path d="M41 30 L47 26 M38 19 L45 15" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M62 31 L66 15 L73 32 Z" fill="#fff"/><path d="M91 40 C106 46 110 60 104 70 C112 78 110 92 100 98 C106 104 102 112 96 114" stroke="var(--g2)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M80 34 C94 36 98 46 94 54" stroke="var(--g1)" stroke-width="6" stroke-linecap="round" fill="none"/><circle cx="52" cy="55" r="3.2" fill="var(--g7)"/><circle cx="32" cy="69" r="1.7" fill="var(--g7)"/><path d="M40 77 C44 78 47 77 49 75" stroke="var(--g7)" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg><div class="mark"><svg aria-hidden="true" focusable="false"><use href="#i-nosmoke"/></svg><span>금연노트</span></div><div class="tag">오늘도 한 걸음</div></div>
 <!-- 선 아이콘 한 벌 (백신노트·메디노트·금연노트 공통 · 24×24 · 선 2px · 글자색을 따름) -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/></symbol>
