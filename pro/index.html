@@ -136,8 +136,11 @@
   function sv(tag, at, text){ var e = document.createElementNS(NS, tag); Object.keys(at).forEach(function(k){ e.setAttribute(k, at[k]); }); if(text != null) e.textContent = text; return e; }
   function weekChart(ws, weeks, smoke){
     var box = $("wkc"); box.textContent = ""; if(!ws.length) return;
-    var show = ws.slice(-26), W = 640, H = 170, top = 14, bot = 26, left = 28, max = 1;
-    show.forEach(function(w){ max = Math.max(max, weeks[w].u, weeks[w].s); });
+    // 달력 주 칸으로 — 기록이 없는 주도 빈 칸으로 남겨 간격이 줄지 않게, 「최근 26주」는 달력 26주 (#83 Codex)
+    var show = [], lastW = ws[ws.length - 1], e = new Date(lastW);
+    for(var k = 0; k < 26; k++){ var wk = new Date(e.getFullYear(), e.getMonth(), e.getDate() - 7 * k).getTime(); if(wk < ws[0]) break; show.unshift(wk); }
+    var gaps = show.some(function(w){ return !weeks[w]; }), cut = ws[0] < show[0], W = 640, H = 170, top = 14, bot = 26, left = 28, max = 1;
+    show.forEach(function(w){ if(weeks[w]) max = Math.max(max, weeks[w].u, weeks[w].s); });
     var step = (W - left - 4) / show.length, bw = Math.max(2, Math.min(14, step / 2 - 2));
     var g = sv("svg", {viewBox:"0 0 " + W + " " + H, "class":"chart", role:"img", "aria-label":"주별 " + (smoke ? "넘김·피움" : "넘김·마심") + " 막대 그래프. 같은 값이 아래 표에 있어요."});
     g.appendChild(sv("line", {x1:left, y1:H-bot, x2:W-4, y2:H-bot, stroke:"#5A716D", "stroke-width":1}));
@@ -145,14 +148,15 @@
     g.appendChild(sv("text", {x:left-4, y:H-bot, "text-anchor":"end", "font-size":11, fill:"#5A716D"}, "0"));
     var ph = H - top - bot;
     show.forEach(function(w, i){
-      var x = left + i * step + step / 2, o = weeks[w], hu = o.u / max * ph, hs = o.s / max * ph;
+      var x = left + i * step + step / 2, o = weeks[w] || {u:0, s:0}, hu = o.u / max * ph, hs = o.s / max * ph;
       if(o.u) g.appendChild(sv("rect", {x:x - bw - 1, y:H - bot - hu, width:bw, height:hu, rx:2, fill:"#0E6B48"}));
       if(o.s) g.appendChild(sv("rect", {x:x + 1, y:H - bot - hs, width:bw, height:hs, rx:2, fill:"#F6796B", stroke:"#122423", "stroke-width":1}));
       if(show.length <= 13 || i % 2 === 0) g.appendChild(sv("text", {x:x, y:H - 8, "text-anchor":"middle", "font-size":11, fill:"#5A716D"}, md(w)));
     });
     box.appendChild(g);
     var lg = el("div", null, "legend"); var a = el("span"); a.appendChild(el("i")); a.appendChild(document.createTextNode("넘김")); var b = el("span"); b.appendChild(el("i", null, "s")); b.appendChild(document.createTextNode(smoke ? "피움" : "마심")); lg.appendChild(a); lg.appendChild(b);
-    if(ws.length > show.length) lg.appendChild(el("span", "최근 26주만 그림 · 전체는 표"));
+    if(gaps) lg.appendChild(el("span", "빈 칸 = 기록이 없는 주"));
+    if(cut) lg.appendChild(el("span", "최근 26주만 그림 · 전체는 표"));
     box.appendChild(lg);
   }
   // 시작일부터 4주 · 12주 · 6개월 — 표시선만 둔다. 성공·실패 판정은 하지 않는다 (판정은 전문가가 피움 기록·CO 로)
