@@ -48,3 +48,29 @@ test("앱의 주 라벨은 달력 날짜 뺄셈 — 여름시간 전환 구간�
     }
   }
 });
+
+// ── 코칭 이력 ──
+const card = { id: "gap", title: "기록이 없는 날은 실패로 세지 않아요", body: "생각날 때 한 번만 남겨 보세요. 15초면 돼요." };
+test("이력: 처음 보여 주면 한 줄, 같은 날 같은 안내는 다시 더하지 않는다", () => {
+  let r = C.addHistory([], card, NOW); assert.equal(r.changed, true); assert.equal(r.items.length, 1);
+  r = C.addHistory(r.items, card, NOW + 3600000); assert.equal(r.changed, false); assert.equal(r.items.length, 1);
+});
+test("이력: 같은 날 숫자가 바뀌면 그날 한 줄만 새 값으로, 다른 날·다른 규칙은 새 줄", () => {
+  const a = { id: "up", title: "최근 7일 당김 기록이 늘었어요", body: "앞선 7일에는 2번, 최근 7일에는 5번 남겼어요." };
+  let r = C.addHistory([], a, NOW); r = C.addHistory(r.items, { ...a, body: "앞선 7일에는 2번, 최근 7일에는 6번 남겼어요." }, NOW + 1000);
+  assert.equal(r.items.length, 1); assert.match(r.items[0].body, /6번/); assert.equal(r.changed, true);
+  r = C.addHistory(r.items, card, NOW + 2000); assert.equal(r.items.length, 2);
+  r = C.addHistory(r.items, a, NOW + 86400000 * 1.2); assert.equal(r.items.length, 3);
+  assert.ok(r.items[0].t >= r.items[1].t && r.items[1].t >= r.items[2].t);          // 최신이 맨 위
+});
+test("이력: 30개를 넘으면 오래된 것부터 버린다", () => {
+  let items = []; for (let i = 0; i < 40; i++) items = C.addHistory(items, { ...card, id: "r" + i }, NOW + i * 1000).items;
+  assert.equal(items.length, C.HISTORY_MAX); assert.equal(items[0].id, "r39"); assert.ok(!items.some(x => x.id === "r0"));
+});
+test("이력: 깨진 저장값은 걸러내고, 카드가 없으면 그대로", () => {
+  assert.deepEqual(C.cleanHistory(null), []); assert.deepEqual(C.cleanHistory("x"), []);
+  const ok = { d: "2026-11-01", t: 5, id: "gap", title: "a", body: "b" };
+  assert.deepEqual(C.cleanHistory([ok, null, { d: "x" }, { ...ok, t: "q" }, { ...ok, id: 3 }]), [ok]);
+  assert.equal(C.addHistory([ok], null, NOW).changed, false); assert.equal(C.addHistory([ok], card, "x").changed, false);
+});
+test("이력: 너무 긴 글은 잘라 저장한다", () => { const r = C.addHistory([], { id: "x".repeat(50), title: "t".repeat(200), body: "b".repeat(900) }, NOW).items[0]; assert.equal(r.id.length, 20); assert.equal(r.title.length, 80); assert.equal(r.body.length, 300); });

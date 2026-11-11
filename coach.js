@@ -55,5 +55,27 @@
     });
     return out.filter(function (w) { return w.days > 0; });
   }
-  return { RULES: RULES, pick: pick, weekly: weekly, calDays: calDays };
+
+  /* 코칭 이력 — 메인 카드로 보여 준 안내를 날짜별로 남긴 목록(이 기기 안, 새 키 smokefree.coach.v1). 같은 날 같은 규칙은 한 줄 · 최근 30개만.
+   * 순수 함수라 저장은 호출하는 쪽이 합니다. 지난 안내의 본문(횟수)은 그때 값 그대로 남깁니다. */
+  var HISTORY_MAX = 30;
+  function cleanHistory(raw) {
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(function (x) { return x && typeof x.d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x.d) && isNum(x.t) && typeof x.id === "string" && typeof x.title === "string" && typeof x.body === "string"; })
+      .map(function (x) { return { d: x.d, t: x.t, id: x.id.slice(0, 20), title: x.title.slice(0, 80), body: x.body.slice(0, 300) }; })
+      .sort(function (a, b) { return b.t - a.t; }).slice(0, HISTORY_MAX);
+  }
+  function addHistory(items, card, now) {
+    items = cleanHistory(items);
+    if (!card || !isNum(now)) return { items: items, changed: false };
+    var d = dkey(now), i;
+    for (i = 0; i < items.length; i++) if (items[i].d === d && items[i].id === card.id) {
+      if (items[i].title === card.title && items[i].body === card.body) return { items: items, changed: false };
+      items[i] = { d: d, t: now, id: card.id, title: card.title, body: card.body };           // 같은 날 숫자가 바뀌었으면 그날 한 줄만 새 값으로
+      return { items: cleanHistory(items), changed: true };
+    }
+    items.unshift({ d: d, t: now, id: card.id, title: card.title, body: card.body });
+    return { items: cleanHistory(items), changed: true };
+  }
+  return { RULES: RULES, pick: pick, weekly: weekly, addHistory: addHistory, cleanHistory: cleanHistory, HISTORY_MAX: HISTORY_MAX, calDays: calDays };
 });
