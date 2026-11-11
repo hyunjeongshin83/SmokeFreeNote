@@ -353,6 +353,16 @@ html.big body{zoom:1.18;}
       <div id="h_reason" style="font-size:1.0625rem;color:var(--ink);font-weight:700;line-height:1.45"></div>
     </div>
     <label class="chk" style="margin:2px 0 10px"><input type="checkbox" id="h_med"> 오늘 약 먹었어요 (니코틴 껌·패치 · 처방약)</label>
+    <div class="card" id="h_medbox" hidden>
+      <div class="sect">무엇을 쓰셨나요? <span style="font-weight:500">(선택)</span></div>
+      <div class="chips" id="h_medt" role="group" aria-label="약 종류"></div>
+      <div class="row2">
+        <div class="fld"><label for="h_medmg">용량 mg (선택)</label><input type="number" id="h_medmg" min="0" step="0.5" inputmode="decimal"></div>
+        <div class="fld"><label for="h_medn">개수 (선택)</label><input type="number" id="h_medn" min="1" step="1" inputmode="numeric"></div>
+      </div>
+      <button class="btn ghost" type="button" id="h_medsave">남기기</button>
+      <ul class="log" id="h_medlist" style="margin-top:8px"></ul>
+    </div>
     <p class="disc">* 되찾은 시간은 개비당 약 11분으로 계산한 참고 수치예요.</p>
   </section>
 
@@ -682,7 +692,7 @@ html.big body{zoom:1.18;}
     try{ raw = localStorage.getItem(KEY); bootRaw = raw; return JSON.parse(raw) || {}; }
     catch(e){ loadOk = false; try{ if(raw && localStorage.getItem(KEY+".corrupt")==null) localStorage.setItem(KEY+".corrupt", raw); }catch(e2){} return {}; }   // 깨진 원본은 덮어쓰기 전에 한 번 보존 (VN-116-3)
   }
-  var st = load(); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {}; st.devices = st.devices || [];
+  var st = load(); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {}; st.medlog = cleanMedlog(st.medlog); medFlags(); st.devices = st.devices || [];
   function dkey(t){ var d=new Date(t||Date.now()); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
   if(st.big) document.documentElement.classList.add("big");
   st.notif = st.notif || {}; var NDEF = {on:false, am:"08:30", pm:"21:00", q1:"21:30", q2:"08:00", sent:{}};
@@ -760,7 +770,7 @@ html.big body{zoom:1.18;}
     var old = {}; Object.keys(st).forEach(function(k){ old[k] = st[k]; });
     var merged = relink(old, merge3(base, st, theirs));
     var lost = concurrent && !jeq(merged, theirs);   // 저장된 것에 내 변경이 빠져 있다 = 동시에 써서 내 쪽이 덮였다
-    adopt(merged); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {}; st.devices = st.devices || []; st.notif = st.notif || {}; Object.keys(NDEF).forEach(function(k){ if(st.notif[k] == null) st.notif[k] = NDEF[k]; }); st.media = st.media || [];   // 합친 결과에도 기본값을 채워 둔다
+    adopt(merged); st.logs = st.logs || []; st.attempts = st.attempts || []; st.measures = st.measures || []; st.kind = st.kind || "cig"; st.meds = st.meds || {}; st.medlog = cleanMedlog(st.medlog); medFlags(); st.devices = st.devices || []; st.notif = st.notif || {}; Object.keys(NDEF).forEach(function(k){ if(st.notif[k] == null) st.notif[k] = NDEF[k]; }); st.media = st.media || [];   // 합친 결과에도 기본값을 채워 둔다
     lastRaw = raw; lastRev = rev; lastObj = JSON.parse(JSON.stringify(theirs)); remember(rev, theirs);
     if(lost && !inSave) setTimeout(function(){ save(); }, 0);   // 합친 결과를 다시 저장해 두 탭이 같은 기록으로 모이게 한다
     return true;
@@ -912,8 +922,56 @@ html.big body{zoom:1.18;}
   var homeDay = null;
   setInterval(function(){ greetNow(); tick(); var d = new Date().toDateString(); if(homeDay !== null && homeDay !== d) refreshHome(); homeDay = d; }, 1000);   // 자정을 넘기면 메인의 오늘 할 일·최근 기록도 새로 그린다
   // 약 복용 — 하루 한 칸 (docs/DESIGN.md 1절 · 약사 축)
-  function renderMed(){ $("h_med").checked = !!st.meds[dkey()]; }
-  $("h_med").onchange = function(){ if($("h_med").checked) st.meds[dkey()]=true; else delete st.meds[dkey()]; save(); toast($("h_med").checked?"오늘 복용을 남겼어요":"복용 표시를 지웠어요"); };
+  // 약 종류·용량 (대표님 요청 2026-11-11) — 「오늘 약 먹었어요」 칸은 그대로 두고, 무엇을 얼마나 썼는지를 medlog 에 따로 쌓는다.
+  // 하루 칸(meds)은 통계·연구 자료가 쓰므로 자세히 남기면 그날 칸도 켠다. 옛 기록(meds 만 있음)은 그대로 읽힌다.
+  var MEDT = [["patch","니코틴 패치"],["gum","니코틴 껌"],["lozenge","니코틴 사탕·트로키"],["varen","바레니클린"],["bupro","부프로피온"],["other","그 밖의 약"]];
+  var MEDL = {}; MEDT.forEach(function(m){ MEDL[m[0]] = m[1]; });
+  var medPick = "", medSeq = 0;
+  // 약 기록 한 건을 검사하는 곳은 여기 하나 — 불러오기·백업 가져오기·그리기·내보내기 모두 이것을 거친다 (#79 리뷰: 글자·이상한 값이 요약 파일에 새거나 화면을 멈추지 않게)
+  function cleanMed(m){
+    if(!m || typeof m !== "object" || typeof m.id !== "string" || m.id.length > 40 || typeof m.t !== "number" || !isFinite(m.t) || ["patch","gum","lozenge","varen","bupro","other"].indexOf(m.type) < 0) return null;   // 처음 불러올 때(MEDT 보다 먼저) 도 쓰이므로 종류 목록을 여기 그대로 둠 — MEDT 와 같게
+    var mg = typeof m.mg === "number" && isFinite(m.mg) && m.mg > 0 && m.mg < 10000 ? Math.round(m.mg * 10) / 10 : null;
+    var n = typeof m.n === "number" && isFinite(m.n) && m.n >= 1 && m.n < 1000 && Math.floor(m.n) === m.n ? m.n : null;
+    return { id: m.id, t: m.t, type: m.type, mg: mg, n: n };
+  }
+  function cleanMedlog(a){ if(!Array.isArray(a)) return []; var seen = {}, out = []; a.slice(0, 5000).forEach(function(x){ var c = cleanMed(x); if(c && !seen[c.id]){ seen[c.id] = 1; out.push(c); } }); return out; }
+  // 약을 적은 날은 그날 칸(meds)도 켜져 있어야 한다 — 다른 탭과 합친 뒤에도 (#79 Codex: 한 탭이 칸을 끄는 사이 다른 탭이 약을 적으면 기록은 있고 칸은 꺼진 채 저장됐다)
+  function medFlags(){ st.medlog.forEach(function(m){ st.meds[dkey(m.t)] = true; }); }
+  function medLabel(m){ return MEDL[m.type] + (m.mg ? " " + m.mg + "mg" : "") + (m.n ? " · " + m.n + "개" : ""); }
+  function medChips(){
+    $("h_medt").innerHTML = MEDT.map(function(m){ return '<button type="button" class="chip'+(m[0]===medPick?" on":"")+'" aria-pressed="'+(m[0]===medPick)+'">'+m[1]+'</button>'; }).join("");
+    $("h_medt").querySelectorAll(".chip").forEach(function(b,i){ b.onclick = function(){ medPick = medPick === MEDT[i][0] ? "" : MEDT[i][0]; medChips(); }; });
+  }
+  function medToday(){ var today = dkey(); return st.medlog.filter(function(m){ return dkey(m.t) === today; }); }
+  function renderMed(){
+    var on = !!st.meds[dkey()]; $("h_med").checked = on; $("h_medbox").hidden = !on;
+    if(!on) return;
+    medChips();
+    $("h_medlist").innerHTML = medToday().map(function(m){ return '<li><div class="body">'+esc(medLabel(m))+'<div class="meta">'+new Date(m.t).toTimeString().slice(0,5)+'</div></div><button type="button" class="del" style="min-width:44px;min-height:44px" data-mid="'+esc(m.id)+'" aria-label="'+esc(medLabel(m))+' 지우기">×</button></li>'; }).join("");
+    $("h_medlist").querySelectorAll("[data-mid]").forEach(function(b){ b.onclick = function(){
+      var id = b.getAttribute("data-mid"), keep = st.medlog;
+      st.medlog = st.medlog.filter(function(m){ return m.id !== id; });
+      if(save() === false){ st.medlog = keep; return toast("저장하지 못했어요. 다시 해 주세요"); }
+      renderMed(); toast("지웠어요");
+    }; });
+  }
+  $("h_medsave").onclick = function(){
+    if(!medPick) return toast("약 종류를 골라 주세요");
+    var mgv = $("h_medmg").value, nv = $("h_medn").value, mg = +mgv, n = +nv;
+    if(mgv !== "" && !(mg > 0 && mg < 10000)) return toast("용량은 0보다 큰 숫자로 적어 주세요");
+    if(nv !== "" && !(n >= 1 && n < 1000 && Math.floor(n) === n)) return toast("개수는 1 이상의 정수로 적어 주세요");
+    var t = Date.now(), day = dkey(t);   // 기록 시각과 그날 칸을 같은 시각에서 — 자정을 넘기는 순간에도 어긋나지 않게
+    var m = cleanMed({ id: "md" + t.toString(36) + (++medSeq).toString(36) + Math.random().toString(36).slice(2, 8), t: t, type: medPick, mg: mgv === "" ? null : mg, n: nv === "" ? null : n });
+    var keepLog = st.medlog, hadDay = !!st.meds[day];
+    st.medlog = [m].concat(st.medlog); st.meds[day] = true;
+    if(save() === false){ st.medlog = keepLog; if(!hadDay) delete st.meds[day]; return toast("저장하지 못했어요. 다시 해 주세요"); }
+    $("h_medmg").value = ""; $("h_medn").value = ""; medPick = "";
+    renderMed(); toast("남겼어요");
+  };
+  $("h_med").onchange = function(){
+    if(!$("h_med").checked && medToday().length){ $("h_med").checked = true; return toast("오늘 적은 약을 먼저 지워 주세요 (목록의 ×)"); }   // 자세한 기록이 남아 있는데 그날 표시만 꺼지지 않게 (#79 리뷰)
+    if($("h_med").checked) st.meds[dkey()]=true; else delete st.meds[dkey()]; var want = $("h_med").checked; save(); renderMed();
+    toast(want ? "오늘 복용을 남겼어요" : st.meds[dkey()] ? "오늘 적은 약을 먼저 지워 주세요 (목록의 ×)" : "복용 표시를 지웠어요"); };   // 저장하며 다른 탭이 적은 약을 받았으면 칸은 다시 켜진다
   renderMed();
 
   // 건강 타임라인
@@ -1067,6 +1125,7 @@ html.big body{zoom:1.18;}
   function mainText(l){ return (l.slip ? "피웠어요" : "참았어요") + (l.lv ? " · " + l.lv : ""); }
   function refreshHome(){ if($("v-home").classList.contains("on")) renderMain(); }   // 메인이 열려 있는 채로 기록이 바뀌면 그 자리에서 다시 그린다
   function renderMain(){
+    renderMed();   // 다른 탭·자정·가져오기 뒤에도 오늘의 약 칸이 지금 기록을 보이게 (#79 리뷰)
     var logs = Array.isArray(st.logs) ? st.logs : [], today = dkey(Date.now());
     var done = logs.some(function(l){ return dkey(l.t) === today; });
     // 메인 코칭 카드 — 기록만으로 고른 안내 한 장(없으면 숨김). 규칙은 coach.js
@@ -1397,6 +1456,7 @@ html.big body{zoom:1.18;}
   function csvCell(v){ var t = String(v == null ? "" : v).replace(/\r?\n/g, " "); if(/^[\s\x00-\x1f]*[=+\-@]/.test(t)) t = "'"+t;  return '"'+t.replace(/"/g,'""')+'"'; }
   $("p_csv").onclick = function(){
     var r = proSummary().rows(), out = ["날짜,시간대,구분,세기,기분,상황,대처"];
+    cleanMedlog(st.medlog).forEach(function(m){ r.push({ t: m.t, kind: "약", lv: "", mood: "", trig: [medLabel(m)], cope: [] }); });   // 약 종류·용량 (상황 칸에 「니코틴 패치 21mg」처럼)
     r.sort(function(a,b){ return a.t - b.t; }).forEach(function(x){ var d = new Date(x.t);
       out.push([d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2), d.getHours()+"시대", x.kind, x.lv || "", x.mood || "", x.trig.join(" / "), x.cope.join(" / ")].map(csvCell).join(",")); });
     var blob = new Blob(["\ufeff"+out.join("\r\n")], {type:"text/csv;charset=utf-8"});
@@ -1487,6 +1547,7 @@ html.big body{zoom:1.18;}
         var added = 0; d.logs.forEach(function(r){ if(r && r.t && !seen[r.t]){ st.logs.push(r); added++; } });
         st.logs.sort(function(a,b){ return b.t-a.t; });
         Object.keys(d.meds||{}).forEach(function(k){ st.meds[k]=true; });
+        (function(){ var have = {}; st.medlog.forEach(function(x){ have[x.id] = 1; }); cleanMedlog(d.medlog).forEach(function(m){ if(!have[m.id]){ have[m.id] = 1; st.medlog.push(m); } }); st.medlog.sort(function(a,b){ return b.t - a.t; }); medFlags(); })();
         cleanMedia(d.media).forEach(function(m){ if(!st.media.some(function(x){ return x.id === m.id; })) st.media.push(m); }); st.media.sort(function(a,b){ return b.t - a.t; }); var gone = st.media.slice(200); st.media = st.media.slice(0, 200);   // 사진은 기기 안에만 있어 가져온 기록에는 그림 없이 시각·바코드·메모만 들어온다
         (d.measures||[]).forEach(function(m){ if(!st.measures.some(function(x){ return sameMeasure(x, m); })) st.measures.push(m); });
         st.measures.sort(function(a,b){ return b.t-a.t; });
