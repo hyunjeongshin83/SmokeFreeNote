@@ -13,7 +13,7 @@
 })(typeof window !== "undefined" ? window : globalThis, function (root) {
   "use strict";
 
-  var CODEBOOK_VERSION = "1";
+  var CODEBOOK_VERSION = "2";   // 2 (2026-11-11): participant 에 smoking_years · prior_quit_attempts, meds 시트 (VN-218-3 나 · VN-218-5)
   var DAY = 86400000;
   var MAX_DAILY_DAYS = 5000;   // 일별 시트의 최대 날수(약 13년). 넘으면 오래된 날부터 빠지고 codebook 에 적는다 — 기록(records) 시트는 줄이지 않는다
   var STORE_KEY = "smokefree.research.v1";
@@ -35,6 +35,8 @@
   // 측정값 종류 코드
   var MTYPE = { co_ppm: 1, puffs_week: 2, test_kit: 3, test_cotinine: 4, test_co_ppm: 5, sticker_use: 6, steps: 7, hr_avg: 8, sleep_min: 9 };
   var KIT = { neg: 0, faint: 1, pos: 2 };
+  // 약 종류 코드 (앱 SmokeFree_app.html MEDT 와 같게)
+  var MED = { patch: 1, gum: 2, lozenge: 3, varen: 4, bupro: 5, other: 9 };
 
   // ── 날짜 도우미 (앱의 dkey 와 같은 규칙: 기기의 현지 시각) ─────────────────────────────────
   function p2(n) { return ("0" + n).slice(-2); }
@@ -137,9 +139,24 @@
   }
 
   function buildParticipant(st, pid, now) {
-    return [["participant_id", "product_kind", "baseline_per_day", "pack_price_won", "quit_start_date", "n_attempts", "exported_at_utc", "codebook_version"],
+    var intIn = function (v, hi) { return isNum(v) && v >= 0 && v <= hi && Math.floor(v) === v; };   // 설정 화면과 같은 규칙 — 0 이상 정수 (#88 Sourcery)
+    var yr = intIn(st.smokeYears, 90) ? st.smokeYears : "", pq = intIn(st.priorTries, 99) ? st.priorTries : "";
+    return [["participant_id", "product_kind", "baseline_per_day", "pack_price_won", "quit_start_date", "n_attempts", "smoking_years", "prior_quit_attempts", "exported_at_utc", "codebook_version"],
       [pid, KIND[st.kind] || 1, isNum(st.perDay) ? st.perDay : "", isNum(st.price) ? st.price : "", isNum(st.start) ? dkey(st.start) : "",
-        (st.attempts || []).length + (isNum(st.start) ? 1 : 0), new Date(now || Date.now()).toISOString(), CODEBOOK_VERSION]];
+        (st.attempts || []).length + (isNum(st.start) ? 1 : 0), yr, pq, new Date(now || Date.now()).toISOString(), CODEBOOK_VERSION]];
+  }
+
+  // 약 기록 (앱 medlog) — 한 줄이 한 번 적은 것. 종류는 코드로, 용량·개수는 수만 (글자는 넣지 않는다)
+  function buildMeds(st, pid) {
+    var rows = [["participant_id", "date", "hour", "med_type", "dose_mg", "count"]], seen = {};
+    (Array.isArray(st.medlog) ? st.medlog : []).filter(function (m) { return m && typeof m.id === "string" && isNum(m.t) && !isNaN(new Date(m.t).getTime()) && typeof m.type === "string" && Object.prototype.hasOwnProperty.call(MED, m.type); })
+      .filter(function (m) { if (seen[m.id]) return false; seen[m.id] = 1; return true; })
+      .slice(0, 5000).sort(function (a, b) { return a.t - b.t; })
+      .forEach(function (m) {
+        var mg = isNum(m.mg) && m.mg > 0 && m.mg < 10000 ? Math.round(m.mg * 10) / 10 : "", n = isNum(m.n) && m.n >= 1 && m.n < 1000 && Math.floor(m.n) === m.n ? m.n : "";
+        rows.push([pid, dkey(m.t), new Date(m.t).getHours(), MED[m.type], mg, n]);
+      });
+    return rows;
   }
 
   function buildCodebook() {
@@ -151,6 +168,8 @@
     s("participant", "pack_price_won", "한 갑 또는 액상·팟 가격(원)", "숫자");
     s("participant", "quit_start_date", "현재 시도의 금연 시작일", "YYYY-MM-DD");
     s("participant", "n_attempts", "지금까지의 시도 횟수 (현재 시도 포함)", "숫자");
+    s("participant", "smoking_years", "흡연 기간(년) — 참여자가 설정에 적은 값", "숫자 · 빈칸 미입력");
+    s("participant", "prior_quit_attempts", "이 앱을 쓰기 전 금연 시도 횟수 — 참여자가 설정에 적은 값 (n_attempts 와 다름)", "숫자 · 빈칸 미입력");
     s("records", "rec_no", "기록 순번 (시간순)", "1부터");
     s("records", "date · hour · weekday", "기록한 날짜 · 시(0~23) · 요일", "weekday 0 일요일 … 6 토요일");
     s("records", "attempt_no · day_of_attempt", "몇 번째 시도인지 · 그 시도 시작일부터 달력으로 며칠째", "숫자 (시작한 날 0)");
@@ -171,6 +190,9 @@
     s("daily", "craving_level_mean", "그날 갈망 세기 평균 (1~3)", "숫자 · 기록 없으면 빈칸");
     s("daily", "med_taken", "그날 약 복용 표시", "1 · 0");
     s("daily", "n_sticker_use", "그날 스티커로 적은 사용 횟수", "숫자");
+    s("meds", "date · hour", "약을 적은 날짜 · 시(0~23)", "");
+    s("meds", "med_type", "약 종류", "1 니코틴 패치 · 2 니코틴 껌 · 3 니코틴 사탕·트로키 · 4 바레니클린 · 5 부프로피온 · 9 그 밖의 약");
+    s("meds", "dose_mg · count", "참여자가 적은 용량(mg) · 개수", "숫자 · 빈칸 미입력");
     s("(제외)", "이름·연락처·나의 금연 이유·검사 장소·기기 이름·사진", "자유로 적은 글과 사진은 파일에 넣지 않습니다", "");
     return R;
   }
@@ -181,6 +203,7 @@
       { name: "records", rows: buildRecords(st, pid) },
       { name: "measures", rows: buildMeasures(st, pid) },
       { name: "daily", rows: buildDaily(st, pid, now) },
+      { name: "meds", rows: buildMeds(st, pid) },
       { name: "codebook", rows: buildCodebook() }
     ];
   }
@@ -367,7 +390,7 @@
   function fnv(str) { var h = 0x811c9dc5, i; for (i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16); }
   function sigOf(st) {
     var part = buildParticipant(st || {}, "x", 0); part[1][part[0].indexOf("exported_at_utc")] = "";
-    return fnv(JSON.stringify([part, buildRecords(st || {}, "x"), buildMeasures(st || {}, "x"), buildDaily(st || {}, "x", Date.now())]));
+    return fnv(JSON.stringify([part, buildRecords(st || {}, "x"), buildMeasures(st || {}, "x"), buildDaily(st || {}, "x", Date.now()), buildMeds(st || {}, "x")]));   // 약 기록만 바뀌어도 다시 보낸다
   }
   // 탭 사이 직렬화: 파일을 찾고·만들고·덮어쓰는 구간은 한 번에 한 탭만 (Web Locks). 기다리던 탭은 앞 탭이 남긴 파일 id 를 읽고 이어서 하므로,
   // 참여자가 Drive 에서 파일을 지운 뒤 두 탭이 동시에 404 를 받아 파일을 둘 만드는 일이 없다. Web Locks 가 없는 브라우저는 그대로 진행한다.
@@ -468,6 +491,6 @@
   }
 
   return { config: config, state: readState, consented: consented, init: init, touch: touch, sync: sync, enable: enable, disable: disable, reset: reset, deleteRemote: deleteRemote,
-    buildSheets: buildSheets, buildRecords: buildRecords, buildMeasures: buildMeasures, buildDaily: buildDaily, buildCodebook: buildCodebook, toXlsx: toXlsx, newPid: newPid,
+    buildSheets: buildSheets, buildRecords: buildRecords, buildMeasures: buildMeasures, buildDaily: buildDaily, buildCodebook: buildCodebook, buildMeds: buildMeds, buildParticipant: buildParticipant, toXlsx: toXlsx, newPid: newPid,
     CODEBOOK_VERSION: CODEBOOK_VERSION, _crc32: crc32, _sigOf: sigOf };
 });

@@ -31,7 +31,7 @@ test("켜면 Google 로그인 없이 연구실 주소로 표를 보낸다 (참�
   assert.equal(q.url, LAB); assert.equal(q.opts.method, "POST"); assert.equal(q.opts.credentials, "omit"); assert.equal(q.opts.referrerPolicy, "no-referrer");
   assert.match(q.opts.headers["Content-Type"], /^text\/plain/);
   assert.equal(q.body.action, "put"); assert.match(q.body.pid, /^P-[0-9a-f]{8}$/); assert.equal(q.body.consentVersion, "v1");
-  assert.deepEqual(Object.keys(q.body.sheets).sort(), ["codebook", "daily", "measures", "participant", "records"]);
+  assert.deepEqual(Object.keys(q.body.sheets).sort(), ["codebook", "daily", "measures", "meds", "participant", "records"]);
   assert.ok(!JSON.stringify(q.body).includes("비밀 이유"));
   assert.equal(JSON.parse(store[KEY]).fileId, "lab");
 });

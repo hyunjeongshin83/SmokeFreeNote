@@ -303,6 +303,10 @@ html.big body{zoom:1.18;}
           <div class="fld"><label for="s_perday" id="s_perday_l">하루 흡연량 (개비)</label><input type="number" id="s_perday" min="1" inputmode="numeric" value="15"></div>
           <div class="fld"><label for="s_price" id="s_price_l">한 갑 가격 (원)</label><input type="number" id="s_price" min="0" inputmode="numeric" value="4500"></div>
         </div>
+        <div class="row2">
+          <div class="fld"><label for="s_years">흡연 기간 (년) <span style="font-weight:500">(선택)</span></label><input type="number" id="s_years" min="0" max="90" step="1" inputmode="numeric"></div>
+          <div class="fld"><label for="s_tries">끊어 본 횟수 <span style="font-weight:500">(선택)</span></label><input type="number" id="s_tries" min="0" max="99" step="1" inputmode="numeric"></div>
+        </div>
         <div class="fld"><label for="s_reason">나의 금연 이유 <span style="font-weight:500">(선택)</span></label><input id="s_reason" placeholder="예: 손주와 오래 산책하고 싶어서"></div>
         <button class="btn" id="s_save">금연 시작</button>
         <button class="btn ghost" id="s_back" style="margin-top:9px">뒤로</button>
@@ -873,17 +877,25 @@ html.big body{zoom:1.18;}
     if(st.perDay) $("s_perday").value = st.perDay;
     if(st.price != null) $("s_price").value = st.price;
     $("s_reason").value = st.reason || "";
-    setupSig = JSON.stringify([st.start, st.kind, st.perDay, st.price, st.reason]);
+    $("s_years").value = typeof st.smokeYears === "number" ? st.smokeYears : ""; $("s_tries").value = typeof st.priorTries === "number" ? st.priorTries : "";
+    setupSig = setupSigOf();
     show("setup");
   }
+  function setupSigOf(){ return JSON.stringify([st.start, st.kind, st.perDay, st.price, st.reason, st.smokeYears, st.priorTries]); }   // 설정 화면이 채우는 값 — 두 곳(열 때 · 다른 탭 확인)이 같은 목록을 쓴다
   var setupSig = "";   // 설정 화면을 연 때의 저장된 설정 — 다른 탭에서 설정 자체가 바뀌었을 때만 입력칸을 새로 채운다
   $("s_save").onclick = function(){
     var s = new Date($("s_start").value);
     if(isNaN(s)) return toast("시작일을 입력해 주세요");
+    // 흡연 기간 · 전에 끊어 본 횟수 (선택 · VN-218-3 나 · 대표님 결정 2026-11-11) — 상담자 요약·연구 자료에 들어간다. 비우면 지운다
+    var yv = $("s_years").value, tv = $("s_tries").value, yn = +yv, tn = +tv;
+    if(yv !== "" && !(yn >= 0 && yn <= 90 && Math.floor(yn) === yn)) return toast("흡연 기간은 0~90 사이 정수(년)로 적어 주세요");
+    if(tv !== "" && !(tn >= 0 && tn <= 99 && Math.floor(tn) === tn)) return toast("끊어 본 횟수는 0~99 사이 정수로 적어 주세요");
     st.start = s.getTime(); st.kind = kindPick;
     st.perDay = Math.max(1, +$("s_perday").value || 1);
     st.price = Math.max(0, +$("s_price").value || 0);
     st.reason = $("s_reason").value.trim();
+    if(yv === "") delete st.smokeYears; else st.smokeYears = yn;
+    if(tv === "") delete st.priorTries; else st.priorTries = tn;
     save(); show("home"); tick(); toast("응원할게요!");
   };
 
@@ -1594,7 +1606,10 @@ html.big body{zoom:1.18;}
         st.measures.sort(function(a,b){ return b.t-a.t; });
         (d.devices||[]).forEach(function(v){ if(v && v.id && !st.devices.some(function(x){ return x.id===v.id; })) st.devices.push(v); }); // 스티커 기기 목록도 (#10 Codex)
         // 새 폰은 가져오기 전에 시작 설정을 먼저 마치므로, 백업이 더 이르고 지금 시도 이력이 없으면 백업의 시작 정보로 되돌립니다 (VN-116-1)
-        if(d.start && (!st.start || (d.start < st.start && !st.attempts.length))){ st.start=d.start; st.perDay=d.perDay; st.price=d.price; st.kind=d.kind||"cig"; st.reason=d.reason||""; st.attempts=d.attempts||[]; }
+        var tookSetup = false;
+        if(d.start && (!st.start || (d.start < st.start && !st.attempts.length))){ tookSetup = true; st.start=d.start; st.perDay=d.perDay; st.price=d.price; st.kind=d.kind||"cig"; st.reason=d.reason||""; st.attempts=d.attempts||[]; }
+        // 흡연 기간 · 끊어 본 횟수 (#88 Codex) — 설정을 통째로 받을 때는 따라오고, 아니면 이 기기에 없는 값만 채운다. 범위 밖·글자는 받지 않는다
+        [["smokeYears", 90], ["priorTries", 99]].forEach(function(f){ var v = d[f[0]], ok = typeof v === "number" && isFinite(v) && v >= 0 && v <= f[1] && Math.floor(v) === v; if(ok && (tookSetup || st[f[0]] == null)) st[f[0]] = v; });   // 시작 설정을 실제로 받았을 때만 덮어쓴다 — 시작일이 같은 옛 백업이 나중에 고친 값을 되돌리지 않게 (#88 Codex)
         if(d.notif && Array.isArray(d.notif.log)){   // 보낸 알림 장부 (VN-116-2) — 알림 on·시각은 기기 권한이 따로라 가져오지 않음
           var nseen = {}; (st.notif.log||[]).forEach(function(x){ nseen[x.t]=1; });
           st.notif.log = (st.notif.log||[]).concat(d.notif.log.filter(function(x){ if(!x || !x.t || nseen[x.t]) return false; nseen[x.t]=1; return true; })).sort(function(a,b){ return a.t-b.t; }).slice(-100);
@@ -1701,7 +1716,7 @@ html.big body{zoom:1.18;}
     try{ if(window.Research) window.Research.touch(); }catch(e){}   // 합친 기록도 연구 파일에 반영되게 (다른 탭이 올린 낡은 파일을 덮어쓰도록)
     document.documentElement.classList.toggle("big", !!st.big);   // 다른 탭에서 바꾼 큰 글씨 설정도 바로 적용
     var on = document.querySelector(".view.on"); if(!on) return; var v = on.id.slice(2);
-    if(v === "setup"){ if(JSON.stringify([st.start, st.kind, st.perDay, st.price, st.reason]) !== setupSig){ openSetup(); toast("다른 탭에서 설정이 바뀌어 새로 불러왔어요"); } return; }   // 낡은 입력칸이 새 설정을 덮어쓰지 않게
+    if(v === "setup"){ if(setupSigOf() !== setupSig){ openSetup(); toast("다른 탭에서 설정이 바뀌어 새로 불러왔어요"); } return; }   // 낡은 입력칸이 새 설정을 덮어쓰지 않게
     if(v === "home" || v === "log" || v === "stats" || v === "health" || v === "pro") show(v, true);
     else if(v === "help"){ var ae = document.activeElement; if(!(ae && $("v-help").contains(ae) && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName))){ renderProfile(); renderNotif(); renderDevices(); } }   // 도움 화면은 입력 중이 아닐 때만 새로 채운다
   }

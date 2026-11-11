@@ -85,7 +85,7 @@ test("엑셀 파일: zip 구조 · CRC · 시트 5장이 맞다", () => {
     xml[name] = new TextDecoder().decode(data); p += 46 + nl;
   }
   assert.ok(names.includes("[Content_Types].xml") && names.includes("xl/workbook.xml"));
-  assert.equal(names.filter(x => x.startsWith("xl/worksheets/")).length, 5);
+  assert.equal(names.filter(x => x.startsWith("xl/worksheets/")).length, 6);
   assert.match(xml["xl/workbook.xml"], /name="records"/); assert.match(xml["xl/workbook.xml"], /name="codebook"/);
   assert.match(xml["xl/worksheets/sheet2.xml"], /<c r="H4"><v>3<\/v><\/c>/);          // records 의 3번째 기록 craving_level = 3
 });
@@ -394,4 +394,42 @@ test("일별: 기록 없이 끝난 앞 시도의 날들도 담고, 시작일이 
   assert.equal(d2[1][1], "2023-01-05"); assert.equal(d2[d2.length - 1][1], "2026-11-06"); assert.ok(d2.length > 1300);
   const big = { ...st, start: at(2000, 1, 1, 9), attempts: [] }; const d3 = R.buildDaily(big, PID, NOW);
   assert.equal(d3[d3.length - 1][1], "2026-11-06"); assert.ok(d3.length <= 5002);
+});
+
+test("meds 시트: 약 기록을 코드·수로만 담고, 이상한 기록·글자는 버린다 (VN-218-5)", () => {
+  const t = new Date(2026, 10, 3, 9, 30).getTime();
+  const rows = R.buildMeds({ medlog: [
+    { id: "a", t, type: "patch", mg: 21, n: 1 },
+    { id: "b", t: t + 3600e3, type: "gum", mg: "Kim 010", n: 1.5 },
+    { id: "a", t, type: "patch", mg: 21, n: 1 },
+    { id: "c", t, type: { toString: 5 } },
+    { id: "d", t: "x", type: "varen" },
+    { id: "e", t: t - 864e5, type: "other" }
+  ] }, "P-00000001");
+  assert.deepEqual(rows[0], ["participant_id", "date", "hour", "med_type", "dose_mg", "count"]);
+  assert.deepEqual(rows.slice(1), [
+    ["P-00000001", "2026-11-02", 9, 9, "", ""],
+    ["P-00000001", "2026-11-03", 9, 1, 21, 1],
+    ["P-00000001", "2026-11-03", 10, 2, "", ""]
+  ]);
+  assert.deepEqual(R.buildMeds({}, "P-00000001"), [rows[0]]);
+});
+
+test("participant: 흡연 기간·이전 시도 (선택 · 범위 밖은 빈칸) · 코드북 v2 (VN-218-3 나)", () => {
+  const p = R.buildParticipant({ kind: "cig", smokeYears: 20, priorTries: 3 }, "P-00000001", 0);
+  const h = p[0], v = p[1];
+  assert.equal(v[h.indexOf("smoking_years")], 20);
+  assert.equal(v[h.indexOf("prior_quit_attempts")], 3);
+  assert.equal(v[h.indexOf("codebook_version")], "2");
+  const q = R.buildParticipant({ smokeYears: -1, priorTries: "3" }, "P-00000001", 0);
+  assert.equal(q[1][h.indexOf("smoking_years")], ""); assert.equal(q[1][h.indexOf("prior_quit_attempts")], "");
+  const cb = R.buildCodebook().map(r => r[0] + ":" + r[1]);
+  ["participant:smoking_years", "participant:prior_quit_attempts", "meds:med_type"].forEach(k => assert.ok(cb.includes(k), k));
+  assert.ok(R.buildSheets({}, "P-00000001", 0).some(s => s.name === "meds"));
+});
+
+test("participant · meds: 소수 이력값과 Date 범위 밖 시각은 넣지 않는다 (#88 Sourcery)", () => {
+  const p = R.buildParticipant({ smokeYears: 2.5, priorTries: 1.5 }, "P-00000001", 0);
+  assert.equal(p[1][p[0].indexOf("smoking_years")], ""); assert.equal(p[1][p[0].indexOf("prior_quit_attempts")], "");
+  assert.equal(R.buildMeds({ medlog: [{ id: "x", t: 9e15, type: "patch" }] }, "P-00000001").length, 1);
 });

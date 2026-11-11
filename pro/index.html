@@ -113,7 +113,8 @@
     var att = (Array.isArray(d.attempts) ? d.attempts : []).filter(function(a){ return a && validT(a.start) && validT(a.end); });
     var MEDL = {patch:"니코틴 패치", gum:"니코틴 껌", lozenge:"니코틴 사탕·트로키", varen:"바레니클린", bupro:"부프로피온", other:"그 밖의 약"};   // 앱의 약 종류 (SmokeFree_app.html MEDT 와 같게)
     var medlog = (Array.isArray(d.medlog) ? d.medlog : []).map(function(x){ return x && validT(x.t) && typeof x.type === "string" && Object.prototype.hasOwnProperty.call(MEDL, x.type) ? {t:x.t, name:MEDL[x.type], mg: num(x.mg) > 0 && x.mg < 10000 ? num(x.mg) : null, n: num(x.n) >= 1 && x.n < 1000 && Math.floor(x.n) === x.n ? x.n : null} : null; }).filter(Boolean).slice(0, 5000).sort(function(a,b){ return a.t - b.t; });
-    return { app:app, start:validT(d.start) ? d.start : null, kind:str(d.kind,10), goal:str(d.goal,10), perday:num(d.perday), logs:logs, meas:meas, meds:meds, medlog:medlog, attempts:att, exported:str(o.exported,40) };
+    var intIn = function(v, hi){ return num(v) != null && v >= 0 && v <= hi && Math.floor(v) === v; }, yrs = intIn(d.smokeYears, 90) ? d.smokeYears : null, tries = intIn(d.priorTries, 99) ? d.priorTries : null;   // 앱 설정과 같게 정수만
+    return { app:app, smokeYears:yrs, priorTries:tries, start:validT(d.start) ? d.start : null, kind:str(d.kind,10), goal:str(d.goal,10), perday:num(d.perday), logs:logs, meas:meas, meds:meds, medlog:medlog, attempts:att, exported:str(o.exported,40) };
   }
 
   function flat(logs, k){ var out = []; logs.forEach(function(l){ l[k].forEach(function(x){ out.push(x); }); }); return out; }
@@ -197,6 +198,8 @@
     kv.appendChild(card("기록 앱", smoke ? "금연노트" : "금주노트"));
     if(m.start != null) kv.appendChild(card("현재 시도 시작", dkey(m.start) + " (" + Math.max(0, Math.floor((now - m.start)/DAY)) + "일째)"));
     kv.appendChild(card("지난 시도 횟수", String(m.attempts.length)));
+    if(smoke && m.smokeYears != null) kv.appendChild(card("흡연 기간 (환자가 적음)", m.smokeYears + "년"));
+    if(smoke && m.priorTries != null) kv.appendChild(card("앱 전에 끊어 본 횟수", m.priorTries + "회"));
     kv.appendChild(card("기록 건수", String(m.logs.length)));
     kv.appendChild(card(smoke ? "당겼지만 넘긴 기록" : "마시고 싶었지만 넘긴 기록", String(urges.length)));
     kv.appendChild(card(smoke ? "피운 기록" : "마신 기록", String(slips.length)));

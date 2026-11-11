@@ -11,7 +11,7 @@
 ## 길
 
 ```
-참여자 폰 ─ 동의 후 켬 ─ POST(text/plain, JSON) ─▶ 연구실 Apps Script 웹앱 ─▶ 연구실 Google 시트 (탭: participant · records · measures · daily)
+참여자 폰 ─ 동의 후 켬 ─ POST(text/plain, JSON) ─▶ 연구실 Apps Script 웹앱 ─▶ 연구실 Google 시트 (탭: participant · records · measures · daily · meds)
 ```
 
 - 참여자 Google 로그인이 **필요 없습니다**(`clientId` 불필요). 앱은 `https://script.google.com/macros/s/…/exec` 모양의 주소만 받습니다 — 다른 주소는 설정이 없는 것으로 봅니다.
@@ -27,6 +27,7 @@
 3. 배포 → 새 배포 → 웹 앱 → 실행 계정 「나」 · 액세스 「모든 사용자」. 처음 한 번 권한(시트 열기)을 승인합니다.
 4. 나온 주소(…/exec)를 `research-config.js` 의 `labUrl` 에 넣습니다(공개되는 값 — 열쇠가 아닙니다). 동의 문구·버전·IRB 와 함께 `enabled:true` 는 **교수님 확인 뒤에**.
 5. 시트는 코드가 만듭니다(첫 전송 때 탭과 머리글). 열 이름이 앱과 다르면(`header_changed_…`) 받지 않으니 틀 파일을 쓰거나 비워 두세요.
+   **코드북 v2 (2026-11-11)**: participant 에 `smoking_years` · `prior_quit_attempts` 두 열이 `n_attempts` 뒤에 들어가고, `meds` 탭이 새로 생깁니다. 연구실 틀 파일(「연구실_…_DB틀.xlsx」)도 같은 열로 고쳐야 합니다 — 틀은 연구실 Drive 에 있어 이 저장소에서 고치지 못했습니다. 이미 배포한 수신기는 `research-sink.gs` 의 `ALLOWED` 에 `meds` 를 더해 다시 배포해야 약 탭을 받습니다.
 
 ## 한계 · 알아 둘 것
 
