@@ -54,6 +54,7 @@ docs/PUFF-LINK.md    퍼프 연동 뼈대 (labs/puff-link/ · 가짜 기기만 �
 ```
 node -e "…"   <script> 안을 뽑아 node --check
 python3 -m http.server + Playwright 로 390px 에서 기록 저장·다시 시작 흐름을 실제로 눌러 봄
+node tools/qa-check.cjs   금연노트·금주노트 가로 넘침·44px·기록 저장·진입화면을 한 번에 (이상 없으면 「이상 없음」 · 종료 코드 0)
 ```
 
 색 대비를 바꿨으면 WCAG 상대휘도로 계산해 수치를 남기세요. 눈대중 금지.
