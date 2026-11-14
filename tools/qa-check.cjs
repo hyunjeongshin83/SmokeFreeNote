@@ -13,7 +13,7 @@
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
-const { chromium } = require("playwright");
+let chromium; try { ({ chromium } = require("playwright")); } catch (e) { /* 시험이 serve 만 불러올 때는 Playwright 가 없어도 된다 */ }
 
 const ROOT = path.resolve(__dirname, "..");
 const APPS = [
@@ -22,13 +22,19 @@ const APPS = [
 ];
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".json": "application/json", ".png": "image/png", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json", ".css": "text/css", ".wasm": "application/wasm", ".svg": "image/svg+xml" };
 
-/* 정적 파일 서버 — 이미 떠 있는 서버가 없을 때만 띄웁니다 */
+/* 정적 파일 서버 — 이미 떠 있는 서버가 없을 때만 띄웁니다.
+ * 폴더는 절대 경로·실제 경로(symlink 해석)로 바꿔 두고, 요청 파일도 실제 경로로 바꾼 뒤 「그 폴더 안인지」를 폴더 경계로 확인합니다
+ * (SMOKE_DIR=./ 처럼 상대 경로여도 되고, 이름이 앞부분만 같은 이웃 폴더나 폴더 밖을 가리키는 symlink 는 막습니다). */
+function inside(root, f) { const r = path.relative(root, f); return r === "" || (r !== ".." && !r.startsWith(".." + path.sep) && !path.isAbsolute(r)); }   // 「..foo」 같은 이름은 밖이 아니다
 function serve(dir) {
+  const root = fs.realpathSync(path.resolve(dir));
   return new Promise((resolve) => {
     const srv = http.createServer((req, res) => {
-      const p = decodeURIComponent((req.url || "/").split("?")[0]);
-      const f = path.join(dir, p === "/" ? "index.html" : p);
-      if (!f.startsWith(dir) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.statusCode = 404; return res.end("not found"); }
+      let p;
+      try { p = decodeURIComponent((req.url || "/").split("?")[0]); } catch (e) { res.statusCode = 400; return res.end("bad request"); }
+      let f;
+      try { f = fs.realpathSync(path.join(root, p === "/" ? "index.html" : p)); } catch (e) { res.statusCode = 404; return res.end("not found"); }
+      if (!inside(root, f) || fs.statSync(f).isDirectory()) { res.statusCode = 404; return res.end("not found"); }
       res.setHeader("content-type", TYPES[path.extname(f)] || "application/octet-stream");
       fs.createReadStream(f).pipe(res);
     }).listen(0, "127.0.0.1", () => resolve({ srv, url: "http://127.0.0.1:" + srv.address().port }));
@@ -37,12 +43,17 @@ function serve(dir) {
 
 const out = [];
 const add = (m) => out.push(m);
-const goodErr = (t) => !/ERR_TUNNEL|Failed to load resource/.test(t);
+// 거르는 것은 「앱과 다른 출처(글꼴 등 외부 주소)의 ERR_TUNNEL_CONNECTION_FAILED(샌드박스 망)」 하나뿐 — 이 앱 출처의 오류는 문구가 무엇이든 남긴다.
+// 앱 안인지는 문자열 앞부분이 아니라 URL 을 파싱해 출처(origin)로 가른다. 요청 주소를 모르면(위치 없음) 남긴다.
+const isExternal = (m, base) => { const u = m.location() && m.location().url; if (!u) return false; try { return new URL(u).origin !== new URL(base).origin; } catch (e) { return false; } };
+const goodErr = (m, base) => !(isExternal(m, base) && /ERR_TUNNEL/.test(m.text()));
 
-async function setup(page, a) {   // 시작 → 설정 저장 (금주는 목표 칩 하나를 골라야 저장됨)
+async function setup(page, a, probe) {   // 시작 → 설정 저장 (금주는 목표 칩 하나를 골라야 저장됨). probe(이름) 가 있으면 시작·설정 화면도 잰다
   await page.goto(a.base + "/" + a.file + "?tab=start"); await page.waitForTimeout(400);
-  await page.click("#st_go");
+  if (probe) await probe("start");
+  await page.click("#st_go"); await page.waitForTimeout(250);
   const chip = await page.$("#s_goal button, #s_goal .chip"); if (chip) await chip.click();
+  if (probe) await probe("setup");
   await page.click("#s_save"); await page.waitForTimeout(400);
 }
 async function fillLog(page) {   // 기록하기 — 화면의 칩 묶음마다 하나씩 고르고 저장
@@ -54,26 +65,37 @@ async function fillLog(page) {   // 기록하기 — 화면의 칩 묶음마다 
 }
 const logCount = (page, key) => page.evaluate((k) => { try { return (JSON.parse(localStorage.getItem(k) || "{}").logs || []).length; } catch (e) { return -1; } }, key);
 
-async function layout(browser, a) {   // 가로 넘침 · 44px — 390/320/800px × 보통·글자 200%
-  for (const [w, big] of [[390, 0], [390, 1], [320, 0], [320, 1], [800, 0]]) {
+// 지금 보이는 화면의 가로 넘침 · 44px 미만을 잰다 (체크박스·라디오 입력은 감싸는 label 로 재므로 뺀다)
+const page_measure = () => {
+  const W = document.documentElement.clientWidth, sw = document.documentElement.scrollWidth;
+  const on = [...document.querySelectorAll(".view.on *")];
+  const bad = on.filter((e) => e.offsetParent && e.getBoundingClientRect().right > W + 1).slice(0, 4).map((e) => (e.id || e.className || e.tagName) + ":" + Math.round(e.getBoundingClientRect().right));
+  const small = [...document.querySelectorAll(".view.on button, .view.on a, .view.on select, .view.on input:not([type=checkbox]):not([type=radio])")].filter((e) => e.offsetParent && e.getBoundingClientRect().height > 0 && e.getBoundingClientRect().height < 44).slice(0, 4).map((e) => (e.id || e.className || e.tagName) + ":" + Math.round(e.getBoundingClientRect().height));
+  return { W, sw, bad, small, view: (document.querySelector(".view.on") || {}).id || "" };
+};
+
+async function layout(browser, a) {   // 가로 넘침 · 44px — 390/320/800px × 보통·글자 200% (시작·설정 화면과 모든 탭)
+  for (const [w, big] of [[390, 0], [390, 1], [320, 0], [320, 1], [800, 0], [800, 1]]) {
     const ctx = await browser.newContext({ viewport: { width: w, height: 844 }, serviceWorkers: "block" });
-    const page = await ctx.newPage(), errs = [];
+    const page = await ctx.newPage(), errs = [], tag = a.n + " " + w + (big ? " 200%" : "");
     page.on("pageerror", (e) => errs.push(e.message));
-    page.on("console", (m) => { if (m.type() === "error" && goodErr(m.text())) errs.push(m.text()); });
-    await setup(page, a); await fillLog(page); await fillLog(page);
+    page.on("console", (m) => { if (m.type() === "error" && goodErr(m, a.base)) errs.push(m.text()); });
+    const check = async (v) => {
+      const o = await page.evaluate(page_measure);
+      if (o.sw > o.W || o.bad.length || o.small.length)
+        add(tag + " " + v + ": sw " + o.sw + "/" + o.W + (o.bad.length ? " 넘침 " + o.bad.join(",") : "") + (o.small.length ? " 44미만 " + o.small.join(",") : ""));
+    };
+    const probe = async (v) => { if (big) await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; }); await page.waitForTimeout(150); await check(v); };
+    await setup(page, a, probe); await fillLog(page); await fillLog(page);
     if (big) await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
     for (const v of a.tabs) {
-      await page.click('#tabs [data-v="' + v + '"]').catch(() => {}); await page.waitForTimeout(250);
-      const o = await page.evaluate(() => {
-        const W = document.documentElement.clientWidth, sw = document.documentElement.scrollWidth;
-        const bad = [...document.querySelectorAll(".view.on *")].filter((e) => e.offsetParent && e.getBoundingClientRect().right > W + 1).slice(0, 4).map((e) => (e.id || e.className || e.tagName) + ":" + Math.round(e.getBoundingClientRect().right));
-        const small = [...document.querySelectorAll(".view.on button, .view.on a, .view.on select, .view.on input:not([type=checkbox]):not([type=radio])")].filter((e) => e.offsetParent && e.getBoundingClientRect().height > 0 && e.getBoundingClientRect().height < 44 && !e.closest("[hidden]")).slice(0, 5).map((e) => (e.id || e.textContent.trim().slice(0, 12) || e.tagName) + ":" + Math.round(e.getBoundingClientRect().height));
-        return { W, sw, bad, small };
-      });
-      if (o.sw > o.W || o.bad.length || (w === 390 && !big && o.small.length))
-        add(a.n + " " + w + (big ? " 200%" : "") + " " + v + ": sw " + o.sw + "/" + o.W + (o.bad.length ? " 넘침 " + o.bad.join(",") : "") + (o.small.length ? " 44미만 " + o.small.join(",") : ""));
+      try { await page.click('#tabs [data-v="' + v + '"]', { timeout: 3000 }); } catch (e) { add(tag + " " + v + ": 탭을 열지 못함 (" + String(e.message).split("\n")[0].slice(0, 60) + ")"); continue; }
+      await page.waitForTimeout(250);
+      const shown = await page.evaluate(() => (document.querySelector(".view.on") || {}).id || "");
+      if (shown !== "v-" + v) { add(tag + " " + v + ": 눌렀는데 다른 화면(" + (shown || "없음") + ")이 열려 있음"); continue; }
+      await check(v);
     }
-    if (errs.length) add(a.n + " " + w + (big ? " 200%" : "") + " 오류: " + [...new Set(errs)].slice(0, 3).join(" | "));
+    if (errs.length) add(tag + " 오류: " + [...new Set(errs)].slice(0, 3).join(" | "));
     await ctx.close();
   }
 }
@@ -93,15 +115,30 @@ async function saveFlow(browser, a) {   // 기록 저장 → 새로고침 뒤에
 }
 
 async function splash(browser, a) {   // 진입화면: 약 1.6초(동작 줄이기 0.9초) 뒤 사라짐 · ?tab= 에서는 안 뜸
-  for (const rm of ["no-preference", "reduce"]) {
+  // 앱은 타이머가 끝나면 #splash 에 「out」 클래스를 붙여 사라지기 시작하고(페이드 0.45초), 그 뒤에 display:none 이 된다.
+  // 그래서 「사라지기 시작한 시각」(out)을 재야 타이머 단축을 잡는다 — display:none 시각만 재면 페이드 0.45초에 가려져 1.0초로 줄여도 통과한다(Codex PR #93).
+  // 시각은 문서 시작부터 잰다(goto 가 돌아온 뒤가 아님 — 글꼴 접속 실패로 goto 가 늦게 돌아온다). 기대의 95% 보다 이르면 「너무 일찍」, 뜬 뒤 4초가 지나도 사라지지 않으면 「안 사라짐」(기한은 화면이 뜬 때부터 센다 — 느린 로드로 앱 초기화가 늦어도 거짓 실패가 없게).
+  for (const [rm, want] of [["no-preference", 1600], ["reduce", 900]]) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block", reducedMotion: rm });
     const page = await ctx.newPage();
+    await page.addInitScript(() => {
+      const tick = () => {
+        const s = document.getElementById("splash");
+        if (s) {
+          if (getComputedStyle(s).display !== "none" && !window.__shown) { window.__shown = true; window.__shownAt = performance.now(); }
+          if (!window.__out && s.classList.contains("out")) window.__out = performance.now();
+          if (window.__shown && !window.__gone && getComputedStyle(s).display === "none") { window.__gone = performance.now(); return; }
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
     await page.goto(a.base + "/" + a.file);
-    const shown = await page.evaluate(() => getComputedStyle(document.getElementById("splash")).display);
-    await page.waitForTimeout(rm === "reduce" ? 1300 : 2300);
-    const gone = await page.evaluate(() => getComputedStyle(document.getElementById("splash")).display);
-    if (shown === "none") add(a.n + " 진입화면(" + rm + "): 첫 로드에 안 뜸");
-    if (gone !== "none") add(a.n + " 진입화면(" + rm + "): 시간이 지나도 안 사라짐");
+    await page.waitForFunction(() => window.__gone || (window.__shownAt && performance.now() - window.__shownAt > 4000) || performance.now() > 20000, null, { timeout: 30000 }).catch(() => {});
+    const r = await page.evaluate(() => ({ shown: !!window.__shown, out: window.__out || 0, gone: window.__gone || 0 }));
+    if (!r.shown) add(a.n + " 진입화면(" + rm + "): 첫 로드에 안 뜸");
+    else if (!r.gone) add(a.n + " 진입화면(" + rm + "): 뜬 뒤 4초가 지나도 안 사라짐");
+    else if ((r.out || r.gone) < want * 0.95) add(a.n + " 진입화면(" + rm + "): 너무 일찍 사라지기 시작 (" + Math.round(r.out || r.gone) + "ms · 기대 " + want + "ms)");
     await ctx.close();
   }
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
@@ -111,7 +148,7 @@ async function splash(browser, a) {   // 진입화면: 약 1.6초(동작 줄이�
   await ctx.close();
 }
 
-(async () => {
+if (require.main !== module) { module.exports = { serve, inside }; } else (async () => {
   const servers = [];
   for (const a of APPS) {
     if (a.url) { a.base = a.url.replace(/\/$/, ""); continue; }
