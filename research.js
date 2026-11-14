@@ -281,7 +281,8 @@
   function config() {
     var c = root.SF_RESEARCH_CONFIG || {};
     var lab = labOk(c.labUrl);
-    var ready = c.enabled === true && (lab || (typeof c.clientId === "string" && c.clientId.length > 10)) && typeof c.consentText === "string" && c.consentText.trim().length > 0 && typeof c.consentVersion === "string" && c.consentVersion.length > 0;
+    var ready = c.enabled === true && (lab || (typeof c.clientId === "string" && c.clientId.length > 10)) && typeof c.consentText === "string" && c.consentText.trim().length > 0 && typeof c.consentVersion === "string" && c.consentVersion.length > 0
+      && typeof c.irb === "string" && c.irb.trim().length > 0;   // IRB 승인번호가 없으면 켜지 않는다 (대표님 결정 2026-11-14)
     return { enabled: c.enabled === true, ready: ready, clientId: c.clientId || "", consentText: c.consentText || "", consentVersion: c.consentVersion || "", irb: c.irb || "", lab: lab, labUrl: lab ? c.labUrl : "" };
   }
   function readState() { try { return JSON.parse(root.localStorage.getItem(STORE_KEY)) || {}; } catch (e) { return {}; } }
