@@ -113,22 +113,30 @@ async function saveFlow(browser, a) {   // 기록 저장 → 새로고침 뒤에
 }
 
 async function splash(browser, a) {   // 진입화면: 약 1.6초(동작 줄이기 0.9초) 뒤 사라짐 · ?tab= 에서는 안 뜸
-  // 사라진 시각은 문서 시작부터 쟁니다(goto 가 돌아온 뒤가 아님 — 글꼴 접속 실패로 goto 가 0.5~0.8초 늦게 돌아온다).
-  // 기대(0.9초 · 1.6초)의 90% 보다 일찍 사라지면 「너무 일찍」, 4초가 지나도 안 사라지면 「안 사라짐」.
+  // 앱은 타이머가 끝나면 #splash 에 「out」 클래스를 붙여 사라지기 시작하고(페이드 0.45초), 그 뒤에 display:none 이 된다.
+  // 그래서 「사라지기 시작한 시각」(out)을 재야 타이머 단축을 잡는다 — display:none 시각만 재면 페이드 0.45초에 가려져 1.0초로 줄여도 통과한다(Codex PR #93).
+  // 시각은 문서 시작부터 잰다(goto 가 돌아온 뒤가 아님 — 글꼴 접속 실패로 goto 가 늦게 돌아온다). 기대의 95% 보다 이르면 「너무 일찍」, 4초가 지나도 사라지지 않으면 「안 사라짐」.
   for (const [rm, want] of [["no-preference", 1600], ["reduce", 900]]) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block", reducedMotion: rm });
     const page = await ctx.newPage();
     await page.addInitScript(() => {
-      const tick = () => { const s = document.getElementById("splash"); if (s && getComputedStyle(s).display === "none" && window.__shown) { window.__gone = performance.now(); return; }
-        if (s && getComputedStyle(s).display !== "none") window.__shown = true; requestAnimationFrame(tick); };
+      const tick = () => {
+        const s = document.getElementById("splash");
+        if (s) {
+          if (getComputedStyle(s).display !== "none") window.__shown = true;
+          if (!window.__out && s.classList.contains("out")) window.__out = performance.now();
+          if (window.__shown && !window.__gone && getComputedStyle(s).display === "none") { window.__gone = performance.now(); return; }
+        }
+        requestAnimationFrame(tick);
+      };
       requestAnimationFrame(tick);
     });
     await page.goto(a.base + "/" + a.file);
     await page.waitForFunction(() => window.__gone || performance.now() > 4000, null, { timeout: 6000 }).catch(() => {});
-    const r = await page.evaluate(() => ({ shown: !!window.__shown, gone: window.__gone || 0 }));
+    const r = await page.evaluate(() => ({ shown: !!window.__shown, out: window.__out || 0, gone: window.__gone || 0 }));
     if (!r.shown) add(a.n + " 진입화면(" + rm + "): 첫 로드에 안 뜸");
     else if (!r.gone) add(a.n + " 진입화면(" + rm + "): 4초가 지나도 안 사라짐");
-    else if (r.gone < want * 0.9) add(a.n + " 진입화면(" + rm + "): 너무 일찍 사라짐 (" + Math.round(r.gone) + "ms · 기대 " + want + "ms)");
+    else if ((r.out || r.gone) < want * 0.95) add(a.n + " 진입화면(" + rm + "): 너무 일찍 사라지기 시작 (" + Math.round(r.out || r.gone) + "ms · 기대 " + want + "ms)");
     await ctx.close();
   }
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
