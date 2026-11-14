@@ -14,7 +14,7 @@ function fresh(cfg = {}, { fail = null, seed = null } = {}) {
     if (fail) return { ok: fail !== 200, status: fail, json: async () => ({ ok: false, error: "boom" }) };
     return { ok: true, status: 200, json: async () => ({ ok: true }) }; };
   globalThis.google = { accounts: { oauth2: { initTokenClient() { throw new Error("로그인이 불리면 안 됨"); }, revoke() {} } } };
-  globalThis.SF_RESEARCH_CONFIG = { enabled: true, clientId: "", labUrl: LAB, consentText: "문구", consentVersion: "v1", ...cfg };
+  globalThis.SF_RESEARCH_CONFIG = { enabled: true, clientId: "", labUrl: LAB, consentText: "문구", consentVersion: "v1", irb: "IRB-TEST-1", ...cfg };
   const R = require("../research.js"); R.init({ getState: () => st() });
   return { R, store, reqs };
 }
@@ -25,6 +25,10 @@ test("labUrl 만 있어도(clientId 없이) 준비되고, 모양이 다른 주�
   }
 });
 test("동의 문구가 비면 labUrl 이 있어도 준비되지 않는다", () => { assert.equal(fresh({ consentText: "" }).R.config().ready, false); });
+test("IRB 번호가 비면 labUrl 이 있어도 준비되지 않는다 (2026-11-14 대표님 결정)", () => {
+  for (const bad of [undefined, "", "   ", null]) assert.equal(fresh({ irb: bad }).R.config().ready, false, "irb=" + JSON.stringify(bad));
+  assert.equal(fresh().R.config().ready, true);
+});
 test("켜면 Google 로그인 없이 연구실 주소로 표를 보낸다 (참여자 이름·이유 글은 없음)", async () => {
   const { R, reqs, store } = fresh(); const r = await R.enable(); assert.equal(r.ok, true);
   assert.equal(reqs.length, 1); const q = reqs[0];
