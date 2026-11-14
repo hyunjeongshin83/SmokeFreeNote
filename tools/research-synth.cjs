@@ -62,14 +62,17 @@ function bootCI(j) {                                                            
 const f = (x) => (isNaN(x) ? "  -  " : (x * 100).toFixed(1).padStart(5) + "%");
 console.log("※ 합성(가짜) 기록 — 시드 " + SEED + " · 참여자 " + N + "명 · 기록 " + rows.length + "건 · 심은 효과: 산책 " + (-EFFECT * 100) + "%p");
 console.log("대처 방법".padEnd(14) + "있음".padStart(7) + "없음".padStart(7) + "차이".padStart(8) + "   95% 구간 (참여자 단위 부트스트랩 " + BOOT + "회)");
-let planted = null;
+let planted = null, outside = 0;
 COPEHEAD.forEach((c, j) => {
   const d = diff(rows, j), ci = bootCI(j);
   console.log(c.padEnd(14) + f(rate(rows, j, 1)).padStart(7) + f(rate(rows, j, 0)).padStart(7) + (d * 100).toFixed(1).padStart(7) + "%p   [" + (ci[0] * 100).toFixed(1) + ", " + (ci[1] * 100).toFixed(1) + "]" + (ci[0] > 0 || ci[1] < 0 ? "  ← 구간이 0 을 포함하지 않음" : ""));
+  if (ci[0] > 0 || ci[1] < 0) outside++;
   if (c === "cope_walk") planted = { d, ci };
 });
 console.log("\n읽는 법: 「차이」는 피움 비율의 차(대처 있음 − 없음)이며 효과·인과가 아니다. 구간이 0 을 포함하면 이 표본으로는 방향을 말하지 않는다.");
-// 양성 대조(효과를 심음): 구간이 0 아래에 있어야 한다. 음성 대조(--effect 0): 구간이 0 을 포함해야 한다 — 둘 다 맞아야 분석이 믿을 만하다
+// 판정은 「미리 정한 한 가지 대비」(산책)만 본다. 양성 대조(효과를 심음): 산책 구간이 0 아래에 있어야 한다. 음성 대조(--effect 0): 산책 구간이 0 을 포함해야 한다.
+// 일곱 대처를 한꺼번에 보므로 음성 대조에서도 우연히 한두 구간이 0 을 벗어날 수 있다(구간 하나당 약 5% → 일곱 개 중 하나라도일 확률 약 30%) — 그래서 아래 「다중 비교」 줄로 숫자만 알리고 판정에는 넣지 않는다.
 const ok = planted && (EFFECT > 0 ? planted.ci[1] < 0 && planted.d < 0 : planted.ci[0] <= 0 && planted.ci[1] >= 0);
-console.log(ok ? (EFFECT > 0 ? "검증: 심은 효과(산책)를 되찾았다." : "검증(음성 대조): 효과를 안 심었더니 구간이 0 을 포함한다.") : "검증 실패: " + (EFFECT > 0 ? "심은 효과를 되찾지 못했다." : "효과가 없는데 구간이 0 을 벗어났다."));
+console.log("다중 비교: " + COPEHEAD.length + "개 중 " + outside + "개의 구간이 0 을 벗어남" + (EFFECT > 0 ? " (심은 효과 하나가 포함됨)" : " (효과를 안 심었으니 우연 — 비교 " + COPEHEAD.length + "개 × 5% ≈ " + (COPEHEAD.length * 0.05).toFixed(2) + "개가 기대값)"));
+console.log(ok ? (EFFECT > 0 ? "검증: 심은 효과(산책)를 되찾았다." : "검증(음성 대조 · 산책 대비만 판정): 효과를 안 심었더니 산책 구간이 0 을 포함한다.") : "검증 실패: " + (EFFECT > 0 ? "심은 효과를 되찾지 못했다." : "효과가 없는데 산책 구간이 0 을 벗어났다."));
 process.exit(ok ? 0 : 1);
