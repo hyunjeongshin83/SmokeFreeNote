@@ -25,7 +25,7 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", "
 /* 정적 파일 서버 — 이미 떠 있는 서버가 없을 때만 띄웁니다.
  * 폴더는 절대 경로·실제 경로(symlink 해석)로 바꿔 두고, 요청 파일도 실제 경로로 바꾼 뒤 「그 폴더 안인지」를 폴더 경계로 확인합니다
  * (SMOKE_DIR=./ 처럼 상대 경로여도 되고, 이름이 앞부분만 같은 이웃 폴더나 폴더 밖을 가리키는 symlink 는 막습니다). */
-function inside(root, f) { const r = path.relative(root, f); return r === "" || (!r.startsWith("..") && !path.isAbsolute(r)); }
+function inside(root, f) { const r = path.relative(root, f); return r === "" || (r !== ".." && !r.startsWith(".." + path.sep) && !path.isAbsolute(r)); }   // 「..foo」 같은 이름은 밖이 아니다
 function serve(dir) {
   const root = fs.realpathSync(path.resolve(dir));
   return new Promise((resolve) => {
@@ -43,8 +43,10 @@ function serve(dir) {
 
 const out = [];
 const add = (m) => out.push(m);
-// 거르는 것: 외부 주소(글꼴 등)의 접속 실패(ERR_TUNNEL_CONNECTION_FAILED — 샌드박스 망). 이 앱 주소의 자원 실패(404 등)는 남긴다
-const goodErr = (m, base) => { const t = m.text(); if (!/Failed to load resource/.test(t)) return !/ERR_TUNNEL/.test(t); const u = (m.location() && m.location().url) || ""; return u.indexOf(base) === 0 || !/ERR_TUNNEL/.test(t); };
+// 거르는 것은 「앱과 다른 출처(글꼴 등 외부 주소)의 ERR_TUNNEL_CONNECTION_FAILED(샌드박스 망)」 하나뿐 — 이 앱 출처의 오류는 문구가 무엇이든 남긴다.
+// 앱 안인지는 문자열 앞부분이 아니라 URL 을 파싱해 출처(origin)로 가른다. 요청 주소를 모르면(위치 없음) 남긴다.
+const isExternal = (m, base) => { const u = m.location() && m.location().url; if (!u) return false; try { return new URL(u).origin !== new URL(base).origin; } catch (e) { return false; } };
+const goodErr = (m, base) => !(isExternal(m, base) && /ERR_TUNNEL/.test(m.text()));
 
 async function setup(page, a, probe) {   // 시작 → 설정 저장 (금주는 목표 칩 하나를 골라야 저장됨). probe(이름) 가 있으면 시작·설정 화면도 잰다
   await page.goto(a.base + "/" + a.file + "?tab=start"); await page.waitForTimeout(400);
@@ -115,7 +117,7 @@ async function saveFlow(browser, a) {   // 기록 저장 → 새로고침 뒤에
 async function splash(browser, a) {   // 진입화면: 약 1.6초(동작 줄이기 0.9초) 뒤 사라짐 · ?tab= 에서는 안 뜸
   // 앱은 타이머가 끝나면 #splash 에 「out」 클래스를 붙여 사라지기 시작하고(페이드 0.45초), 그 뒤에 display:none 이 된다.
   // 그래서 「사라지기 시작한 시각」(out)을 재야 타이머 단축을 잡는다 — display:none 시각만 재면 페이드 0.45초에 가려져 1.0초로 줄여도 통과한다(Codex PR #93).
-  // 시각은 문서 시작부터 잰다(goto 가 돌아온 뒤가 아님 — 글꼴 접속 실패로 goto 가 늦게 돌아온다). 기대의 95% 보다 이르면 「너무 일찍」, 4초가 지나도 사라지지 않으면 「안 사라짐」.
+  // 시각은 문서 시작부터 잰다(goto 가 돌아온 뒤가 아님 — 글꼴 접속 실패로 goto 가 늦게 돌아온다). 기대의 95% 보다 이르면 「너무 일찍」, 뜬 뒤 4초가 지나도 사라지지 않으면 「안 사라짐」(기한은 화면이 뜬 때부터 센다 — 느린 로드로 앱 초기화가 늦어도 거짓 실패가 없게).
   for (const [rm, want] of [["no-preference", 1600], ["reduce", 900]]) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block", reducedMotion: rm });
     const page = await ctx.newPage();
@@ -123,7 +125,7 @@ async function splash(browser, a) {   // 진입화면: 약 1.6초(동작 줄이�
       const tick = () => {
         const s = document.getElementById("splash");
         if (s) {
-          if (getComputedStyle(s).display !== "none") window.__shown = true;
+          if (getComputedStyle(s).display !== "none" && !window.__shown) { window.__shown = true; window.__shownAt = performance.now(); }
           if (!window.__out && s.classList.contains("out")) window.__out = performance.now();
           if (window.__shown && !window.__gone && getComputedStyle(s).display === "none") { window.__gone = performance.now(); return; }
         }
@@ -132,10 +134,10 @@ async function splash(browser, a) {   // 진입화면: 약 1.6초(동작 줄이�
       requestAnimationFrame(tick);
     });
     await page.goto(a.base + "/" + a.file);
-    await page.waitForFunction(() => window.__gone || performance.now() > 4000, null, { timeout: 6000 }).catch(() => {});
+    await page.waitForFunction(() => window.__gone || (window.__shownAt && performance.now() - window.__shownAt > 4000) || performance.now() > 20000, null, { timeout: 30000 }).catch(() => {});
     const r = await page.evaluate(() => ({ shown: !!window.__shown, out: window.__out || 0, gone: window.__gone || 0 }));
     if (!r.shown) add(a.n + " 진입화면(" + rm + "): 첫 로드에 안 뜸");
-    else if (!r.gone) add(a.n + " 진입화면(" + rm + "): 4초가 지나도 안 사라짐");
+    else if (!r.gone) add(a.n + " 진입화면(" + rm + "): 뜬 뒤 4초가 지나도 안 사라짐");
     else if ((r.out || r.gone) < want * 0.95) add(a.n + " 진입화면(" + rm + "): 너무 일찍 사라지기 시작 (" + Math.round(r.out || r.gone) + "ms · 기대 " + want + "ms)");
     await ctx.close();
   }

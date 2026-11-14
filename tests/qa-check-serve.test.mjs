@@ -14,13 +14,16 @@ fs.mkdirSync(app); fs.mkdirSync(sib);
 fs.writeFileSync(path.join(app, "a.html"), "APP");
 fs.writeFileSync(path.join(sib, "s.html"), "SECRET");
 fs.writeFileSync(path.join(tmp, "outside.txt"), "OUT");
-fs.symlinkSync(path.join(tmp, "outside.txt"), path.join(app, "link.txt"));
+let canLink = true;
+try { fs.symlinkSync(path.join(tmp, "outside.txt"), path.join(app, "link.txt")); } catch (e) { canLink = false; }   // 윈도우에서 권한이 없으면 symlink 시험만 건너뛴다 (Sourcery PR #93)
 const get = async (url, p) => { const r = await fetch(url + p); return [r.status, await r.text()]; };
 
 test("폴더 경계: 앞부분만 같은 이웃은 밖이다", () => {
   assert.equal(inside(app, path.join(app, "a.html")), true);
   assert.equal(inside(app, path.join(sib, "s.html")), false);
   assert.equal(inside(app, path.join(app, "..", "outside.txt")), false);
+  assert.equal(inside(app, path.join(app, "..foo", "a.html")), true);   // 이름이 ..로 시작해도 폴더 안이다 (Sourcery PR #93)
+  assert.equal(inside(app, path.join(app, "..")), false);
 });
 test("상대 경로 폴더(./ 같은)도 파일을 준다", async () => {
   const cwd = process.cwd(); process.chdir(app);
@@ -30,7 +33,7 @@ test("폴더 밖 · 이웃 폴더 · symlink · 잘못된 % 는 파일을 주지
   const s = await serve(app);
   try {
     assert.equal((await get(s.url, "/..%2Fapp-secret%2Fs.html"))[0], 404);
-    assert.equal((await get(s.url, "/link.txt"))[0], 404);          // 폴더 밖을 가리키는 symlink
+    if (canLink) assert.equal((await get(s.url, "/link.txt"))[0], 404);   // 폴더 밖을 가리키는 symlink
     assert.equal((await get(s.url, "/%"))[0], 400);                // 잘못된 퍼센트 인코딩
     assert.deepEqual(await get(s.url, "/a.html"), [200, "APP"]);   // 그 뒤에도 서버가 산다
   } finally { s.srv.close(); }
