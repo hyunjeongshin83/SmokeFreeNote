@@ -21,6 +21,20 @@ test("음성 대조: 효과가 없으면 산책 구간이 0 을 포함한다 (�
   assert.match(r.stdout, /cope_brush .*← 구간이 0 을 포함하지 않음/);
 });
 
+// 짝이 없으면 「NaN%p [NaN, NaN]」이 아니라 말로 적는다 (참여자 1명 · 같은 날 구간 — 비교할 짝이 거의 안 생긴다)
+test("짝 없음 표시: 비교할 짝이 없으면 NaN 대신 「짝 없음」으로 적고, 판정은 「검증 불가」로 말한다", () => {
+  const r = run("--seed", "1", "--n", "1", "--within-week", "--pair-days", "1", "--boot", "50");
+  assert.doesNotMatch(r.stdout, /NaN/, r.stdout);
+  assert.match(r.stdout, /짝 없음 — 비교할 수 없음/);
+  assert.match(r.stdout, /검증 불가: 산책 대비에 비교할 짝이 없어/);
+  assert.notEqual(r.status, 0);   // 되찾았다고 말하지 않는다
+});
+test("짝 없음 표시는 짝이 있을 때의 출력을 바꾸지 않는다 (숫자 줄에 「짝 없음」이 끼지 않는다)", () => {
+  const r = run("--seed", "1", "--n", "60", "--within-week", "--boot", "100");
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.doesNotMatch(r.stdout, /짝 없음|NaN|검증 불가/);
+});
+
 // ── 금주노트 (--app alcohol): 이 저장소 옆 NonAlcoholNote 가 있을 때만 돈다 (없으면 건너뜀)
 import fs from "node:fs";
 import path from "node:path";

@@ -146,13 +146,16 @@ function bootCI(j) {                                                            
 }
 
 const f = (x) => (isNaN(x) ? "  -  " : (x * 100).toFixed(1).padStart(5) + "%");
+// 비교할 짝(사람)이 없으면 차이·구간이 NaN 이 된다 — 숫자처럼 보이는 「NaN%p」 대신 말로 적는다. 숫자가 있을 때는 출력이 그대로다.
+const NOPAIR = "   짝 없음 — 비교할 수 없음";
+const diffText = (d, ci) => (isNaN(d) || isNaN(ci[0]) || isNaN(ci[1]) ? NOPAIR : (d * 100).toFixed(1).padStart(7) + "%p   [" + (ci[0] * 100).toFixed(1) + ", " + (ci[1] * 100).toFixed(1) + "]" + (ci[0] > 0 || ci[1] < 0 ? "  ← 구간이 0 을 포함하지 않음" : ""));
 const SIGN = APP === "smoke" ? -1 : 1;                                   // 심은 효과의 방향: 금연은 산책이 피움을 낮추고, 금주는 모임·회식이 마심을 높인다
 console.log("※ 합성(가짜) 기록 — 시드 " + SEED + " · 참여자 " + N + "명 · 기록 " + rows.length + "건 · 심은 효과: " + CFG.plantedText.replace(/^(.*?) ([+-]?-?[\d.]+%p)$/, (m, l, v) => l + " " + (EFFECT === 0 ? "0%p" : v)));
 console.log(CFG.groupLabel.padEnd(14) + CFG.with.padStart(7) + "없음".padStart(7) + "차이".padStart(8) + "   95% 구간 (참여자 단위 부트스트랩 " + BOOT + "회)");
 let planted = null, outside = 0;
 CONTRASTS.forEach((c, j) => {
   const d = diff(rows, j), ci = bootCI(j);
-  console.log(c.name.padEnd(14) + f(rate(rows, j, 1)).padStart(7) + f(rate(rows, j, 0)).padStart(7) + (d * 100).toFixed(1).padStart(7) + "%p   [" + (ci[0] * 100).toFixed(1) + ", " + (ci[1] * 100).toFixed(1) + "]" + (ci[0] > 0 || ci[1] < 0 ? "  ← 구간이 0 을 포함하지 않음" : ""));
+  console.log(c.name.padEnd(14) + f(rate(rows, j, 1)).padStart(7) + f(rate(rows, j, 0)).padStart(7) + diffText(d, ci));
   if (ci[0] > 0 || ci[1] < 0) outside++;
   if (c.name === CFG.prespec) planted = { d, ci };
 });
@@ -195,7 +198,7 @@ if (WITHIN) {
   const show = (tbl, weekly) => {
     console.log("\n" + (weekly ? "같은 주 안에서만 짝짓기" : "한 사람 안의 변화") + " — " + (weekly ? (PAIR === 7 ? "같은 사람·같은 달력 주(월~일) 안의" : "같은 사람·같은 " + PAIR + "일 구간 안의") : "같은 사람의") + " 「" + CFG.with + "」 순간 − 「없음」 순간 (두 쪽 모두 있는 " + (weekly ? "구간만" : "사람만") + " · 기록 수 조화 가중 평균 · 사람 단위 부트스트랩 " + BOOT + "회)");
     console.log(CFG.groupLabel.padEnd(14) + "사람 수".padStart(8) + (weekly ? "짝 수".padStart(8) : "") + "차이".padStart(8) + "   95% 구간");
-    tbl.forEach((w) => console.log(w.name.padEnd(14) + String(w.m).padStart(8) + (weekly ? String(w.k).padStart(8) : "") + (w.d * 100).toFixed(1).padStart(7) + "%p   [" + (w.ci[0] * 100).toFixed(1) + ", " + (w.ci[1] * 100).toFixed(1) + "]" + (w.ci[0] > 0 || w.ci[1] < 0 ? "  ← 구간이 0 을 포함하지 않음" : "")));
+    tbl.forEach((w) => console.log(w.name.padEnd(14) + String(w.m).padStart(8) + (weekly ? String(w.k).padStart(8) : "") + diffText(w.d, w.ci)));
   };
   const tPerson = table(false);
   show(tPerson, false);
@@ -209,5 +212,6 @@ if (WITHIN) {
 const hit = planted && (SIGN < 0 ? planted.ci[1] < 0 && planted.d < 0 : planted.ci[0] > 0 && planted.d > 0);
 const ok = planted && (EFFECT > 0 ? hit : planted.ci[0] <= 0 && planted.ci[1] >= 0);
 console.log("다중 비교: " + CONTRASTS.length + "개 중 " + outside + "개의 구간이 0 을 벗어남" + (EFFECT > 0 ? " (심은 효과 하나가 포함됨)" : " (효과를 안 심었으니 우연 — 비교 " + CONTRASTS.length + "개 × 5% ≈ " + (CONTRASTS.length * 0.05).toFixed(2) + "개가 기대값)"));
-console.log(ok ? (EFFECT > 0 ? "검증: 심은 효과(" + CFG.prespecLabel + ")를 되찾았다." : "검증(음성 대조 · " + CFG.prespecLabel + " 대비만 판정): 효과를 안 심었더니 " + CFG.prespecLabel + " 구간이 0 을 포함한다.") : "검증 실패: " + (EFFECT > 0 ? "심은 효과를 되찾지 못했다." : "효과가 없는데 " + CFG.prespecLabel + " 구간이 0 을 벗어났다."));
+const noPlanted = !planted || isNaN(planted.d) || isNaN(planted.ci[0]) || isNaN(planted.ci[1]);   // 판정할 대비에 짝이 없음 — 「못 되찾았다」가 아니라 「판정할 수 없다」
+console.log(noPlanted ? "검증 불가: " + CFG.prespecLabel + " 대비에 비교할 짝이 없어 판정하지 않았다." : ok ? (EFFECT > 0 ? "검증: 심은 효과(" + CFG.prespecLabel + ")를 되찾았다." : "검증(음성 대조 · " + CFG.prespecLabel + " 대비만 판정): 효과를 안 심었더니 " + CFG.prespecLabel + " 구간이 0 을 포함한다.") : "검증 실패: " + (EFFECT > 0 ? "심은 효과를 되찾지 못했다." : "효과가 없는데 " + CFG.prespecLabel + " 구간이 0 을 벗어났다."));
 process.exit(ok ? 0 : 1);
