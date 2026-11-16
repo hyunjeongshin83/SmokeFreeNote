@@ -102,3 +102,41 @@ test("보정(사람 사이 차이): 금주 — 모아 보면 오탐이 30 시드
   const pooled = fpHet("alcohol", false, 30), within = fpHet("alcohol", true, 30);
   assert.ok(pooled >= 20, "모아 보면 교란이 보여야 한다 (지금 " + pooled + "/30)"); assert.ok(within <= 7, "한 사람 안의 변화 오탐 " + within + "/30");
 });
+
+// ── 같은 주 안에서만 짝짓기 (--within-week · 2026-11-16 대표님 결정): 시간에 따라 변하는 교란(그 주의 스트레스 등)을 뺀다
+test("--drift 0 · --drift-shift 는 기본 출력을 안 바꾼다 (난수 순서를 안 건드린다)", () => {
+  const a = run("--seed", "2", "--n", "40", "--boot", "100");
+  const b = run("--seed", "2", "--n", "40", "--boot", "100", "--drift", "0", "--drift-shift", "3", "--pair-days", "3");
+  assert.equal(a.status, 0); assert.equal(a.stdout, b.stdout);
+});
+test("같은 주 안에서만 짝짓기 · 양성 대조: 주마다 변하는 교란이 있어도 심은 효과를 되찾고, 사람 안만 봐서는 효과가 줄어 보인다", () => {
+  const w = run("--seed", "1", "--n", "60", "--boot", "200", "--drift", "0.8", "--within-week");
+  assert.equal(w.status, 0, w.stdout + w.stderr);
+  assert.match(w.stdout, /같은 주 안에서만 짝짓기/);
+  assert.match(w.stdout, /검증: 심은 효과\(산책\)를 되찾았다/);
+  const person = Number((w.stdout.match(/한 사람 안의 변화[\s\S]*?cope_walk\s+\d+\s+(-?[\d.]+)%p/) || [])[1]);   // 사람 안만 본 값
+  const week = Number((w.stdout.match(/같은 주 안에서만 짝짓기[\s\S]*?cope_walk\s+\d+\s+\d+\s+(-?[\d.]+)%p/) || [])[1]);
+  assert.ok(week < person - 5, "같은 주 안의 값(" + week + "%p)이 사람 안의 값(" + person + "%p)보다 심은 효과(-25%p) 쪽으로 더 가야 한다");
+});
+function fpDrift(app, flags, k) {
+  let bad = 0;
+  for (let s = 100; s < 100 + k; s++) { const r = run(...(app ? ["--app", app] : []), "--seed", String(s), "--n", "60", "--effect", "0", "--boot", "100", "--drift", "0.8", ...flags); if (r.status !== 0) bad++; }
+  return bad;
+}
+test("보정(주마다 변하는 교란 · 금연): 사람 안의 변화는 오탐이 30 시드 중 20 이상, 같은 주 안에서만 짝지으면 7 이하", () => {
+  const person = fpDrift(null, ["--within"], 30), week = fpDrift(null, ["--within-week"], 30);
+  assert.ok(person >= 20, "사람 안만 보면 교란이 남아야 한다 (지금 " + person + "/30)"); assert.ok(week <= 7, "같은 주 안의 오탐 " + week + "/30");
+});
+test("보정(주마다 변하는 교란 · 금주): 사람 안의 변화는 오탐이 30 시드 중 20 이상, 같은 주 안에서만 짝지으면 7 이하", { skip: !hasAlc }, () => {
+  const person = fpDrift("alcohol", ["--within"], 30), week = fpDrift("alcohol", ["--within-week"], 30);
+  assert.ok(person >= 20, "사람 안만 보면 교란이 남아야 한다 (지금 " + person + "/30)"); assert.ok(week <= 7, "같은 주 안의 오탐 " + week + "/30");
+});
+// 한계: 교란이 달력 주와 어긋나게 바뀌면(--drift-shift 3) 주 단위 짝짓기는 거의 못 막고, 같은 날로 줄이면(--pair-days 1) 다시 막힌다
+test("한계(교란이 달력 주와 어긋남 · 금연): 주 단위 짝짓기의 오탐이 30 시드 중 20 이상, 같은 날 짝짓기는 7 이하", () => {
+  const weekly = fpDrift(null, ["--drift-shift", "3", "--within-week"], 30), daily = fpDrift(null, ["--drift-shift", "3", "--within-week", "--pair-days", "1"], 30);
+  assert.ok(weekly >= 20, "어긋난 교란은 주 단위로는 안 막혀야 한다 (지금 " + weekly + "/30)"); assert.ok(daily <= 7, "같은 날 짝짓기 오탐 " + daily + "/30");
+});
+test("한계(교란이 달력 주와 어긋남 · 금주): 주 단위 짝짓기의 오탐이 30 시드 중 20 이상, 같은 날 짝짓기는 7 이하", { skip: !hasAlc }, () => {
+  const weekly = fpDrift("alcohol", ["--drift-shift", "3", "--within-week"], 30), daily = fpDrift("alcohol", ["--drift-shift", "3", "--within-week", "--pair-days", "1"], 30);
+  assert.ok(weekly >= 20, "어긋난 교란은 주 단위로는 안 막혀야 한다 (지금 " + weekly + "/30)"); assert.ok(daily <= 7, "같은 날 짝짓기 오탐 " + daily + "/30");
+});
