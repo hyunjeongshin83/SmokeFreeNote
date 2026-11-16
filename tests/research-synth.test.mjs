@@ -71,3 +71,34 @@ function falsePositives(app, k) {
 test("보정: 금연 음성 대조의 오탐이 30 시드 중 7 이하 (기대 약 1.5)", () => { const bad = falsePositives(null, 30); assert.ok(bad <= 7, "오탐 " + bad + "/30"); });
 test("보정: 금주 음성 대조의 오탐이 30 시드 중 7 이하 (기대 약 1.5)", { skip: !hasAlc }, () => { const bad = falsePositives("alcohol", 30); assert.ok(bad <= 7, "오탐 " + bad + "/30"); });
 
+
+// ── 한 사람 안의 변화 (--within · 2026-11-16 대표님 결정): 사람 사이 차이(교란)를 뺀다
+test("--hetero 0 이면 기본 출력이 그대로다 (난수 순서를 안 건드린다)", () => {
+  const a = run("--seed", "1", "--n", "40", "--boot", "100");
+  const b = run("--seed", "1", "--n", "40", "--boot", "100", "--hetero", "0");
+  assert.equal(a.status, 0); assert.equal(a.stdout, b.stdout);
+});
+test("한 사람 안의 변화 · 양성 대조: 사람 사이 차이가 섞여도 심은 효과를 되찾고, 모아 보면 효과가 줄어 보인다", () => {
+  const w = run("--seed", "1", "--n", "60", "--boot", "200", "--hetero", "0.6", "--within");
+  assert.equal(w.status, 0, w.stdout + w.stderr);
+  assert.match(w.stdout, /한 사람 안의 변화/);
+  assert.match(w.stdout, /검증: 심은 효과\(산책\)를 되찾았다/);
+  const d = (out, re) => Number((out.match(re) || [])[1]);                                  // cope_walk 의 「차이」(%p)
+  const pooled = d(run("--seed", "1", "--n", "60", "--boot", "200", "--hetero", "0.6").stdout, /cope_walk\s+[\d.]+%\s+[\d.]+%\s+(-?[\d.]+)%p/);
+  const within = d(w.stdout, /cope_walk\s+\d+\s+(-?[\d.]+)%p/);
+  assert.ok(within < pooled - 5, "한 사람 안의 변화(" + within + "%p)가 모은 값(" + pooled + "%p)보다 심은 효과(-25%p) 쪽으로 더 가야 한다");
+});
+// 효과를 안 심고 사람 사이 차이만 준 30 시드 — 모아 보면 거의 늘 가짜 연관이 나오고, 한 사람 안의 변화는 5% 근처다
+function fpHet(app, within, k) {
+  let bad = 0;
+  for (let s = 100; s < 100 + k; s++) { const r = run(...(app ? ["--app", app] : []), "--seed", String(s), "--n", "60", "--effect", "0", "--boot", "100", "--hetero", "0.6", ...(within ? ["--within"] : [])); if (r.status !== 0) bad++; }
+  return bad;
+}
+test("보정(사람 사이 차이): 금연 — 모아 보면 오탐이 30 시드 중 20 이상, 한 사람 안의 변화는 7 이하", () => {
+  const pooled = fpHet(null, false, 30), within = fpHet(null, true, 30);
+  assert.ok(pooled >= 20, "모아 보면 교란이 보여야 한다 (지금 " + pooled + "/30)"); assert.ok(within <= 7, "한 사람 안의 변화 오탐 " + within + "/30");
+});
+test("보정(사람 사이 차이): 금주 — 모아 보면 오탐이 30 시드 중 20 이상, 한 사람 안의 변화는 7 이하", { skip: !hasAlc }, () => {
+  const pooled = fpHet("alcohol", false, 30), within = fpHet("alcohol", true, 30);
+  assert.ok(pooled >= 20, "모아 보면 교란이 보여야 한다 (지금 " + pooled + "/30)"); assert.ok(within <= 7, "한 사람 안의 변화 오탐 " + within + "/30");
+});

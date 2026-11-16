@@ -12,7 +12,11 @@
  *                       대처가 「넘김」 기록에만 남으므로 「대처별 마심 비율」은 구조상 늘 0% 다.
  *                       금주 research.js 는 ALC_DIR 또는 이 폴더 옆 NonAlcoholNote 에서 읽는다.
  *
- * 실행: node tools/research-synth.cjs [--app smoke|alcohol] [--seed 1] [--n 60] [--effect 0.25] [--boot 400]
+ * 한 사람 안의 변화 (--within · 2026-11-16 대표님 결정): 모아서 비교하면 「모임·회식이 잦은 사람이 원래 더 마시는 사람」이라는 사람 사이의 차이가
+ *   섞인다. --within 은 같은 사람의 「있던 순간」과 「없던 순간」을 짝지어 사람마다 차이를 구한 뒤(두 쪽 모두 있는 사람만) 정밀도 가중 평균을 내고,
+ *   구간은 사람 단위 부트스트랩으로 낸다. --hetero H(0~1)는 사람마다 기준 확률과 상황 빈도가 함께 달라 사람 사이 교란이 생기게 한다 (H=0 이면 난수 순서가 그대로).
+ *
+ * 실행: node tools/research-synth.cjs [--app smoke|alcohol] [--seed 1] [--n 60] [--effect 0.25] [--boot 400] [--hetero 0] [--within]
  * 종료 코드: 양성 대조(효과를 심음)는 되찾으면 0, 음성 대조(--effect 0)는 구간이 0 을 포함하면 0, 아니면 1. 금주 폴더가 없으면 2.
  */
 "use strict";
@@ -27,6 +31,9 @@ const APPDIR = APP === "smoke" ? path.join(__dirname, "..") : path.resolve(proce
 if (!fs.existsSync(path.join(APPDIR, "research.js"))) { console.error(APPDIR + "/research.js 가 없습니다 (ALC_DIR 로 알려 주세요)"); process.exit(2); }
 const R = require(path.join(APPDIR, "research.js"));
 const SEED = arg("seed", 1), N = arg("n", 60), EFFECT = arg("effect", 0.25), BOOT = arg("boot", 400);
+const HET = arg("hetero", 0), WITHIN = process.argv.includes("--within");
+// 사람마다 다른 정도(u ∈ [-HET, HET]) — 별도 난수에서 뽑아 HET=0 이면 기본 난수 순서·출력이 그대로다
+const personU = (i) => (HET > 0 ? HET * (2 * rng(SEED * 7919 + i * 104729 + 13)() - 1) : 0);
 const BASE = 0.35;                                   // 기준 피움 확률 (가짜)
 
 function rng(seed) { let a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -38,13 +45,14 @@ const TRIG = ["식사 후", "커피·술", "스트레스", "지루함", "아침 
 const COPE = ["물 마시기", "심호흡", "산책", "양치질", "껌·사탕", "전화 통화", "5분 버티기"];
 
 function makeSmoke(i) {
+  const u = personU(i);                                                          // u 가 크면 원래 더 피우고(기준 +0.5u) 산책도 더 자주 한다(+0.3u) → 사람 사이 교란
   const st = { kind: "cig", perDay: 10, price: 4500, start: T0, attempts: [], meds: {}, logs: [], measures: [] };
   const days = 14 + Math.floor(rand() * 60), rate = 0.5 + rand() * 2;     // 사람마다 기록 빈도가 다르다
   for (let d = 0; d < days; d++) {
     const n = Math.floor(rate * rand() * 2);
     for (let k = 0; k < n; k++) {
-      const cope = COPE.filter(() => rand() < 0.25);
-      let p = BASE;
+      const cope = COPE.filter((c) => rand() < (c === "산책" ? 0.25 + 0.3 * u : 0.25));
+      let p = BASE + 0.5 * u;
       if (cope.includes("산책")) p -= EFFECT;                              // 심은 효과: 「산책」이 있으면 피울 확률이 내려간다
       st.logs.push({ v: 2, t: T0 + d * DAY + Math.floor(rand() * 14) * 3600000 + 8 * 3600000, lv: pick(LV), mood: pick(MOOD),
         trig: TRIG.filter(() => rand() < 0.2), other: rand() < 0.3, avail: rand() < 0.5, cope, slip: rand() < Math.max(0.02, p) });
@@ -58,6 +66,7 @@ const A_TRIG = ["퇴근 후", "식사 중", "모임·회식", "스트레스", "�
 const A_COPE = ["물·차 마시기", "심호흡", "산책", "연락하기", "자리 피하기", "간식 먹기"];
 const A_BEV = ["소주", "맥주", "와인", "막걸리", "양주", "소주(병)", "맥주(500cc)", "와인(병)", "막걸리(병)"];
 function makeAlcohol(i) {
+  const u = personU(i);                                                          // u 가 크면 원래 더 마시고(기준 +0.5u) 모임·회식도 더 잦다(+0.3u) → 사람 사이 교란
   const st = { goal: "cut", start: T0, attempts: [], logs: [], freq: 3, price: 30000 };
   const days = 14 + Math.floor(rand() * 60), rate = 0.5 + rand() * 2;
   for (let d = 0; d < days; d++) {
@@ -65,8 +74,8 @@ function makeAlcohol(i) {
     for (let k = 0; k < n; k++) {
       const t = T0 + d * DAY + Math.floor(rand() * 14) * 3600000 + 8 * 3600000;
       if (rand() < 0.1) { st.logs.push({ v: 1, t, kind: "urge", cups: 0, lv: "보통", mood: null, trig: [], cope: ["5분 버티기"] }); continue; }   // 5분 버티기 자동 기록: 갈망·기분·상황이 없다
-      const cr = Math.floor(rand() * 11), trig = A_TRIG.filter(() => rand() < 0.2);
-      let p = BASE;
+      const cr = Math.floor(rand() * 11), trig = A_TRIG.filter((x) => rand() < (x === "모임·회식" ? 0.2 + 0.3 * u : 0.2));
+      let p = BASE + 0.5 * u;
       if (trig.includes("모임·회식")) p += EFFECT;                         // 심은 효과: 「모임·회식」이 있으면 마실 확률이 올라간다
       const drank = rand() < Math.min(0.95, p);
       st.logs.push({ v: 1, t, kind: drank ? "drink" : "urge", cups: drank ? 1 + Math.floor(rand() * 4) : 0, bev: drank ? pick(A_BEV) : null, cr,
@@ -137,6 +146,37 @@ if (APP === "smoke" && AUTO < 0) console.log("주의: 이 research.js 에는 aut
 if (APP === "alcohol") console.log("대처는 비교하지 않음: 금주 앱은 「마셨어요」에서 대처 칸을 숨겨 대처가 「넘김」 기록에만 남으므로 「대처별 마심 비율」은 구조상 늘 0% 다.");
 // 판정은 「미리 정한 한 가지 대비」만 본다(금연 산책 · 금주 모임·회식). 양성 대조(효과를 심음): 그 구간이 0 의 심은 방향 쪽에 있어야 한다. 음성 대조(--effect 0): 그 구간이 0 을 포함해야 한다.
 // 비교를 여러 개 한꺼번에 보므로 음성 대조에서도 우연히 한두 구간이 0 을 벗어날 수 있다(구간 하나당 약 5%, 일곱 개면 하나라도일 확률 약 30%) — 그래서 아래 「다중 비교」 줄로 숫자만 알리고 판정에는 넣지 않는다.
+// ── 한 사람 안의 변화 (--within): 사람마다 「있던 순간」과 「없던 순간」의 결과 비율 차를 구하고(두 쪽 모두 있는 사람만),
+//    두 쪽 기록 수의 조화 가중(n_on·n_off/(n_on+n_off))으로 평균한다 — 기록이 한쪽에 쏠린 사람은 적게 센다. 구간은 사람 단위 부트스트랩(별도 난수).
+//    사람 사이의 차이(원래 더 마시는 사람이 모임·회식도 잦음)는 사람마다 빼므로 섞이지 않는다.
+let within = null;
+if (WITHIN) {
+  const wrand = rng(SEED * 31 + 977);
+  const by = {}; rows.forEach((r) => (by[r.pid] = by[r.pid] || []).push(r));
+  const ids = Object.keys(by);
+  const est = (groups, j) => {                                                    // groups: 사람별 기록 묶음의 목록 (같은 사람이 여러 번 뽑혀도 따로 센다)
+    let num = 0, den = 0, m = 0;
+    groups.forEach((g) => {
+      let a1 = 0, n1 = 0, a0 = 0, n0 = 0;
+      g.forEach((r) => { if (r.x[j] === 1) { n1++; a1 += r.lapse; } else if (r.x[j] === 0) { n0++; a0 += r.lapse; } });
+      if (n1 && n0) { const w = (n1 * n0) / (n1 + n0); num += w * (a1 / n1 - a0 / n0); den += w; m++; }
+    });
+    return { d: den ? num / den : NaN, m: m };
+  };
+  within = CONTRASTS.map((c, j) => {
+    const e = est(ids.map((id) => by[id]), j), out = [];
+    for (let b = 0; b < BOOT; b++) { const gs = []; for (let i = 0; i < ids.length; i++) gs.push(by[ids[Math.floor(wrand() * ids.length)]]); const d = est(gs, j).d; if (!isNaN(d)) out.push(d); }
+    out.sort((a, b) => a - b);
+    return { name: c.name, d: e.d, m: e.m, ci: out.length ? [out[Math.floor(out.length * 0.025)], out[Math.floor(out.length * 0.975)]] : [NaN, NaN] };
+  });
+  console.log("\n한 사람 안의 변화 — 같은 사람의 「" + CFG.with + "」 순간 − 「없음」 순간 (두 쪽 모두 있는 사람만 · 기록 수 조화 가중 평균 · 사람 단위 부트스트랩 " + BOOT + "회)");
+  console.log(CFG.groupLabel.padEnd(14) + "사람 수".padStart(8) + "차이".padStart(8) + "   95% 구간");
+  within.forEach((w) => console.log(w.name.padEnd(14) + String(w.m).padStart(8) + (w.d * 100).toFixed(1).padStart(7) + "%p   [" + (w.ci[0] * 100).toFixed(1) + ", " + (w.ci[1] * 100).toFixed(1) + "]" + (w.ci[0] > 0 || w.ci[1] < 0 ? "  ← 구간이 0 을 포함하지 않음" : "")));
+  const wp = within.find((w) => w.name === CFG.prespec);
+  if (wp) planted = { d: wp.d, ci: wp.ci };                                         // 판정은 한 사람 안의 변화로 (미리 정한 한 가지 대비)
+  outside = within.filter((w) => w.ci[0] > 0 || w.ci[1] < 0).length;
+  console.log("읽는 법: 사람 사이의 차이를 뺀 값이다. 효과·인과가 아니며, 한 사람의 기록이 적으면(두 쪽 모두 있는 사람 수가 적으면) 구간이 넓다.");
+}
 const hit = planted && (SIGN < 0 ? planted.ci[1] < 0 && planted.d < 0 : planted.ci[0] > 0 && planted.d > 0);
 const ok = planted && (EFFECT > 0 ? hit : planted.ci[0] <= 0 && planted.ci[1] >= 0);
 console.log("다중 비교: " + CONTRASTS.length + "개 중 " + outside + "개의 구간이 0 을 벗어남" + (EFFECT > 0 ? " (심은 효과 하나가 포함됨)" : " (효과를 안 심었으니 우연 — 비교 " + CONTRASTS.length + "개 × 5% ≈ " + (CONTRASTS.length * 0.05).toFixed(2) + "개가 기대값)"));
