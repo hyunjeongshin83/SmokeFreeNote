@@ -13,7 +13,7 @@
 })(typeof window !== "undefined" ? window : globalThis, function (root) {
   "use strict";
 
-  var CODEBOOK_VERSION = "2";   // 2 (2026-11-11): participant 에 smoking_years · prior_quit_attempts, meds 시트 (VN-218-3 나 · VN-218-5)
+  var CODEBOOK_VERSION = "3";   // 3 (2026-11-16): records 에 auto_record (대표님 결정 · 「5분 버티기」 완료 자동 기록 표시) · 2 (2026-11-11): participant 에 smoking_years · prior_quit_attempts, meds 시트 (VN-218-3 나 · VN-218-5)
   var DAY = 86400000;
   var MAX_DAILY_DAYS = 5000;   // 일별 시트의 최대 날수(약 13년). 넘으면 오래된 날부터 빠지고 codebook 에 적는다 — 기록(records) 시트는 줄이지 않는다
   var STORE_KEY = "smokefree.research.v1";
@@ -61,8 +61,14 @@
     TRIG.forEach(function (t) { h.push(t[0]); }); h.push("trig_none");
     h.push("others_smoking", "cig_available");
     COPE.forEach(function (c) { h.push(c[0]); });
-    h.push("slip", "record_version");
+    h.push("slip", "record_version", "auto_record");
     return h;
+  }
+
+  // 「5분 버티기」 끝에 앱이 저절로 남기는 기록인지 — 갈망 단계·기분·상황은 비었고 대처에 「5분 버티기」만 붙는다.
+  // 손으로 기록할 때는 기분 칩을 꼭 골라야 저장되고 대처 칩에 「5분 버티기」가 없어서, 기분이 비고 「5분 버티기」가 있으면 자동 기록이다 (SmokeFree_app.html l_save · sos_done).
+  function isAutoRecord(r) {
+    return Array.isArray(r.cope) && has(r.cope, "5분 버티기") && MOOD.indexOf(r.mood) < 0 && !(Array.isArray(r.trig) && r.trig.length);
   }
 
   function buildRecords(st, pid) {
@@ -77,7 +83,7 @@
       row.push(any ? 0 : 1);
       row.push(bin(r.other), bin(r.avail));
       COPE.forEach(function (c) { row.push(has(cope, c[1]) ? 1 : 0); });
-      row.push(r.slip ? 1 : 0, r.v === 2 ? 2 : 1);
+      row.push(r.slip ? 1 : 0, r.v === 2 ? 2 : 1, isAutoRecord(r) ? 1 : 0);
       rows.push(row);
     });
     return rows;
@@ -182,6 +188,7 @@
     COPE.forEach(function (c) { s("records", c[0], "넘긴 방법: " + c[1] + " (여러 개 가능)", "1 해당 · 0 아님"); });
     s("records", "slip", "결국 피웠나", "1 예 · 0 아니오");
     s("records", "record_version", "앱의 기록 형식", "2 현재 · 1 옛 기록");
+    s("records", "auto_record", "「5분 버티기」를 끝내면 앱이 저절로 남기는 기록인가 (갈망 단계 「보통」·기분·상황은 사람이 고른 값이 아님). 분석에서는 빼고 본다", "1 자동 · 0 사람이 적음 · 코드북 3 부터 (그 전 파일에는 없음)");
     s("measures", "measure_type", "측정값 종류", "1 날숨 CO(ppm) · 2 주간 퍼프·스틱 · 3 자가 키트 · 4 코티닌 수치 · 5 의료기관 CO(ppm) · 6 스티커로 적은 사용 1회 · 7 걸음 · 8 평균 심박 · 9 수면(분)");
     s("measures", "value", "값", "키트: 0 음성 · 1 희미한 줄 · 2 양성. 나머지는 수치");
     s("daily", "day_index", "금연 시작일 기준 며칠째", "0 이 시작일. 시작 전은 빈칸");
