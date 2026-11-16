@@ -23,7 +23,7 @@ const sarg = (k, d) => { const i = process.argv.indexOf("--" + k); return i > 0 
 const arg = (k, d) => { const i = process.argv.indexOf("--" + k); return i > 0 ? Number(process.argv[i + 1]) : d; };
 const APP = sarg("app", "smoke");
 if (APP !== "smoke" && APP !== "alcohol") { console.error("--app 은 smoke 또는 alcohol"); process.exit(2); }
-const APPDIR = APP === "smoke" ? path.join(__dirname, "..") : (process.env.ALC_DIR || path.join(__dirname, "..", "..", "NonAlcoholNote"));
+const APPDIR = APP === "smoke" ? path.join(__dirname, "..") : path.resolve(process.env.ALC_DIR || path.join(__dirname, "..", "..", "NonAlcoholNote"));
 if (!fs.existsSync(path.join(APPDIR, "research.js"))) { console.error(APPDIR + "/research.js 가 없습니다 (ALC_DIR 로 알려 주세요)"); process.exit(2); }
 const R = require(path.join(APPDIR, "research.js"));
 const SEED = arg("seed", 1), N = arg("n", 60), EFFECT = arg("effect", 0.25), BOOT = arg("boot", 400);

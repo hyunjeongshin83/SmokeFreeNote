@@ -24,7 +24,7 @@ test("음성 대조: 효과가 없으면 산책 구간이 0 을 포함한다 (�
 // ── 금주노트 (--app alcohol): 이 저장소 옆 NonAlcoholNote 가 있을 때만 돈다 (없으면 건너뜀)
 import fs from "node:fs";
 import path from "node:path";
-const ALC = process.env.ALC_DIR || path.join(path.dirname(script), "..", "..", "NonAlcoholNote");
+const ALC = path.resolve(process.env.ALC_DIR || path.join(path.dirname(script), "..", "..", "NonAlcoholNote"));   // 상대 경로여도 같은 곳을 가리키게 (Codex P2 · PR #95)
 const hasAlc = fs.existsSync(path.join(ALC, "research.js"));
 const alc = (...a) => run("--app", "alcohol", ...a);
 
