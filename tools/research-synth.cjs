@@ -16,7 +16,13 @@
  *   섞인다. --within 은 같은 사람의 「있던 순간」과 「없던 순간」을 짝지어 사람마다 차이를 구한 뒤(두 쪽 모두 있는 사람만) 정밀도 가중 평균을 내고,
  *   구간은 사람 단위 부트스트랩으로 낸다. --hetero H(0~1)는 사람마다 기준 확률과 상황 빈도가 함께 달라 사람 사이 교란이 생기게 한다 (H=0 이면 난수 순서가 그대로).
  *
- * 실행: node tools/research-synth.cjs [--app smoke|alcohol] [--seed 1] [--n 60] [--effect 0.25] [--boot 400] [--hetero 0] [--within]
+ * 같은 주 안에서만 짝짓기 (--within-week · 2026-11-16 대표님 결정): 한 사람 안에서도 「있던 순간」과 「없던 순간」이 다른 시기에 있으면 그 사이에 변한 것
+ *   (그 주의 스트레스·모임 철)이 섞인다. --within-week 은 사람×달력 주(월~일)마다 짝을 지어 차이를 구하고 같은 가중으로 평균한다(두 쪽 모두 있는 주만).
+ *   --drift D(0~1)는 합성 기록에 사람×주마다 달라지는 교란(그 주에 기준 확률과 상황 빈도가 함께 오르내림)을 넣는다 (D=0 이면 난수 순서가 그대로).
+ *
+ *   --pair-days N 은 짝을 짓는 구간을 N 일로 바꾼다(기본 7 · 1 이면 같은 날). 교란이 달력 주와 어긋나게 바뀔 때(--drift-shift)는 구간이 짧을수록 덜 샌다.
+ *
+ * 실행: node tools/research-synth.cjs [--app smoke|alcohol] [--seed 1] [--n 60] [--effect 0.25] [--boot 400] [--hetero 0] [--drift 0] [--drift-shift 0] [--within] [--within-week] [--pair-days 7]
  * 종료 코드: 양성 대조(효과를 심음)는 되찾으면 0, 음성 대조(--effect 0)는 구간이 0 을 포함하면 0, 아니면 1. 금주 폴더가 없으면 2.
  */
 "use strict";
@@ -31,9 +37,17 @@ const APPDIR = APP === "smoke" ? path.join(__dirname, "..") : path.resolve(proce
 if (!fs.existsSync(path.join(APPDIR, "research.js"))) { console.error(APPDIR + "/research.js 가 없습니다 (ALC_DIR 로 알려 주세요)"); process.exit(2); }
 const R = require(path.join(APPDIR, "research.js"));
 const SEED = arg("seed", 1), N = arg("n", 60), EFFECT = arg("effect", 0.25), BOOT = arg("boot", 400);
-const HET = arg("hetero", 0), WITHIN = process.argv.includes("--within");
+const PAIR = arg("pair-days", 7);                                                // --within-week 이 짝을 짓는 구간의 일수 (기본 7 = 달력 주 · 1 = 같은 날)
+const HET = arg("hetero", 0), DRIFT = arg("drift", 0), WEEK = process.argv.includes("--within-week"), WITHIN = process.argv.includes("--within") || WEEK;
 // 사람마다 다른 정도(u ∈ [-HET, HET]) — 별도 난수에서 뽑아 HET=0 이면 기본 난수 순서·출력이 그대로다
 const personU = (i) => (HET > 0 ? HET * (2 * rng(SEED * 7919 + i * 104729 + 13)() - 1) : 0);
+// 달력 주(월~일) 번호 — records 의 date(YYYY-MM-DD)로. 1970-01-01 은 목요일이라 (일수+3)/7 이 월요일마다 바뀐다
+const weekOf = (dateStr, span) => { const [y, m, d] = String(dateStr).split("-").map(Number); return Math.floor((Math.floor(Date.UTC(y, m - 1, d) / 86400000) + 3) / (span || 7)); };
+// 사람×주마다 다른 정도(v ∈ [-DRIFT, DRIFT]) — 그 주에 기준 확률(+0.5v)과 상황 빈도(+0.3v)가 함께 오르내린다. DRIFT=0 이면 0
+// 교란이 바뀌는 주는 기본으로 분석의 달력 주(월~일)와 같다. --drift-shift k 는 그 경계를 k 일 밀어 「짝 짓는 주」와 어긋나게 한다(실제 교란은 달력 주를 따르지 않는다)
+const SHIFT = arg("drift-shift", 0);
+const calWeekOfDay = (d) => { const t = new Date(T0 + (d + SHIFT) * DAY); return weekOf(t.getFullYear() + "-" + (t.getMonth() + 1) + "-" + t.getDate()); };
+const weekV = (i, d) => (DRIFT > 0 ? DRIFT * (2 * rng(SEED * 6007 + i * 7919 + calWeekOfDay(d) * 104729 + 29)() - 1) : 0);
 const BASE = 0.35;                                   // 기준 피움 확률 (가짜)
 
 function rng(seed) { let a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -51,10 +65,12 @@ function makeSmoke(i) {
   for (let d = 0; d < days; d++) {
     const n = Math.floor(rate * rand() * 2);
     for (let k = 0; k < n; k++) {
-      const cope = COPE.filter((c) => rand() < (c === "산책" ? 0.25 + 0.3 * u : 0.25));
-      let p = BASE + 0.5 * u;
+      const uu = u + weekV(i, d);
+      const cope = COPE.filter((c) => rand() < (c === "산책" ? 0.25 + 0.3 * uu : 0.25));
+      let p = BASE + 0.5 * uu;
       if (cope.includes("산책")) p -= EFFECT;                              // 심은 효과: 「산책」이 있으면 피울 확률이 내려간다
-      st.logs.push({ v: 2, t: T0 + d * DAY + Math.floor(rand() * 14) * 3600000 + 8 * 3600000, lv: pick(LV), mood: pick(MOOD),
+      st.logs.push({ v: 2, t: T0 + d * DAY + Math.floor(rand() * 14) * 3600000,   // 09:00~22:00 — 같은 날짜 안 (자정을 넘으면 달력 주가 어긋난다)
+        lv: pick(LV), mood: pick(MOOD),
         trig: TRIG.filter(() => rand() < 0.2), other: rand() < 0.3, avail: rand() < 0.5, cope, slip: rand() < Math.max(0.02, p) });
     }
   }
@@ -72,10 +88,10 @@ function makeAlcohol(i) {
   for (let d = 0; d < days; d++) {
     const n = Math.floor(rate * rand() * 2);
     for (let k = 0; k < n; k++) {
-      const t = T0 + d * DAY + Math.floor(rand() * 14) * 3600000 + 8 * 3600000;
+      const t = T0 + d * DAY + Math.floor(rand() * 14) * 3600000;   // 09:00~22:00 — 같은 날짜 안 (자정을 넘으면 달력 주가 어긋난다)
       if (rand() < 0.1) { st.logs.push({ v: 1, t, kind: "urge", cups: 0, lv: "보통", mood: null, trig: [], cope: ["5분 버티기"] }); continue; }   // 5분 버티기 자동 기록: 갈망·기분·상황이 없다
-      const cr = Math.floor(rand() * 11), trig = A_TRIG.filter((x) => rand() < (x === "모임·회식" ? 0.2 + 0.3 * u : 0.2));
-      let p = BASE + 0.5 * u;
+      const cr = Math.floor(rand() * 11), uu = u + weekV(i, d), trig = A_TRIG.filter((x) => rand() < (x === "모임·회식" ? 0.2 + 0.3 * uu : 0.2));
+      let p = BASE + 0.5 * uu;
       if (trig.includes("모임·회식")) p += EFFECT;                         // 심은 효과: 「모임·회식」이 있으면 마실 확률이 올라간다
       const drank = rand() < Math.min(0.95, p);
       st.logs.push({ v: 1, t, kind: drank ? "drink" : "urge", cups: drank ? 1 + Math.floor(rand() * 4) : 0, bev: drank ? pick(A_BEV) : null, cr,
@@ -110,12 +126,13 @@ const AUTO = HEAD.indexOf("auto_record");
 const SKIP = AUTO >= 0 ? (c) => c("auto_record") === 1 : (CFG.skip || null);
 const rows = [];
 let skipped = 0;
+
 people.forEach((p) => {
   const t = R.buildRecords(p.st, p.pid), col = (r) => (n) => r[HEAD.indexOf(n)];
   t.slice(1).forEach((r) => {
     const c = col(r);
     if (SKIP && SKIP(c)) { skipped++; return; }
-    rows.push({ pid: p.pid, lapse: CFG.lapse(c), x: CONTRASTS.map((k) => k.val(c)) });
+    rows.push({ pid: p.pid, wk: weekOf(c("date"), PAIR), lapse: CFG.lapse(c), x: CONTRASTS.map((k) => k.val(c)) });
   });
 });
 
@@ -154,28 +171,40 @@ if (WITHIN) {
   const wrand = rng(SEED * 31 + 977);
   const by = {}; rows.forEach((r) => (by[r.pid] = by[r.pid] || []).push(r));
   const ids = Object.keys(by);
-  const est = (groups, j) => {                                                    // groups: 사람별 기록 묶음의 목록 (같은 사람이 여러 번 뽑혀도 따로 센다)
-    let num = 0, den = 0, m = 0;
-    groups.forEach((g) => {
-      let a1 = 0, n1 = 0, a0 = 0, n0 = 0;
-      g.forEach((r) => { if (r.x[j] === 1) { n1++; a1 += r.lapse; } else if (r.x[j] === 0) { n0++; a0 += r.lapse; } });
-      if (n1 && n0) { const w = (n1 * n0) / (n1 + n0); num += w * (a1 / n1 - a0 / n0); den += w; m++; }
+  // 층(짝을 짓는 단위): 사람 하나(기본) 또는 사람×달력 주(--within-week). 층 안에서 「있음」과 「없음」이 모두 있어야 센다
+  const strata = (rs, weekly) => { if (!weekly) return [rs]; const m = {}; rs.forEach((r) => (m[r.wk] = m[r.wk] || []).push(r)); return Object.keys(m).map((k) => m[k]); };
+  const est = (people, j, weekly) => {                                            // people: 사람별 기록 묶음의 목록 (같은 사람이 여러 번 뽑혀도 따로 센다)
+    let num = 0, den = 0, m = 0, k = 0;
+    people.forEach((rs) => {
+      let any = false;
+      strata(rs, weekly).forEach((g) => {
+        let a1 = 0, n1 = 0, a0 = 0, n0 = 0;
+        g.forEach((r) => { if (r.x[j] === 1) { n1++; a1 += r.lapse; } else if (r.x[j] === 0) { n0++; a0 += r.lapse; } });
+        if (n1 && n0) { const w = (n1 * n0) / (n1 + n0); num += w * (a1 / n1 - a0 / n0); den += w; k++; any = true; }
+      });
+      if (any) m++;
     });
-    return { d: den ? num / den : NaN, m: m };
+    return { d: den ? num / den : NaN, m: m, k: k };
   };
-  within = CONTRASTS.map((c, j) => {
-    const e = est(ids.map((id) => by[id]), j), out = [];
-    for (let b = 0; b < BOOT; b++) { const gs = []; for (let i = 0; i < ids.length; i++) gs.push(by[ids[Math.floor(wrand() * ids.length)]]); const d = est(gs, j).d; if (!isNaN(d)) out.push(d); }
+  const table = (weekly) => CONTRASTS.map((c, j) => {
+    const e = est(ids.map((id) => by[id]), j, weekly), out = [];
+    for (let b = 0; b < BOOT; b++) { const gs = []; for (let i = 0; i < ids.length; i++) gs.push(by[ids[Math.floor(wrand() * ids.length)]]); const d = est(gs, j, weekly).d; if (!isNaN(d)) out.push(d); }
     out.sort((a, b) => a - b);
-    return { name: c.name, d: e.d, m: e.m, ci: out.length ? [out[Math.floor(out.length * 0.025)], out[Math.floor(out.length * 0.975)]] : [NaN, NaN] };
+    return { name: c.name, d: e.d, m: e.m, k: e.k, ci: out.length ? [out[Math.floor(out.length * 0.025)], out[Math.floor(out.length * 0.975)]] : [NaN, NaN] };
   });
-  console.log("\n한 사람 안의 변화 — 같은 사람의 「" + CFG.with + "」 순간 − 「없음」 순간 (두 쪽 모두 있는 사람만 · 기록 수 조화 가중 평균 · 사람 단위 부트스트랩 " + BOOT + "회)");
-  console.log(CFG.groupLabel.padEnd(14) + "사람 수".padStart(8) + "차이".padStart(8) + "   95% 구간");
-  within.forEach((w) => console.log(w.name.padEnd(14) + String(w.m).padStart(8) + (w.d * 100).toFixed(1).padStart(7) + "%p   [" + (w.ci[0] * 100).toFixed(1) + ", " + (w.ci[1] * 100).toFixed(1) + "]" + (w.ci[0] > 0 || w.ci[1] < 0 ? "  ← 구간이 0 을 포함하지 않음" : "")));
+  const show = (tbl, weekly) => {
+    console.log("\n" + (weekly ? "같은 주 안에서만 짝짓기" : "한 사람 안의 변화") + " — " + (weekly ? (PAIR === 7 ? "같은 사람·같은 달력 주(월~일) 안의" : "같은 사람·같은 " + PAIR + "일 구간 안의") : "같은 사람의") + " 「" + CFG.with + "」 순간 − 「없음」 순간 (두 쪽 모두 있는 " + (weekly ? "구간만" : "사람만") + " · 기록 수 조화 가중 평균 · 사람 단위 부트스트랩 " + BOOT + "회)");
+    console.log(CFG.groupLabel.padEnd(14) + "사람 수".padStart(8) + (weekly ? "짝 수".padStart(8) : "") + "차이".padStart(8) + "   95% 구간");
+    tbl.forEach((w) => console.log(w.name.padEnd(14) + String(w.m).padStart(8) + (weekly ? String(w.k).padStart(8) : "") + (w.d * 100).toFixed(1).padStart(7) + "%p   [" + (w.ci[0] * 100).toFixed(1) + ", " + (w.ci[1] * 100).toFixed(1) + "]" + (w.ci[0] > 0 || w.ci[1] < 0 ? "  ← 구간이 0 을 포함하지 않음" : "")));
+  };
+  const tPerson = table(false);
+  show(tPerson, false);
+  within = tPerson;
+  if (WEEK) { const tWeek = table(true); show(tWeek, true); within = tWeek; }
   const wp = within.find((w) => w.name === CFG.prespec);
-  if (wp) planted = { d: wp.d, ci: wp.ci };                                         // 판정은 한 사람 안의 변화로 (미리 정한 한 가지 대비)
+  if (wp) planted = { d: wp.d, ci: wp.ci };                                         // 판정은 가장 촘촘한 짝(--within-week 이면 주 안, 아니면 사람 안)의 미리 정한 한 가지 대비
   outside = within.filter((w) => w.ci[0] > 0 || w.ci[1] < 0).length;
-  console.log("읽는 법: 사람 사이의 차이를 뺀 값이다. 효과·인과가 아니며, 한 사람의 기록이 적으면(두 쪽 모두 있는 사람 수가 적으면) 구간이 넓다.");
+  console.log("읽는 법: " + (WEEK ? "같은 주 안에서만 짝지어 사람 사이의 차이와 주마다 변하는 것을 뺀 값이다. 짝이 되는 주가 적으면 구간이 넓다. " : "사람 사이의 차이를 뺀 값이다. ") + "효과·인과가 아니다.");
 }
 const hit = planted && (SIGN < 0 ? planted.ci[1] < 0 && planted.d < 0 : planted.ci[0] > 0 && planted.d > 0);
 const ok = planted && (EFFECT > 0 ? hit : planted.ci[0] <= 0 && planted.ci[1] >= 0);
