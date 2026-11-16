@@ -95,13 +95,17 @@ const people = Array.from({ length: N }, (_, i) => CFG.make(i + 1));
 // 앱의 내보내기 코드를 그대로 거친다 (records 표) — 열 이름으로 읽는다
 const HEAD = R.buildRecords(people[0].st, "x")[0];
 const CONTRASTS = CFG.contrasts(HEAD);
+// 「5분 버티기」 완료 자동 기록은 갈망·기분·상황이 비어 있는 「넘김」이라 모든 비교의 「없음」 쪽에 쌓여 가짜 연관을 만든다 → 뺀다.
+// 코드북 3(금연)·2(금주) 부터는 내보내기에 auto_record 칸이 있어 그것으로 뺀다. 칸이 없는 옛 research.js 면 금주는 예전 규칙(갈망 칸이 없는 기록)을 쓰고 금연은 뺄 수 없다.
+const AUTO = HEAD.indexOf("auto_record");
+const SKIP = AUTO >= 0 ? (c) => c("auto_record") === 1 : (CFG.skip || null);
 const rows = [];
 let skipped = 0;
 people.forEach((p) => {
   const t = R.buildRecords(p.st, p.pid), col = (r) => (n) => r[HEAD.indexOf(n)];
   t.slice(1).forEach((r) => {
     const c = col(r);
-    if (CFG.skip && CFG.skip(c)) { skipped++; return; }
+    if (SKIP && SKIP(c)) { skipped++; return; }
     rows.push({ pid: p.pid, lapse: CFG.lapse(c), x: CONTRASTS.map((k) => k.val(c)) });
   });
 });
@@ -127,8 +131,9 @@ CONTRASTS.forEach((c, j) => {
   if (c.name === CFG.prespec) planted = { d, ci };
 });
 console.log("\n읽는 법: 「차이」는 " + CFG.outcome + "의 차(" + CFG.with + " − 없음)이며 효과·인과가 아니다. 구간이 0 을 포함하면 이 표본으로는 방향을 말하지 않는다.");
-if (CFG.skip) console.log("제외: 갈망(0~10) 칸이 없는 기록 " + skipped + "건 — 「5분 버티기」 완료 자동 기록처럼 갈망·기분·상황이 비어 있어 모든 비교의 「없음」 쪽을 부풀린다(안 빼면 심지 않은 상황까지 「있음」이 높게 나온다).");
-if (APP === "smoke") console.log("주의: cope_hold5 는 「5분 버티기」 완료 자동 기록(늘 피우지 않음 · 갈망 단계 「보통」 기본값 · 같은 당김에 두 번째 기록)과 섞여 있어 이 비교는 해석하지 않는다 — 내보내기에는 자동 기록 표시가 없다.");
+if (SKIP) console.log("제외: " + (AUTO >= 0 ? "자동 기록(auto_record=1)" : "갈망(0~10) 칸이 없는 기록") + " " + skipped + "건 — 「5분 버티기」 완료 자동 기록처럼 갈망·기분·상황이 비어 있어 모든 비교의 「없음」 쪽을 부풀린다(안 빼면 심지 않은 상황까지 「있음」이 높게 나온다).");
+if (APP === "smoke" && AUTO >= 0) console.log("주의: 금연 앱의 손으로 적는 기록에는 「5분 버티기」 칸이 없어(그 대처는 자동 기록에만 붙는다) 자동 기록을 빼면 cope_hold5 는 비교할 수 없다 — 합성 기록의 이 칸은 앱과 다르게 아무 기록에나 붙는다.");
+if (APP === "smoke" && AUTO < 0) console.log("주의: 이 research.js 에는 auto_record 칸이 없어 금연 자동 기록을 뺄 수 없다 — cope_hold5 비교는 해석하지 않는다.");
 if (APP === "alcohol") console.log("대처는 비교하지 않음: 금주 앱은 「마셨어요」에서 대처 칸을 숨겨 대처가 「넘김」 기록에만 남으므로 「대처별 마심 비율」은 구조상 늘 0% 다.");
 // 판정은 「미리 정한 한 가지 대비」만 본다(금연 산책 · 금주 모임·회식). 양성 대조(효과를 심음): 그 구간이 0 의 심은 방향 쪽에 있어야 한다. 음성 대조(--effect 0): 그 구간이 0 을 포함해야 한다.
 // 비교를 여러 개 한꺼번에 보므로 음성 대조에서도 우연히 한두 구간이 0 을 벗어날 수 있다(구간 하나당 약 5%, 일곱 개면 하나라도일 확률 약 30%) — 그래서 아래 「다중 비교」 줄로 숫자만 알리고 판정에는 넣지 않는다.

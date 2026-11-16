@@ -38,13 +38,30 @@ test("기록은 시간순 한 줄씩, 모두 숫자 코드로 바뀐다", () => 
   assert.equal(col(r, "trig_stress"), 1); assert.equal(col(r, "trig_after_meal"), 1); assert.equal(col(r, "trig_home"), 0); assert.equal(col(r, "trig_none"), 0);
   assert.equal(col(r, "others_smoking"), 1); assert.equal(col(r, "cig_available"), 0);
   assert.equal(col(r, "cope_breath"), 1); assert.equal(col(r, "cope_hold5"), 1); assert.equal(col(r, "cope_water"), 0);
-  assert.equal(col(r, "slip"), 0); assert.equal(col(r, "record_version"), 2);
+  assert.equal(col(r, "slip"), 0); assert.equal(col(r, "record_version"), 2); assert.equal(col(r, "auto_record"), 0);
 });
 
 test("옛 기록은 빈 칸을 숫자로 지어내지 않는다", () => {
   const rows = R.buildRecords(state(), PID), H = rows[0], r = rows[2], col = n => r[H.indexOf(n)];
   assert.equal(col("others_smoking"), ""); assert.equal(col("cig_available"), "");
-  assert.equal(col("trig_none"), 1); assert.equal(col("slip"), 1); assert.equal(col("record_version"), 1);
+  assert.equal(col("trig_none"), 1); assert.equal(col("slip"), 1); assert.equal(col("record_version"), 1); assert.equal(col("auto_record"), 0);
+});
+
+test("자동 기록 표시(auto_record · 코드북 3): 「5분 버티기」 끝에 앱이 남기는 기록만 1, 사람이 적은 기록은 0", () => {
+  const t = at(2026, 11, 5, 9);
+  // 앱이 5분 버티기를 끝낼 때 남기는 모양 그대로 (SmokeFree_app.html sos_done) · 같은 당김에서 이어졌다면 from 이 붙는다
+  const auto = { v: 2, t, lv: "보통", mood: null, trig: [], other: false, avail: false, cope: ["5분 버티기"], slip: false };
+  const autoFrom = { v: 2, t: t + 60000, lv: "보통", mood: null, trig: [], other: false, avail: false, cope: ["5분 버티기"], slip: false, from: t - 1000 };
+  // 사람이 적은 기록: 기분 칩을 골라야 저장된다 (l_save) — 대처에 「5분 버티기」가 있어도(가져온 파일 등) 자동이 아니다
+  const manual = { v: 2, t: t + 120000, lv: "강함", mood: "나쁨", trig: ["스트레스"], other: false, avail: false, cope: ["심호흡"], slip: false };
+  const manualHold5 = { v: 2, t: t + 180000, lv: "보통", mood: "보통", trig: [], other: false, avail: false, cope: ["5분 버티기"], slip: false };
+  const noCope = { v: 2, t: t + 240000, lv: "보통", mood: null, trig: [], other: false, avail: false, cope: [], slip: false };   // 대처가 비어 있으면 자동 기록이 아니다
+  const rows = R.buildRecords({ start: t - 86400000, attempts: [], logs: [auto, autoFrom, manual, manualHold5, noCope] }, PID);
+  const H = rows[0], col = (r, n) => r[H.indexOf(n)];
+  assert.equal(H[H.length - 1], "auto_record");   // 기존 열의 자리를 밀지 않는다 — 맨 끝에 붙는다
+  assert.deepEqual(rows.slice(1).map((r) => col(r, "auto_record")), [1, 1, 0, 0, 0]);
+  const cb = R.buildCodebook().map((r) => r[0] + ":" + r[1]);
+  assert.ok(cb.includes("records:auto_record"));
 });
 
 test("자유로 적은 글은 어느 시트에도 들어가지 않는다", () => {
@@ -312,10 +329,10 @@ test("서비스워커: coach.js · iqos-ble.js 도 네트워크 우선 — 옛 �
   assert.equal((await off.run("/coach.js")).res.from, "cache");           // 오프라인이면 캐시로 열린다
 });
 
-test("서비스워커: 다른 정적 자산은 그대로 캐시 우선이고, 캐시 이름이 v28 로 올랐다", async () => {
+test("서비스워커: 다른 정적 자산은 그대로 캐시 우선이고, 캐시 이름이 v30 로 올랐다", async () => {
   const sw = loadSw({ cached: { "/vendor/qrcodejs-1.0.0.min.js": 1 } });
   const { res } = await sw.run("/vendor/qrcodejs-1.0.0.min.js"); assert.equal(res.from, "cache"); assert.equal(sw.fetched.length, 0, "캐시에 있으면 네트워크를 부르지 않음");
-  assert.match(sw.src, /const CACHE="smokefree-v29"/);
+  assert.match(sw.src, /const CACHE="smokefree-v30"/);
 });
 
 // ── 금주노트 연구 저장(#22)에서 Codex 가 지적해 고친 것들을 같은 코드인 이쪽에도 ───────────────────────────
@@ -419,12 +436,12 @@ test("meds 시트: 약 기록을 코드·수로만 담고, 이상한 기록·글
   assert.deepEqual(R.buildMeds({}, "P-00000001"), [rows[0]]);
 });
 
-test("participant: 흡연 기간·이전 시도 (선택 · 범위 밖은 빈칸) · 코드북 v2 (VN-218-3 나)", () => {
+test("participant: 흡연 기간·이전 시도 (선택 · 범위 밖은 빈칸) · 코드북 v3 (VN-218-3 나 · auto_record)", () => {
   const p = R.buildParticipant({ kind: "cig", smokeYears: 20, priorTries: 3 }, "P-00000001", 0);
   const h = p[0], v = p[1];
   assert.equal(v[h.indexOf("smoking_years")], 20);
   assert.equal(v[h.indexOf("prior_quit_attempts")], 3);
-  assert.equal(v[h.indexOf("codebook_version")], "2");
+  assert.equal(v[h.indexOf("codebook_version")], "3");
   const q = R.buildParticipant({ smokeYears: -1, priorTries: "3" }, "P-00000001", 0);
   assert.equal(q[1][h.indexOf("smoking_years")], ""); assert.equal(q[1][h.indexOf("prior_quit_attempts")], "");
   const cb = R.buildCodebook().map(r => r[0] + ":" + r[1]);

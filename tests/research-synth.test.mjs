@@ -48,7 +48,7 @@ test("금주 양성 대조: 심은 모임·회식 효과를 되찾고, 대처는
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, /검증: 심은 효과\(모임·회식\)/);
   assert.match(r.stdout, /대처는 비교하지 않음/);
-  assert.match(r.stdout, /제외: 갈망\(0~10\) 칸이 없는 기록 [1-9]\d*건/);
+  assert.match(r.stdout, /제외: (자동 기록\(auto_record=1\)|갈망\(0~10\) 칸이 없는 기록) [1-9]\d*건/);   // 금주 research.js 가 코드북 2 면 auto_record, 옛 것이면 갈망 칸 규칙
   assert.doesNotMatch(r.stdout, /cope_/, "대처 열이 비교 표에 없어야 한다");
 });
 test("금주 음성 대조: 효과가 없으면 모임·회식 구간이 0 을 포함한다", { skip: !hasAlc }, () => {
