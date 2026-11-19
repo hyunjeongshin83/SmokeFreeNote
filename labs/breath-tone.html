@@ -11,7 +11,9 @@
      분당 6번(들이쉬기 4초 · 내쉬기 6초) — 들이쉬는 동안 소리가 서서히 커지며 음이 올라가고, 내쉬는 동안 서서히 작아지며 내려갑니다.
      Web Audio API — 브라우저 내장, 무료, 소리 파일 없음(발진기 하나로 만듦), 어떤 데이터도 밖으로 나가지 않고 저장도 하지 않습니다.
      기본은 꺼짐입니다(도서관·회사에서 갑자기 울리지 않게). 소리는 보조일 뿐 글자와 그림이 항상 같이 나옵니다.
-     효과를 주장하지 않습니다 — 박자를 알려 주는 방법이 되는지(타이밍 · 지원 범위)만 잽니다. -->
+     효과를 주장하지 않습니다 — 박자를 알려 주는 방법이 되는지(타이밍 · 지원 범위)만 잽니다.
+     색 대비(WCAG 상대휘도로 계산 · 새 색 없이 labs/vibrate-breath.html 과 같은 값): 본문 #2b2f2d 배경 #f4f6f5 12.50:1 · 카드 흰 바탕 13.57:1 ·
+     보조 글자 #5b6360 카드 6.18:1 · 배경 5.69:1 · 단추 흰 글자 #0E6B48 6.53:1 · 보조 단추 #0E6B48 배경 #f4f6f5 6.02:1 (모두 4.5:1 이상). -->
 <style>
   :root{ --brand:#0E6B48; --n-0:#fff; --n-1:#f4f6f5; --n-7:#2b2f2d; --n-5:#5b6360; --fs-body:17px; --fs-sub:15px; --fs-h:21px; --sp-2:8px; --sp-4:16px; --sp-6:24px; --r-2:12px; }
   html{ font-size:100%; } body{ margin:0; background:var(--n-1); color:var(--n-7); font:var(--fs-body)/1.55 Pretendard,-apple-system,"Noto Sans KR",sans-serif; word-break:keep-all; }
@@ -82,20 +84,27 @@
   function silenceTone(){
     if(!ctx) return;
     var c=ctx, g=gain, o=osc; ctx=null; gain=null; osc=null; info.state="off"; $("ctxState").textContent="꺼짐";
-    try{ var n=c.currentTime; g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(g.gain.value, n); g.gain.linearRampToValueAtTime(0.0001, n+0.15); o.stop(n+0.2); }catch(e){}
-    setTimeout(function(){ try{ c.close(); }catch(e){} }, 400); publish();
+    fadeOut(c, g, o); publish();
   }
   $("useTone").addEventListener("change", function(){
     if(!running) return;
     if(!this.checked){ silenceTone(); say("소리를 껐어요. 글자와 그림은 계속돼요."); }
     else if(!ctx){ this.checked=false; say("소리는 다음 번 시작할 때부터 켜져요."); }
   });
+  // 지금 시각의 소리 크기를 schedule() 과 같은 모양으로 직접 계산합니다 — AudioParam.value 는 브라우저마다 자동 변화를 반영하는지 보장이 없어서(Chromium 은 반영함 · Safari·Firefox 는 확인 못 함)
+  function envGain(t){
+    var x=t-a0; if(x<=0) return 0.0001; var cl=IN+OUT, k=Math.floor(x/cl); if(k>=CYCLES) return 0.0001; var w=x-k*cl;
+    return Math.max(0.0001, w<IN ? PEAK*(w/IN) : PEAK*(1-(w-IN)/OUT));
+  }
+  function fadeOut(c, g, o){
+    try{ var n=c.currentTime, v=envGain(n); info.fadeFrom=+v.toFixed(4); g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(v, n); g.gain.linearRampToValueAtTime(0.0001, n+0.15); o.stop(n+0.2); }catch(e){}   // 지금 크기에서 0.15초에 줄여 끕니다
+    setTimeout(function(){ try{ c.close(); }catch(e){} }, 400);
+  }
   function setPhase(name, cls){ $("phase").textContent=name; $("ring").className="ring "+cls; }
   function stopAll(done){
     running=false; timers.forEach(clearTimeout); timers=[]; cancelAnimationFrame(raf);
-    if(gain && ctx){ try{ var n=ctx.currentTime; gain.gain.cancelScheduledValues(n); gain.gain.setValueAtTime(gain.gain.value, n); gain.gain.linearRampToValueAtTime(0.0001, n+0.15); osc.stop(n+0.2); }catch(e){} }   // 뚝 끊지 않고 0.15초에 줄여 끕니다
-    var c=ctx; ctx=null; osc=null; gain=null;
-    if(c){ setTimeout(function(){ try{ c.close(); }catch(e){} }, 400); }
+    var c=ctx, g=gain, o=osc; ctx=null; osc=null; gain=null;
+    if(c){ fadeOut(c, g, o); info.state="closed"; $("ctxState").textContent="닫힘"; }
     $("ring").className="ring"; $("sec").textContent="";
     $("start").disabled=false; $("stop").disabled=true;
     $("phase").textContent=done ? "마쳤어요" : "멈췄어요";
@@ -106,15 +115,19 @@
     running=true; info.driftMs=[]; info.cycles=0; $("drift").textContent="—";
     $("start").disabled=true; $("stop").disabled=false; say("");
     t0w=performance.now();
+    info.state=""; info.latencyMs=null; a0=0; $("ctxState").textContent="—"; $("lat").textContent="—";       // 앞 판의 진단이 남아 있지 않게
     if($("useTone").checked && info.supported){
+      var made=null;
       try{
-        ctx=new Ctx(); if(ctx.state==="suspended" && ctx.resume) ctx.resume();     // 누른 순간(사용자 동작)에 만들어야 소리가 허용됩니다
+        ctx=made=new Ctx();
+        if(ctx.state==="suspended" && ctx.resume){ var rp=ctx.resume(); if(rp && rp.catch) rp.catch(function(){ if(ctx===made){ silenceTone(); info.state="blocked"; $("ctxState").textContent="막힘"; say("이 브라우저가 소리를 막았어요. 글자와 그림으로만 알려 드려요."); publish(); } }); }     // 누른 순간(사용자 동작)에 만들어야 소리가 허용됩니다
         osc=ctx.createOscillator(); gain=ctx.createGain(); osc.type="sine"; osc.connect(gain); gain.connect(ctx.destination);
         a0=ctx.currentTime+0.05; schedule(ctx, gain, osc, a0); osc.start(a0); osc.stop(a0+CYCLES*(IN+OUT)+0.1);
         info.state=ctx.state; $("ctxState").textContent=ctx.state;
         info.latencyMs=Math.round(((ctx.baseLatency||0)+(ctx.outputLatency||0))*1000); $("lat").textContent=info.latencyMs+"ms";
-        ctx.onstatechange=function(){ if(ctx){ info.state=ctx.state; $("ctxState").textContent=ctx.state; publish(); } };
-      }catch(e){ info.state="error"; $("ctxState").textContent="만들지 못함"; ctx=null; }
+        // 소리 장치가 중간에 끊기면(전화·다른 앱) 시계가 멈춰 소리가 화면과 어긋나므로, 다시 켜지 않고 소리만 끕니다
+        ctx.onstatechange=function(){ if(ctx && ctx===made){ info.state=ctx.state; $("ctxState").textContent=ctx.state; if(running && ctx.state!=="running"){ silenceTone(); say("소리가 끊겨서 껐어요. 글자와 그림은 계속돼요."); } publish(); } };
+      }catch(e){ info.state="error"; $("ctxState").textContent="만들지 못함"; if(made){ try{ made.close(); }catch(x){} } ctx=null; osc=null; gain=null; }
     }
     // 글자·그림은 화면 시계로 따라갑니다 (소리가 없어도 같은 박자). 소리가 있으면 소리 시계와 얼마나 어긋나는지 잽니다.
     var cyc=-1;
@@ -133,13 +146,15 @@
   window.addEventListener("pagehide", function(){ if(running) stopAll(false); });
 
   // 스피커 없이 미리 계산: OfflineAudioContext 에 같은 소리 모양을 그려 0.1초 단위 크기(RMS)를 읽습니다
+  var selfSeq=0;
   $("selftest").onclick=function(){
-    $("selfout").textContent="계산 중…";
+    var my=++selfSeq; $("selfout").textContent="계산 중…";
     var OC=window.OfflineAudioContext||window.webkitOfflineAudioContext; if(!OC){ $("selfout").textContent="이 브라우저는 미리 계산을 지원하지 않아요."; return; }
     var rate=8000, total=CYCLES*(IN+OUT)+0.2, off=new OC(1, Math.ceil(total*rate), rate), o=off.createOscillator(), g=off.createGain();
     o.type="sine"; o.connect(g); g.connect(off.destination); schedule(off, g, o, 0); o.start(0); o.stop(total);
     var t=performance.now();
     off.startRendering().then(function(buf){
+      if(my!==selfSeq) return;             // 더 늦게 누른 계산이 있으면 앞의 결과는 버립니다
       var d=buf.getChannelData(0), win=Math.round(rate*0.1), rms=[];
       for(var i=0;i+win<=d.length;i+=win){ var s=0; for(var j=0;j<win;j++) s+=d[i+j]*d[i+j]; rms.push(Math.sqrt(s/win)); }
       var cycleLen=IN+OUT, peaks=[];
