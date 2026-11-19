@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>금연노트 실험 — 숨 쉬는 박자를 소리로 (Web Audio API)</title>
+<!-- 실험 화면입니다. 앱 본체에서 링크하지 않습니다 (labs/ 아래 별도 화면 규칙).
+     무엇을 실험하나: 「지금 담배가 당겨요」에서 숨 쉬는 박자를 글자·그림·진동(labs/vibrate-breath.html)에 더해 「소리」로도 알려 줄 수 있는지.
+     진동은 iOS Safari 가 지원하지 않는다고 알려져 있어(이슈 #165), 소리는 그 빈자리를 메울 수 있는지 봅니다.
+     분당 6번(들이쉬기 4초 · 내쉬기 6초) — 들이쉬는 동안 소리가 서서히 커지며 음이 올라가고, 내쉬는 동안 서서히 작아지며 내려갑니다.
+     Web Audio API — 브라우저 내장, 무료, 소리 파일 없음(발진기 하나로 만듦), 어떤 데이터도 밖으로 나가지 않고 저장도 하지 않습니다.
+     기본은 꺼짐입니다(도서관·회사에서 갑자기 울리지 않게). 소리는 보조일 뿐 글자와 그림이 항상 같이 나옵니다.
+     효과를 주장하지 않습니다 — 박자를 알려 주는 방법이 되는지(타이밍 · 지원 범위)만 잽니다. -->
+<style>
+  :root{ --brand:#0E6B48; --n-0:#fff; --n-1:#f4f6f5; --n-7:#2b2f2d; --n-5:#5b6360; --fs-body:17px; --fs-sub:15px; --fs-h:21px; --sp-2:8px; --sp-4:16px; --sp-6:24px; --r-2:12px; }
+  html{ font-size:100%; } body{ margin:0; background:var(--n-1); color:var(--n-7); font:var(--fs-body)/1.55 Pretendard,-apple-system,"Noto Sans KR",sans-serif; word-break:keep-all; }
+  main{ max-width:480px; margin:0 auto; padding:var(--sp-6) var(--sp-4); }
+  h1{ font-size:var(--fs-h); margin:0 0 var(--sp-2); } p{ margin:0 0 var(--sp-4); } .sub{ font-size:var(--fs-sub); color:var(--n-5); }
+  .card{ background:var(--n-0); border-radius:var(--r-2); padding:var(--sp-4); margin-bottom:var(--sp-4); }
+  .btn{ display:block; width:100%; min-height:48px; border:0; border-radius:var(--r-2); background:var(--brand); color:#fff; font:inherit; font-weight:700; }
+  .btn.ghost{ background:var(--n-1); color:var(--brand); border:1px solid var(--brand); margin-top:var(--sp-2); }
+  .btn[disabled]{ opacity:.55; }
+  label{ display:flex; align-items:center; gap:var(--sp-2); min-height:44px; }
+  input[type=checkbox]{ width:24px; height:24px; }
+  code{ font-size:var(--fs-sub); background:var(--n-1); padding:1px 5px; border-radius:6px; overflow-wrap:anywhere; }
+  .ring{ width:140px; height:140px; margin:0 auto var(--sp-4); border-radius:50%; border:6px solid var(--brand); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:var(--fs-h); transition:transform 4s ease-in-out; }
+  .ring.in{ transform:scale(1.25); } .ring.out{ transform:scale(.85); transition-duration:6s; }
+  @media (prefers-reduced-motion:reduce){ .ring, .ring.out{ transition:none; } }
+  .phase{ text-align:center; font-size:var(--fs-h); font-weight:700; margin:0 0 var(--sp-4); }
+</style>
+</head>
+<body>
+<main>
+  <h1>숨 쉬는 박자 · 소리로 (실험)</h1>
+  <p class="sub">들이쉬기 4초 → 내쉬기 6초(분당 6번)를 글자·그림으로 알려 주고, 원하면 <b>부드러운 소리</b>도 냅니다. 소리 파일이 없고, 기록을 만들지 않으며, 어디에도 보내지 않습니다.</p>
+
+  <section class="card">
+    <p id="support" aria-live="polite">확인 중…</p>
+    <label><input type="checkbox" id="useTone"> 소리로도 알려 주기 (기본 꺼짐)</label>
+    <div class="ring" id="ring" aria-hidden="true"><span id="sec"></span></div>
+    <p class="phase" id="phase" aria-live="polite">준비</p>
+    <button class="btn" id="start">1분 해 보기</button>
+    <button class="btn ghost" id="stop" disabled>멈추기</button>
+    <p class="sub" id="state" aria-live="polite"></p>
+  </section>
+
+  <section class="card sub">
+    <p>소리 상태 <b id="ctxState">—</b> · 박자 어긋남(소리 시계 대 화면 시계) <b id="drift">—</b> · 출력 지연 <b id="lat">—</b></p>
+    <p>소리를 <b>미리 계산해 보기</b>(스피커 없이): <button class="btn ghost" id="selftest" style="display:inline-block;width:auto;padding:0 var(--sp-4)">확인</button> <span id="selfout"></span></p>
+    <p><code id="ua"></code></p>
+  </section>
+</main>
+<script>
+(function(){
+  var $=function(i){ return document.getElementById(i); };
+  // 시험용: ?speed=10 이면 10배 빠르게 돕니다 (자동 시험 전용 — 사람이 쓰는 값이 아닙니다)
+  var q=new URLSearchParams(location.search), SPEED=Math.max(1, Math.min(20, +q.get("speed")||1));
+  var IN=4/SPEED, OUT=6/SPEED, CYCLES=6;                 // 초 (오디오 시계 기준)
+  var F_LOW=220, F_HIGH=330, PEAK=0.10;                  // 낮은 음 · 높은 음 · 가장 큰 소리(0~1 중 작게)
+  var Ctx=window.AudioContext||window.webkitAudioContext;
+  var info={ supported:!!Ctx, state:"", driftMs:[], latencyMs:null, cycles:0 };
+  var ctx=null, osc=null, gain=null, running=false, t0w=0, a0=0, raf=0, timers=[];
+  function publish(){ document.documentElement.setAttribute("data-tone", JSON.stringify(info)); }
+  function say(m){ $("state").textContent=m; }
+  // 어긋남은 둘로 나눠 봅니다 — 시작 때 한 번 생기는 고정 차이(소리 장치가 켜지는 시간)와, 그 뒤 60초 동안 벌어지는 변동
+  function showDrift(){ var d=info.driftMs; if(!d.length) return; var first=d[0], mn=Math.min.apply(null,d), mx=Math.max.apply(null,d); info.startOffsetMs=first; info.wanderMs=mx-mn; $("drift").textContent="시작 차이 "+first+"ms · 그 뒤 변동 "+(mx-mn)+"ms"; }
+
+  // 소리 모양 하나 — 진짜 소리와 미리 계산 둘이 같은 함수를 씁니다 (그래서 미리 계산한 값이 곧 실제 박자)
+  function schedule(c, g, o, start){
+    g.gain.setValueAtTime(0.0001, start); o.frequency.setValueAtTime(F_LOW, start);
+    for(var k=0;k<CYCLES;k++){
+      var a=start+k*(IN+OUT);
+      g.gain.linearRampToValueAtTime(PEAK, a+IN);            // 들이쉬기: 서서히 커짐
+      o.frequency.linearRampToValueAtTime(F_HIGH, a+IN);     //            음이 올라감
+      g.gain.linearRampToValueAtTime(0.0001, a+IN+OUT);      // 내쉬기:   서서히 작아짐
+      o.frequency.linearRampToValueAtTime(F_LOW, a+IN+OUT);  //            음이 내려감
+    }
+  }
+
+  function setPhase(name, cls){ $("phase").textContent=name; $("ring").className="ring "+cls; }
+  function stopAll(done){
+    running=false; timers.forEach(clearTimeout); timers=[]; cancelAnimationFrame(raf);
+    if(gain && ctx){ try{ var n=ctx.currentTime; gain.gain.cancelScheduledValues(n); gain.gain.setValueAtTime(gain.gain.value, n); gain.gain.linearRampToValueAtTime(0.0001, n+0.15); osc.stop(n+0.2); }catch(e){} }   // 뚝 끊지 않고 0.15초에 줄여 끕니다
+    var c=ctx; ctx=null; osc=null; gain=null;
+    if(c){ setTimeout(function(){ try{ c.close(); }catch(e){} }, 400); }
+    $("ring").className="ring"; $("sec").textContent="";
+    $("start").disabled=false; $("stop").disabled=true;
+    $("phase").textContent=done ? "마쳤어요" : "멈췄어요";
+    say(done ? "1분을 마쳤어요. 어디에도 저장하지 않았어요." : "멈췄어요. 어디에도 저장하지 않았어요."); publish();
+  }
+
+  $("start").onclick=function(){
+    running=true; info.driftMs=[]; info.cycles=0; $("drift").textContent="—";
+    $("start").disabled=true; $("stop").disabled=false; say("");
+    t0w=performance.now();
+    if($("useTone").checked && info.supported){
+      try{
+        ctx=new Ctx(); if(ctx.state==="suspended" && ctx.resume) ctx.resume();     // 누른 순간(사용자 동작)에 만들어야 소리가 허용됩니다
+        osc=ctx.createOscillator(); gain=ctx.createGain(); osc.type="sine"; osc.connect(gain); gain.connect(ctx.destination);
+        a0=ctx.currentTime+0.05; schedule(ctx, gain, osc, a0); osc.start(a0); osc.stop(a0+CYCLES*(IN+OUT)+0.1);
+        info.state=ctx.state; $("ctxState").textContent=ctx.state;
+        info.latencyMs=Math.round(((ctx.baseLatency||0)+(ctx.outputLatency||0))*1000); $("lat").textContent=info.latencyMs+"ms";
+        ctx.onstatechange=function(){ if(ctx){ info.state=ctx.state; $("ctxState").textContent=ctx.state; publish(); } };
+      }catch(e){ info.state="error"; $("ctxState").textContent="만들지 못함"; ctx=null; }
+    }
+    // 글자·그림은 화면 시계로 따라갑니다 (소리가 없어도 같은 박자). 소리가 있으면 소리 시계와 얼마나 어긋나는지 잽니다.
+    var cyc=-1;
+    (function tick(){
+      if(!running) return;
+      var el=(performance.now()-t0w)/1000, total=CYCLES*(IN+OUT);
+      if(el>=total){ stopAll(true); return; }
+      var c=Math.floor(el/(IN+OUT)), within=el-c*(IN+OUT), inhale=within<IN;
+      if(c!==cyc || ($("phase").textContent!==(inhale?"들이쉬세요":"내쉬세요"))){ cyc=c; setPhase(inhale?"들이쉬세요":"내쉬세요", inhale?"in":"out"); info.cycles=c+1; publish(); }
+      if(ctx && ctx.state==="running" && a0){ var audioEl=ctx.currentTime-a0; info.driftMs.push(Math.round((audioEl-el)*1000)); showDrift(); }   // 부호 있는 차이(ms) — 소리가 화면보다 앞이면 +, 늦으면 −. ?speed 로 돌릴 때 값은 읽는 값이 아닙니다
+      raf=requestAnimationFrame(tick);
+    })();
+  };
+  $("stop").onclick=function(){ stopAll(false); };
+  document.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden" && running) stopAll(false); });   // 화면을 떠나면 소리를 멈춥니다 (백그라운드에서 소리 금지)
+  window.addEventListener("pagehide", function(){ if(running) stopAll(false); });
+
+  // 스피커 없이 미리 계산: OfflineAudioContext 에 같은 소리 모양을 그려 0.1초 단위 크기(RMS)를 읽습니다
+  $("selftest").onclick=function(){
+    $("selfout").textContent="계산 중…";
+    var OC=window.OfflineAudioContext||window.webkitOfflineAudioContext; if(!OC){ $("selfout").textContent="이 브라우저는 미리 계산을 지원하지 않아요."; return; }
+    var rate=8000, total=CYCLES*(IN+OUT)+0.2, off=new OC(1, Math.ceil(total*rate), rate), o=off.createOscillator(), g=off.createGain();
+    o.type="sine"; o.connect(g); g.connect(off.destination); schedule(off, g, o, 0); o.start(0); o.stop(total);
+    var t=performance.now();
+    off.startRendering().then(function(buf){
+      var d=buf.getChannelData(0), win=Math.round(rate*0.1), rms=[];
+      for(var i=0;i+win<=d.length;i+=win){ var s=0; for(var j=0;j<win;j++) s+=d[i+j]*d[i+j]; rms.push(Math.sqrt(s/win)); }
+      var cycleLen=IN+OUT, peaks=[];
+      for(var k=0;k<CYCLES;k++){ var lo=Math.floor(k*cycleLen*10), hi=Math.floor((k+1)*cycleLen*10), mx=-1, at=0; for(var m=lo;m<hi && m<rms.length;m++){ if(rms[m]>mx){ mx=rms[m]; at=m; } } peaks.push({ k:k, atSec:+(at/10).toFixed(1), expectedSec:+(k*cycleLen+IN).toFixed(1), rms:+mx.toFixed(3) }); }
+      var res={ renderMs:Math.round(performance.now()-t), seconds:+total.toFixed(1), peaks:peaks, maxPeakErrSec:Math.max.apply(null, peaks.map(function(p){ return Math.abs(p.atSec-p.expectedSec); })), maxRms:+Math.max.apply(null, rms).toFixed(3), firstRms:+rms[0].toFixed(4), lastRms:+rms[rms.length-1].toFixed(4) };
+      window.__toneSelf=res; $("selfout").textContent="소리가 가장 큰 때가 들이쉬기가 끝나는 때와 최대 "+res.maxPeakErrSec+"초 어긋남 · 처음·끝은 거의 무음"; publish();
+    }).catch(function(e){ $("selfout").textContent="계산하지 못했어요."; });
+  };
+
+  $("ua").textContent=navigator.userAgent.replace(/\(.*?\)/g,"").slice(0,60);
+  $("useTone").disabled=!info.supported;
+  $("support").textContent = info.supported
+    ? "이 브라우저는 소리를 낼 수 있어요. (휴대폰이 무음이거나 소리가 꺼져 있으면 들리지 않을 수 있어요 — 특히 아이폰의 무음 스위치는 확인하지 못했어요.)"
+    : "이 브라우저는 소리 만들기를 지원하지 않아요. 글자와 그림으로만 알려 드려요.";
+  publish();
+})();
+</script>
+</body>
+</html>
