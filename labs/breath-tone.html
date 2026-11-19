@@ -78,6 +78,18 @@
     }
   }
 
+  // 소리만 끕니다(글자·그림은 계속) — 진행 중에 체크를 풀면 바로 줄여서 끄고, 끈 뒤에 다시 켜는 것은 다음 시작부터입니다
+  function silenceTone(){
+    if(!ctx) return;
+    var c=ctx, g=gain, o=osc; ctx=null; gain=null; osc=null; info.state="off"; $("ctxState").textContent="꺼짐";
+    try{ var n=c.currentTime; g.gain.cancelScheduledValues(n); g.gain.setValueAtTime(g.gain.value, n); g.gain.linearRampToValueAtTime(0.0001, n+0.15); o.stop(n+0.2); }catch(e){}
+    setTimeout(function(){ try{ c.close(); }catch(e){} }, 400); publish();
+  }
+  $("useTone").addEventListener("change", function(){
+    if(!running) return;
+    if(!this.checked){ silenceTone(); say("소리를 껐어요. 글자와 그림은 계속돼요."); }
+    else if(!ctx){ this.checked=false; say("소리는 다음 번 시작할 때부터 켜져요."); }
+  });
   function setPhase(name, cls){ $("phase").textContent=name; $("ring").className="ring "+cls; }
   function stopAll(done){
     running=false; timers.forEach(clearTimeout); timers=[]; cancelAnimationFrame(raf);
