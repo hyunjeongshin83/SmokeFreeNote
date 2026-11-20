@@ -69,7 +69,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--g4);box-shadow:0 0 0 
    outline:none 을 걷어내고 키보드 초점(:focus-visible)에만 2px 링. 마우스·터치 초점은 지금처럼 링 없음.
    링 색 --g4 var(--brand): 바탕 var(--g0) 6.02:1 · #FAFDFB 6.38:1 · #FFF 6.53:1 · var(--g1) 5.43:1 (WCAG 상대휘도 계산 · 3:1 이상).
    --tabbar-h 는 .tabs 실측 100% 63px · 200% 80px → 80px. 머리글은 sticky 가 없어 0. */
-:root{--focus-width:2px;--focus-offset:2px;--focus-color:var(--g4);--focus-on-brand:#FFFFFF;--tabbar-h:80px;--header-h:0px;}
+:root{--focus-width:3px;--focus-offset:2px;--focus-color:var(--g4);--focus-on-brand:#FFFFFF;--tabbar-h:80px;--header-h:0px;}
 :focus-visible{outline:var(--focus-width) solid var(--focus-color);outline-offset:var(--focus-offset);}
 :focus:not(:focus-visible){outline:none;}
 [data-surface="brand"]{--focus-color:var(--focus-on-brand);}
