@@ -1496,7 +1496,7 @@ html.big body{zoom:1.18;}
   }
   function csvCell(v){ var t = String(v == null ? "" : v).replace(/\r?\n/g, " "); if(/^[\s\x00-\x1f]*[=+\-@]/.test(t)) t = "'"+t;  return '"'+t.replace(/"/g,'""')+'"'; }
   function latest(){ try{ if(pullOthers()) setTimeout(rerender, 0); }catch(e){} }   // 파일을 만들기 전에 다른 탭이 막 저장한 것까지 합친다 (#87 Sourcery)
-  function fdate(){ return new Date().toISOString().slice(0,10); }
+  function fdate(){ return dkey(Date.now()); }   // 기기 로컬 날짜 — toISOString 은 UTC 라 한국 0~9시에 하루 전 날짜가 붙었다 (#230 VN-230-1)
   function summaryCsv(){
     var r = proSummary().rows(), out = ["날짜,시간대,구분,세기,기분,상황,대처"];
     cleanMedlog(st.medlog).forEach(function(m){ r.push({ t: m.t, kind: "약", lv: "", mood: "", trig: [medLabel(m)], cope: [] }); });   // 약 종류·용량 (상황 칸에 「니코틴 패치 21mg」처럼)
